@@ -48,6 +48,20 @@ button {
   gap: 12px;
 }
 
+.brand-title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-title-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .brand-lockup strong,
 .rail-header span,
 .project-item span,
@@ -79,6 +93,18 @@ button {
     linear-gradient(90deg, transparent 25%, #f7d56f 25% 75%, transparent 75%),
     linear-gradient(#4fd1c5 0 0);
   image-rendering: pixelated;
+}
+
+.brand-version {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ev-c-text-2);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .rail-section {
@@ -121,10 +147,11 @@ button {
 
 .rail-section--config {
   gap: 8px;
+  min-height: 0;
 }
 
 .rail-section--config .template-list {
-  max-height: 180px;
+  max-height: 260px;
   overflow: auto;
   padding-right: 2px;
 }
@@ -157,6 +184,10 @@ button {
   min-width: 0;
 }
 
+.session-list {
+  gap: 4px;
+}
+
 .project-list,
 .template-list,
 .session-list {
@@ -183,8 +214,9 @@ button {
 }
 
 .session-row {
-  grid-template-columns: minmax(0, 1fr) 64px 48px;
-  height: 54px;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 0;
+  height: 60px;
   align-items: stretch;
 }
 
@@ -253,10 +285,11 @@ button {
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-content: center;
-  gap: 5px 8px;
+  gap: 4px 8px;
   height: 100%;
   overflow: hidden;
-  padding: 8px 10px;
+  border-radius: 8px 0 0 8px;
+  padding: 10px;
 }
 
 .session-row--active .session-item {
@@ -268,6 +301,16 @@ button {
   grid-column: 2;
 }
 
+.session-item .kind-badge {
+  grid-row: 1 / 3;
+  align-self: stretch;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 0;
+  border-radius: 6px;
+  padding: 0 9px;
+}
+
 .session-item strong,
 .session-item small {
   min-width: 0;
@@ -276,22 +319,14 @@ button {
   white-space: nowrap;
 }
 
-.session-row .icon-button {
-  width: 64px;
-  min-width: 0;
-  overflow: hidden;
-  padding: 0 6px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .session-stop {
   align-self: center;
-  width: 48px;
+  width: 44px;
   height: 100%;
-  min-width: 48px;
+  min-width: 44px;
   border: 1px solid rgba(248, 113, 113, 0.22);
-  border-radius: 7px;
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
   padding: 0;
   color: #fca5a5;
   background: rgba(248, 113, 113, 0.1);

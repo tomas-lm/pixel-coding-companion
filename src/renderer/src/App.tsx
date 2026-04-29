@@ -61,11 +61,6 @@ type TerminalForm = {
   commandsText: string
 }
 
-type RunningSessionForm = {
-  id: string
-  name: string
-}
-
 type StartWorkspaceSelection = {
   projectId: string
   selectedConfigIds: string[]
@@ -186,7 +181,6 @@ function App(): React.JSX.Element {
   const [configLoaded, setConfigLoaded] = useState(false)
   const [projectForm, setProjectForm] = useState<ProjectForm | null>(null)
   const [terminalForm, setTerminalForm] = useState<TerminalForm | null>(null)
-  const [runningSessionForm, setRunningSessionForm] = useState<RunningSessionForm | null>(null)
   const [startSelection, setStartSelection] = useState<StartWorkspaceSelection | null>(null)
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? projects[0]
@@ -502,26 +496,6 @@ function App(): React.JSX.Element {
     )
   }
 
-  const openRenameRunningSession = (session: RunningSession): void => {
-    setRunningSessionForm({
-      id: session.id,
-      name: session.name
-    })
-  }
-
-  const saveRunningSessionName = (): void => {
-    if (!runningSessionForm?.name.trim()) return
-
-    setRunningSessions((currentSessions) =>
-      currentSessions.map((session) =>
-        session.id === runningSessionForm.id
-          ? { ...session, name: runningSessionForm.name.trim() }
-          : session
-      )
-    )
-    setRunningSessionForm(null)
-  }
-
   const companionMessage = getCompanionMessage(activeSession)
   const terminalTitle = activeSession?.name ?? 'Workspace'
   const terminalStatus = activeSession?.status ?? 'ready'
@@ -533,9 +507,9 @@ function App(): React.JSX.Element {
       <aside className="workspace-rail">
         <div className="brand-lockup">
           <span className="brand-mark" aria-hidden="true" />
-          <div>
-            <strong>Pixel Coding Companion</strong>
-            <span>Local agent desk</span>
+          <div className="brand-title-row">
+            <strong>Pixel Companion</strong>
+            <span className="brand-version">v1.0.0</span>
           </div>
         </div>
 
@@ -634,14 +608,6 @@ function App(): React.JSX.Element {
                   </span>
                   <strong>{session.name}</strong>
                   <small>{session.status}</small>
-                </button>
-                <button
-                  className="icon-button"
-                  type="button"
-                  title={`Rename ${session.name}`}
-                  onClick={() => openRenameRunningSession(session)}
-                >
-                  Rename
                 </button>
                 <button
                   className="session-stop"
@@ -962,47 +928,6 @@ function App(): React.JSX.Element {
               </button>
               <button className="primary-button" type="button" onClick={saveTerminalForm}>
                 Save terminal
-              </button>
-            </footer>
-          </section>
-        </div>
-      )}
-
-      {runningSessionForm && (
-        <div className="modal-backdrop">
-          <section className="modal" aria-label="Rename running session">
-            <header className="modal-header">
-              <h2>Rename running session</h2>
-              <button
-                className="icon-button"
-                type="button"
-                onClick={() => setRunningSessionForm(null)}
-              >
-                Close
-              </button>
-            </header>
-            <label>
-              <span>Name</span>
-              <input
-                value={runningSessionForm.name}
-                autoFocus
-                onChange={(event) =>
-                  setRunningSessionForm((currentForm) =>
-                    currentForm ? { ...currentForm, name: event.target.value } : currentForm
-                  )
-                }
-              />
-            </label>
-            <footer className="modal-actions">
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => setRunningSessionForm(null)}
-              >
-                Cancel
-              </button>
-              <button className="primary-button" type="button" onClick={saveRunningSessionName}>
-                Save name
               </button>
             </footer>
           </section>
