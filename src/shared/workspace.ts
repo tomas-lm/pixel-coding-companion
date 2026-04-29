@@ -33,6 +33,8 @@ export type RunningSession = {
   projectId: string
   configId: string
   name: string
+  projectColor: string
+  projectName: string
   kind: SessionKind
   cwd: string
   commands: string[]

@@ -10,7 +10,7 @@ import {
 } from 'electron'
 import { basename, join } from 'path'
 import { existsSync } from 'fs'
-import { mkdir, readFile, writeFile } from 'fs/promises'
+import { mkdir, readFile, rename, writeFile } from 'fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import * as pty from 'node-pty'
 import icon from '../../resources/icon.png?asset'
@@ -21,6 +21,7 @@ import {
 } from '../shared/companion'
 import {
   TERMINAL_CHANNELS,
+  type TerminalCompanionContext,
   type TerminalInputRequest,
   type TerminalResizeRequest,
   type TerminalSessionId,
@@ -40,6 +41,12 @@ type ManagedTerminal = {
   process: PtyProcess
 }
 
+type TerminalContextRegistryEntry = TerminalCompanionContext & {
+  shellPid: number
+  startedAt: string
+  updatedAt: string
+}
+
 const APP_NAME = 'Pixel Companion'
 const APP_ID = 'dev.tomasmuniz.pixel-coding-companion'
 const APP_USER_DATA_DIR = 'pixel-coding-companion'
@@ -50,6 +57,7 @@ const COMMAND_EXIT_PATTERN = new RegExp(
   'g'
 )
 const terminals = new Map<TerminalSessionId, ManagedTerminal>()
+let terminalContextRegistryQueue: Promise<void> = Promise.resolve()
 
 app.setName(APP_NAME)
 // Keep persisted workspace data independent from the display name shown by macOS.
@@ -65,7 +73,7 @@ function getSafeCwd(cwd?: string): string {
   return app.getPath('home')
 }
 
-function getPtyEnv(): Record<string, string> {
+function getPtyEnv(extraEnv: Record<string, string> = {}): Record<string, string> {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       (entry): entry is [string, string] => typeof entry[1] === 'string'
@@ -74,6 +82,7 @@ function getPtyEnv(): Record<string, string> {
 
   return {
     ...env,
+    ...extraEnv,
     TERM: 'xterm-256color',
     COLORTERM: 'truecolor'
   }
@@ -85,6 +94,107 @@ function getWorkspaceConfigPath(): string {
 
 function getCompanionBridgeStatePath(): string {
   return join(app.getPath('userData'), 'companion-state.json')
+}
+
+function getTerminalCompanionContextPath(sessionId: TerminalSessionId): string {
+  return join(app.getPath('userData'), 'terminal-contexts', `${sessionId}.json`)
+}
+
+function getTerminalContextRegistryPath(): string {
+  return join(app.getPath('userData'), 'terminal-contexts', 'registry.json')
+}
+
+async function writeTerminalCompanionContext(
+  sessionId: TerminalSessionId,
+  context?: TerminalCompanionContext
+): Promise<Record<string, string>> {
+  if (!context) return {}
+
+  const contextPath = getTerminalCompanionContextPath(sessionId)
+  const contextFile = {
+    ...context,
+    sessionId,
+    updatedAt: new Date().toISOString()
+  }
+
+  await mkdir(join(app.getPath('userData'), 'terminal-contexts'), { recursive: true })
+  await writeFile(contextPath, `${JSON.stringify(contextFile, null, 2)}\n`, 'utf8')
+
+  return {
+    PIXEL_COMPANION_CONTEXT_FILE: contextPath,
+    PIXEL_COMPANION_CWD: context.cwd ?? '',
+    PIXEL_COMPANION_PROJECT_COLOR: context.projectColor,
+    PIXEL_COMPANION_PROJECT_ID: context.projectId,
+    PIXEL_COMPANION_PROJECT_NAME: context.projectName,
+    PIXEL_COMPANION_SESSION_ID: sessionId,
+    PIXEL_COMPANION_TERMINAL_ID: context.terminalId,
+    PIXEL_COMPANION_TERMINAL_NAME: context.terminalName
+  }
+}
+
+async function readTerminalContextRegistry(): Promise<TerminalContextRegistryEntry[]> {
+  try {
+    const file = await readFile(getTerminalContextRegistryPath(), 'utf8')
+    const registry = JSON.parse(file)
+
+    return Array.isArray(registry) ? (registry as TerminalContextRegistryEntry[]) : []
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    if (error instanceof SyntaxError) return []
+    throw error
+  }
+}
+
+async function writeTerminalContextRegistry(
+  registry: TerminalContextRegistryEntry[]
+): Promise<void> {
+  await mkdir(join(app.getPath('userData'), 'terminal-contexts'), { recursive: true })
+  const registryPath = getTerminalContextRegistryPath()
+  const tempPath = `${registryPath}.${process.pid}.${Date.now()}.tmp`
+
+  await writeFile(tempPath, `${JSON.stringify(registry, null, 2)}\n`, 'utf8')
+  await rename(tempPath, registryPath)
+}
+
+async function updateTerminalContextRegistry(
+  updater: (registry: TerminalContextRegistryEntry[]) => TerminalContextRegistryEntry[]
+): Promise<void> {
+  const update = terminalContextRegistryQueue.then(async () => {
+    const registry = await readTerminalContextRegistry()
+    await writeTerminalContextRegistry(updater(registry))
+  })
+
+  terminalContextRegistryQueue = update.catch(() => undefined)
+  await update
+}
+
+async function registerTerminalContextProcess(
+  sessionId: TerminalSessionId,
+  shellPid: number,
+  context?: TerminalCompanionContext
+): Promise<void> {
+  if (!context) return
+
+  const now = new Date().toISOString()
+  await updateTerminalContextRegistry((registry) => {
+    const nextRegistry = registry.filter((entry) => entry.sessionId !== sessionId)
+
+    nextRegistry.push({
+      ...context,
+      sessionId,
+      shellPid,
+      startedAt: now,
+      updatedAt: now
+    })
+
+    return nextRegistry
+  })
+}
+
+async function unregisterTerminalContextProcess(sessionId: TerminalSessionId): Promise<void> {
+  await updateTerminalContextRegistry((registry) =>
+    registry.filter((entry) => entry.sessionId !== sessionId)
+  )
 }
 
 function createDefaultCompanionBridgeState(): CompanionBridgeState {
@@ -124,6 +234,7 @@ function stopTerminal(id: TerminalSessionId): void {
   if (!managedTerminal) return
 
   terminals.delete(id)
+  void unregisterTerminalContextProcess(id)
   managedTerminal.process.kill()
 }
 
@@ -166,18 +277,23 @@ function writeStartupCommands(
 function registerTerminalIpc(): void {
   ipcMain.handle(
     TERMINAL_CHANNELS.start,
-    (event, request: TerminalStartRequest): TerminalStartResponse => {
+    async (event, request: TerminalStartRequest): Promise<TerminalStartResponse> => {
       stopTerminal(request.id)
 
       const shellPath = getDefaultShell()
       const cwd = getSafeCwd(request.cwd)
+      const contextEnv = await writeTerminalCompanionContext(request.id, request.companionContext)
       const terminal = pty.spawn(shellPath, [], {
         name: 'xterm-256color',
         cols: Math.max(request.cols, 2),
         rows: Math.max(request.rows, 2),
         cwd,
-        env: getPtyEnv()
+        env: getPtyEnv({
+          ...(request.env ?? {}),
+          ...contextEnv
+        })
       })
+      await registerTerminalContextProcess(request.id, terminal.pid, request.companionContext)
 
       terminals.set(request.id, {
         pendingData: '',
@@ -218,6 +334,7 @@ function registerTerminalIpc(): void {
 
       terminal.onExit(({ exitCode, signal }) => {
         terminals.delete(request.id)
+        void unregisterTerminalContextProcess(request.id)
         if (!event.sender.isDestroyed()) {
           event.sender.send(TERMINAL_CHANNELS.exit, { id: request.id, exitCode, signal })
         }
@@ -423,6 +540,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId(APP_ID)
+  void writeTerminalContextRegistry([])
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

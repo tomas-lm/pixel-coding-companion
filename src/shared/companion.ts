@@ -11,10 +11,15 @@ export type CompanionBridgeMessage = {
   title: string
   summary: string
   agentName?: string
+  contextSource?: string
+  cwd?: string
   details?: string
+  projectId?: string
   projectColor?: string
   projectName?: string
   sessionName?: string
+  terminalId?: string
+  terminalSessionId?: string
   source: 'app' | 'mcp'
 }
 

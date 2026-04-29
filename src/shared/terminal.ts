@@ -17,8 +17,20 @@ export type TerminalStartRequest = {
   id: TerminalSessionId
   cols: number
   rows: number
+  companionContext?: TerminalCompanionContext
   cwd?: string
   commands?: string[]
+  env?: Record<string, string>
+}
+
+export type TerminalCompanionContext = {
+  cwd?: string
+  projectColor: string
+  projectId: string
+  projectName: string
+  sessionId: TerminalSessionId
+  terminalId: string
+  terminalName: string
 }
 
 export type TerminalStartResponse = {

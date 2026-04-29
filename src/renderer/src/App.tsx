@@ -14,6 +14,7 @@ import {
 } from '../../shared/workspace'
 import { TerminalPane } from './components/TerminalPane'
 
+const COMPANION_NAME = 'Ghou'
 const PROJECT_COLORS = ['#4ea1ff', '#ef5b5b', '#f7d56f', '#7fe7dc', '#c084fc', '#34d399']
 const DEFAULT_LAYOUT: WorkspaceLayout = {
   railWidth: 300,
@@ -116,7 +117,7 @@ function createEmptyTerminalForm(): TerminalForm {
   }
 }
 
-function createRunningSession(config: TerminalConfig): RunningSession {
+function createRunningSession(config: TerminalConfig, project: Project | null): RunningSession {
   const now = new Date().toISOString()
 
   return {
@@ -124,6 +125,8 @@ function createRunningSession(config: TerminalConfig): RunningSession {
     projectId: config.projectId,
     configId: config.id,
     name: config.name,
+    projectColor: project?.color ?? PROJECT_COLORS[0],
+    projectName: project?.name ?? 'Unknown project',
     kind: config.kind,
     cwd: config.cwd,
     commands: config.commands,
@@ -279,6 +282,82 @@ function formatCompanionTime(value: string): string {
 function getCompanionStateLabel(state: CompanionCliState): string {
   if (state === 'waiting_input') return 'waiting input'
   return state
+}
+
+function normalizeProjectKey(value?: string): string {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function getProjectForCompanionMessage(
+  message: CompanionBridgeMessage,
+  projects: Project[],
+  terminalConfigs: TerminalConfig[]
+): Project | null {
+  if (message.projectId) {
+    const project = projects.find((candidate) => candidate.id === message.projectId)
+    if (project) return project
+  }
+
+  if (message.cwd) {
+    const cwd = message.cwd
+    const terminal = terminalConfigs
+      .filter((config) => config.cwd)
+      .filter((config) => cwd === config.cwd || cwd.startsWith(`${config.cwd}/`))
+      .sort((left, right) => right.cwd.length - left.cwd.length)[0]
+    const project = terminal
+      ? projects.find((candidate) => candidate.id === terminal.projectId)
+      : null
+
+    if (project) return project
+  }
+
+  const sessionName = normalizeProjectKey(message.sessionName ?? message.title)
+  if (sessionName) {
+    const terminal = terminalConfigs.find((config) => {
+      const terminalName = normalizeProjectKey(config.name)
+      return terminalName && (terminalName === sessionName || sessionName.includes(terminalName))
+    })
+    const project = terminal
+      ? projects.find((candidate) => candidate.id === terminal.projectId)
+      : null
+
+    if (project) return project
+  }
+
+  const projectName = normalizeProjectKey(message.projectName)
+  if (projectName) {
+    const project =
+      projects.find((candidate) => normalizeProjectKey(candidate.name) === projectName) ??
+      projects.find((candidate) => {
+        const candidateName = normalizeProjectKey(candidate.name)
+        return (
+          candidateName &&
+          (candidateName.includes(projectName) || projectName.includes(candidateName))
+        )
+      })
+
+    if (project) return project
+  }
+
+  return null
+}
+
+function getCompanionMessageColor(
+  message: CompanionBridgeMessage,
+  projects: Project[],
+  terminalConfigs: TerminalConfig[],
+  fallbackColor: string
+): string {
+  return (
+    getProjectForCompanionMessage(message, projects, terminalConfigs)?.color ??
+    message.projectColor ??
+    fallbackColor
+  )
 }
 
 function App(): React.JSX.Element {
@@ -542,7 +621,8 @@ function App(): React.JSX.Element {
       return
     }
 
-    const session = createRunningSession(config)
+    const project = projects.find((candidate) => candidate.id === config.projectId) ?? null
+    const session = createRunningSession(config, project)
     setRunningSessions((currentSessions) => [...currentSessions, session])
     setActiveProjectId(config.projectId)
     setActiveSessionId(session.id)
@@ -613,7 +693,10 @@ function App(): React.JSX.Element {
           startSelection.selectedConfigIds.includes(config.id) &&
           !liveConfigIds.has(config.id)
       )
-      .map(createRunningSession)
+      .map((config) => {
+        const project = projects.find((candidate) => candidate.id === config.projectId) ?? null
+        return createRunningSession(config, project)
+      })
     const firstExistingSession = runningSessions.find(
       (session) => session.projectId === startSelection.projectId && isLiveSession(session)
     )
@@ -772,7 +855,7 @@ function App(): React.JSX.Element {
             projectName: activeProject?.name ?? 'Pixel Companion',
             source: 'app',
             summary: companionMessage,
-            title: activeSession?.name ?? 'Ready'
+            title: activeSession?.name ?? COMPANION_NAME
           }
         ]
   const companionTerminalState =
@@ -1035,7 +1118,7 @@ function App(): React.JSX.Element {
                 <span />
                 <span />
               </div>
-              <strong>{activeProject?.name ?? 'Pixel Companion'}</strong>
+              <strong>{COMPANION_NAME}</strong>
               <small>{getCompanionStateLabel(companionTerminalState)}</small>
             </header>
             <div className="companion-terminal-screen">
@@ -1045,14 +1128,23 @@ function App(): React.JSX.Element {
                   className={`companion-line companion-line--${message.cliState}`}
                   style={
                     {
-                      '--message-color': message.projectColor ?? activeProjectColor
+                      '--message-color': getCompanionMessageColor(
+                        message,
+                        projects,
+                        terminalConfigs,
+                        activeProjectColor
+                      )
                     } as CSSProperties
                   }
                 >
                   <div className="companion-line-meta">
                     <span>{formatCompanionTime(message.createdAt)}</span>
-                    <strong>{message.agentName ?? 'companion'}</strong>
-                    {message.projectName && <small>{message.projectName}</small>}
+                    <strong>{COMPANION_NAME}</strong>
+                    {(message.agentName || message.projectName) && (
+                      <small>
+                        {[message.agentName, message.projectName].filter(Boolean).join(' / ')}
+                      </small>
+                    )}
                   </div>
                   <p>{message.summary}</p>
                   {message.details && <pre>{message.details}</pre>}

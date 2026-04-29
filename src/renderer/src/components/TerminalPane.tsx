@@ -131,10 +131,28 @@ export function TerminalPane({
       window.api.terminal
         .start({
           id: session.id,
+          companionContext: {
+            cwd: session.cwd,
+            projectColor: session.projectColor,
+            projectId: session.projectId,
+            projectName: session.projectName,
+            sessionId: session.id,
+            terminalId: session.configId,
+            terminalName: session.name
+          },
           cols: terminal.cols,
           rows: terminal.rows,
           cwd: session.cwd || undefined,
-          commands: session.commands
+          commands: session.commands,
+          env: {
+            PIXEL_COMPANION_CWD: session.cwd,
+            PIXEL_COMPANION_PROJECT_COLOR: session.projectColor,
+            PIXEL_COMPANION_PROJECT_ID: session.projectId,
+            PIXEL_COMPANION_PROJECT_NAME: session.projectName,
+            PIXEL_COMPANION_SESSION_ID: session.id,
+            PIXEL_COMPANION_TERMINAL_ID: session.configId,
+            PIXEL_COMPANION_TERMINAL_NAME: session.name
+          }
         })
         .then((response) => {
           if (disposed) return
@@ -169,8 +187,13 @@ export function TerminalPane({
     onSessionStartError,
     onSessionStarted,
     session.commands,
+    session.configId,
     session.cwd,
-    session.id
+    session.id,
+    session.name,
+    session.projectColor,
+    session.projectId,
+    session.projectName
   ])
 
   return (

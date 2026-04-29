@@ -851,7 +851,7 @@ button {
 
 .companion-line {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
   border-left: 3px solid var(--message-color);
   padding-left: 9px;
@@ -892,22 +892,9 @@ button {
 .companion-line pre {
   max-height: 160px;
   overflow: auto;
-  border-radius: 6px;
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  padding: 0;
+  color: var(--ev-c-text-2);
   white-space: pre-wrap;
-}
-
-.companion-line--error {
-  border-left-color: #f87171;
-}
-
-.companion-line--done {
-  border-left-color: #34d399;
-}
-
-.companion-line--waiting_input {
-  border-left-color: #fbbf24;
 }
 
 .pixel-companion {
