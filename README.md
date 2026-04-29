@@ -20,7 +20,7 @@ Phase 2 is the first workspace-manager version:
 - JSON workspace persistence
 - configurable terminal commands
 
-The app treats projects as logical workspaces. A workspace can launch several configured terminal sessions across different folders, so contexts like Engelmig and BAMAQ can each own their own assistant/backend/frontend terminals. Custom workspaces can be created by name, then filled with configurable terminals, folders, and command lists.
+The app treats projects as logical workspaces. A workspace can launch several configured terminal sessions across different folders, so each project can own its own assistant, backend, frontend, logs, and test terminals. Workspaces start empty and can be created by name, then filled with configurable terminals, folders, and command lists.
 
 ## Local Development
 

@@ -31,7 +31,14 @@ import {
 
 type PtyProcess = ReturnType<typeof pty.spawn>
 
+const APP_NAME = 'Pixel Companion'
+const APP_ID = 'dev.tomasmuniz.pixel-coding-companion'
+const APP_USER_DATA_DIR = 'pixel-coding-companion'
 const terminals = new Map<TerminalSessionId, PtyProcess>()
+
+app.setName(APP_NAME)
+// Keep persisted workspace data independent from the display name shown by macOS.
+app.setPath('userData', join(app.getPath('appData'), APP_USER_DATA_DIR))
 
 function getDefaultShell(): string {
   if (process.platform === 'win32') return process.env.ComSpec ?? 'powershell.exe'
@@ -251,6 +258,7 @@ function registerAppMenu(mainWindow: BrowserWindow): void {
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
+    title: APP_NAME,
     width: 1180,
     height: 760,
     show: false,
@@ -263,7 +271,13 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
+    mainWindow.setTitle(APP_NAME)
     mainWindow.show()
+  })
+
+  mainWindow.on('page-title-updated', (event) => {
+    event.preventDefault()
+    mainWindow.setTitle(APP_NAME)
   })
 
   mainWindow.on('closed', () => {
@@ -289,7 +303,7 @@ function createWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId(APP_ID)
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

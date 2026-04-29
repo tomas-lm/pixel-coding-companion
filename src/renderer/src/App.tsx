@@ -5,14 +5,11 @@ import {
   type RunningSessionStatus,
   type SessionKind,
   type TerminalConfig,
-  type WorkspaceConfig,
   type WorkspaceLayout
 } from '../../shared/workspace'
 import { TerminalPane } from './components/TerminalPane'
 
 const PROJECT_COLORS = ['#4ea1ff', '#ef5b5b', '#f7d56f', '#7fe7dc', '#c084fc', '#34d399']
-const DEV_ROOT = '/Users/tomasmuniz/dev'
-const CIANO_ROOT = `${DEV_ROOT}/ciano-io`
 const DEFAULT_LAYOUT: WorkspaceLayout = {
   railWidth: 300,
   companionWidth: 320,
@@ -34,30 +31,6 @@ const KIND_LABELS: Record<SessionKind, string> = {
   test: 'Test',
   custom: 'Custom'
 }
-
-const PRESET_PROJECTS: Project[] = [
-  {
-    id: 'engelmig',
-    name: 'Engelmig',
-    color: PROJECT_COLORS[0],
-    description: 'Assistant, backend and frontend Codex sessions'
-  },
-  {
-    id: 'bamaq',
-    name: 'BAMAQ',
-    color: PROJECT_COLORS[1],
-    description: 'Assistant, GWM frontend and GWM backend Codex sessions'
-  }
-]
-
-const PRESET_TERMINALS: TerminalConfig[] = [
-  createCodexConfig('engelmig', 'assistant', 'Assistant', DEV_ROOT),
-  createCodexConfig('engelmig', 'backend', 'Engelmig', `${CIANO_ROOT}/engelmig`),
-  createCodexConfig('engelmig', 'frontend', 'Engelmig Frontend', `${CIANO_ROOT}/engelmig-frontend`),
-  createCodexConfig('bamaq', 'assistant', 'Assistant', DEV_ROOT),
-  createCodexConfig('bamaq', 'frontend', 'GWM Frontend', `${CIANO_ROOT}/bamaq-gwm-frontend`),
-  createCodexConfig('bamaq', 'backend', 'GWM Backend', `${CIANO_ROOT}/bamaq-gwm-backend`)
-]
 
 type ProjectForm = {
   id?: string
@@ -100,22 +73,6 @@ function normalizeLayout(layout?: Partial<WorkspaceLayout>): WorkspaceLayout {
       return [layoutKey, clamp(numericValue, limits.min, limits.max)]
     })
   ) as WorkspaceLayout
-}
-
-function createCodexConfig(
-  projectId: string,
-  suffix: string,
-  name: string,
-  cwd: string
-): TerminalConfig {
-  return {
-    id: `${projectId}-${suffix}`,
-    projectId,
-    name,
-    kind: 'ai',
-    cwd,
-    commands: ['codex']
-  }
 }
 
 function createEmptyTerminalForm(): TerminalForm {
@@ -190,26 +147,11 @@ function getCompanionMessage(session: RunningSession | null): string {
   return `${session.name} precisa de atencao.`
 }
 
-function buildSeedConfig(): WorkspaceConfig {
-  return {
-    projects: PRESET_PROJECTS,
-    terminalConfigs: PRESET_TERMINALS,
-    activeProjectId: PRESET_PROJECTS[0].id,
-    layout: DEFAULT_LAYOUT
-  }
-}
-
-const SEED_CONFIG = buildSeedConfig()
-
 function App(): React.JSX.Element {
-  const [projects, setProjects] = useState<Project[]>(SEED_CONFIG.projects)
-  const [terminalConfigs, setTerminalConfigs] = useState<TerminalConfig[]>(
-    SEED_CONFIG.terminalConfigs
-  )
+  const [projects, setProjects] = useState<Project[]>([])
+  const [terminalConfigs, setTerminalConfigs] = useState<TerminalConfig[]>([])
   const [runningSessions, setRunningSessions] = useState<RunningSession[]>([])
-  const [activeProjectId, setActiveProjectId] = useState(
-    SEED_CONFIG.activeProjectId ?? SEED_CONFIG.projects[0].id
-  )
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [configLoaded, setConfigLoaded] = useState(false)
   const [projectForm, setProjectForm] = useState<ProjectForm | null>(null)
@@ -217,21 +159,24 @@ function App(): React.JSX.Element {
   const [startSelection, setStartSelection] = useState<StartWorkspaceSelection | null>(null)
   const [layout, setLayout] = useState<WorkspaceLayout>(DEFAULT_LAYOUT)
 
-  const activeProject = projects.find((project) => project.id === activeProjectId) ?? projects[0]
-  const activeProjectConfigs = terminalConfigs.filter(
-    (config) => config.projectId === activeProject.id
-  )
-  const activeProjectSessions = runningSessions.filter(
-    (session) => session.projectId === activeProject.id
-  )
+  const activeProject = projects.find((project) => project.id === activeProjectId) ?? null
+  const activeProjectConfigs = activeProject
+    ? terminalConfigs.filter((config) => config.projectId === activeProject.id)
+    : []
+  const activeProjectSessions = activeProject
+    ? runningSessions.filter((session) => session.projectId === activeProject.id)
+    : []
   const activeSession =
-    runningSessions.find(
-      (session) => session.id === activeSessionId && session.projectId === activeProject.id
-    ) ??
+    (activeProject
+      ? runningSessions.find(
+          (session) => session.id === activeSessionId && session.projectId === activeProject.id
+        )
+      : null) ??
     activeProjectSessions[0] ??
     null
+  const activeProjectColor = activeProject?.color ?? PROJECT_COLORS[0]
   const activeStyle = {
-    '--active-project-color': activeProject.color,
+    '--active-project-color': activeProjectColor,
     '--rail-width': `${layout.railWidth}px`,
     '--companion-width': `${layout.companionWidth}px`,
     '--projects-height': `${layout.projectsHeight}px`,
@@ -263,10 +208,14 @@ function App(): React.JSX.Element {
       .then((config) => {
         if (!mounted) return
 
-        if (config?.projects.length) {
+        if (config) {
           setProjects(config.projects)
           setTerminalConfigs(config.terminalConfigs)
-          setActiveProjectId(config.activeProjectId ?? config.projects[0].id)
+          setActiveProjectId(
+            config.projects.find((project) => project.id === config.activeProjectId)?.id ??
+              config.projects[0]?.id ??
+              null
+          )
           setLayout(normalizeLayout(config.layout))
         }
       })
@@ -286,7 +235,7 @@ function App(): React.JSX.Element {
       void window.api.workspace.saveConfig({
         projects,
         terminalConfigs,
-        activeProjectId,
+        activeProjectId: activeProjectId ?? undefined,
         layout
       })
     }, 180)
@@ -387,6 +336,8 @@ function App(): React.JSX.Element {
   }
 
   const openStartWorkspace = (): void => {
+    if (!activeProject) return
+
     const liveConfigIds = getLiveConfigIds(activeProject.id, runningSessions)
     const selectedConfigIds = activeProjectConfigs
       .filter((config) => !liveConfigIds.has(config.id))
@@ -471,7 +422,7 @@ function App(): React.JSX.Element {
 
   const stopSession = (sessionId: string): void => {
     const nextActiveSession = runningSessions.find(
-      (session) => session.id !== sessionId && session.projectId === activeProject.id
+      (session) => session.id !== sessionId && session.projectId === activeProject?.id
     )
 
     setRunningSessions((currentSessions) =>
@@ -486,7 +437,7 @@ function App(): React.JSX.Element {
   const openCreateProject = (): void => {
     setProjectForm({
       name: '',
-      description: 'Custom workspace',
+      description: '',
       color: PROJECT_COLORS[projects.length % PROJECT_COLORS.length]
     })
   }
@@ -523,7 +474,7 @@ function App(): React.JSX.Element {
     const project: Project = {
       id: createId('project'),
       name: projectForm.name.trim(),
-      description: projectForm.description.trim() || 'Custom workspace',
+      description: projectForm.description.trim(),
       color: projectForm.color
     }
 
@@ -534,6 +485,8 @@ function App(): React.JSX.Element {
   }
 
   const openCreateTerminal = (): void => {
+    if (!activeProject) return
+
     setTerminalForm(createEmptyTerminalForm())
   }
 
@@ -563,7 +516,7 @@ function App(): React.JSX.Element {
   }
 
   const saveTerminalForm = (): void => {
-    if (!terminalForm?.name.trim()) return
+    if (!activeProject || !terminalForm?.name.trim()) return
 
     const commands = commandsFromText(terminalForm.commandsText)
     const nextConfig: TerminalConfig = {
@@ -591,11 +544,17 @@ function App(): React.JSX.Element {
     )
   }
 
-  const companionMessage = getCompanionMessage(activeSession)
-  const terminalTitle = activeSession?.name ?? 'Workspace'
+  const companionMessage = activeProject
+    ? getCompanionMessage(activeSession)
+    : 'Create a workspace to get started.'
+  const terminalTitle =
+    activeSession?.name ?? (activeProject ? 'Workspace' : 'No workspace selected')
   const terminalStatus = activeSession?.status ?? 'ready'
   const activeSessionKind = activeSession?.kind ?? 'shell'
   const selectedSessionId = activeSession?.id ?? null
+  const sessionSummary = activeProject
+    ? getProjectSummary(activeProject, terminalConfigs)
+    : 'No workspace configured yet.'
 
   return (
     <main className="app-shell" style={activeStyle}>
@@ -617,10 +576,14 @@ function App(): React.JSX.Element {
           </div>
 
           <div className="project-list">
+            {projects.length === 0 && (
+              <div className="empty-list-state">No workspaces configured.</div>
+            )}
+
             {projects.map((project) => (
               <div
                 key={project.id}
-                className={`project-row${project.id === activeProject.id ? ' project-row--active' : ''}`}
+                className={`project-row${project.id === activeProject?.id ? ' project-row--active' : ''}`}
                 style={{ '--project-color': project.color } as CSSProperties}
               >
                 <button
@@ -653,19 +616,34 @@ function App(): React.JSX.Element {
         />
 
         <section className="rail-section rail-section--actions" aria-label="Workspace actions">
-          <button className="primary-button" type="button" onClick={openStartWorkspace}>
-            Start {activeProject.name}
-          </button>
+          {activeProject ? (
+            <button className="primary-button" type="button" onClick={openStartWorkspace}>
+              Start {activeProject.name}
+            </button>
+          ) : (
+            <button className="primary-button" type="button" onClick={openCreateProject}>
+              Add workspace
+            </button>
+          )}
         </section>
 
         <section className="rail-section rail-section--config" aria-label="Configured terminals">
           <div className="rail-header">
             <span>Configured terminals</span>
-            <button className="secondary-button" type="button" onClick={openCreateTerminal}>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={!activeProject}
+              onClick={openCreateTerminal}
+            >
               Add terminal
             </button>
           </div>
           <div className="template-list">
+            {!activeProject && (
+              <div className="empty-list-state">Select or create a workspace first.</div>
+            )}
+
             {activeProjectConfigs.map((config) => (
               <div key={config.id} className="template-row">
                 <button className="template-item" type="button" onClick={() => startConfig(config)}>
@@ -741,9 +719,9 @@ function App(): React.JSX.Element {
       <section className="session-panel" aria-label="Session preview">
         <header className="session-header">
           <div>
-            <span className="eyebrow">{activeProject.name}</span>
+            <span className="eyebrow">{activeProject?.name ?? 'Pixel Companion'}</span>
             <h1>{terminalTitle}</h1>
-            <p>{getProjectSummary(activeProject, terminalConfigs)}</p>
+            <p>{sessionSummary}</p>
           </div>
           <div className="session-header-actions">
             <span className={`kind-badge kind-badge--${activeSessionKind}`}>
@@ -773,8 +751,12 @@ function App(): React.JSX.Element {
           </div>
           {!activeSession && (
             <div className="empty-terminal">
-              <strong>{activeProject.name}</strong>
-              {activeProjectConfigs.length === 0 ? (
+              <strong>{activeProject?.name ?? 'No workspaces yet'}</strong>
+              {!activeProject ? (
+                <button className="primary-button" type="button" onClick={openCreateProject}>
+                  Add workspace
+                </button>
+              ) : activeProjectConfigs.length === 0 ? (
                 <button className="primary-button" type="button" onClick={openCreateTerminal}>
                   Add terminal
                 </button>
@@ -798,7 +780,7 @@ function App(): React.JSX.Element {
       <aside className="companion-panel" aria-label="Companion preview">
         <div className="companion-stage">
           <div className="speech-bubble">
-            <span>{activeProject.name}</span>
+            <span>{activeProject?.name ?? 'Pixel Companion'}</span>
             <p>{companionMessage}</p>
           </div>
           <div className="pixel-companion" aria-hidden="true">

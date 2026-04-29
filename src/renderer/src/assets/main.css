@@ -28,7 +28,8 @@ button {
 }
 
 #root {
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
 }
 
 .app-shell {
@@ -38,9 +39,14 @@ button {
   --projects-height: 178px;
   --terminals-height: 260px;
   display: grid;
-  grid-template-columns: var(--rail-width) 16px minmax(440px, 1fr) 16px var(--companion-width);
+  grid-template-columns:
+    minmax(240px, min(var(--rail-width), 32vw)) 16px minmax(320px, 1fr) 16px
+    minmax(220px, min(var(--companion-width), 28vw));
   gap: 0;
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   padding: 16px;
 }
 
@@ -48,6 +54,8 @@ button {
 .session-panel,
 .companion-panel {
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(23, 25, 29, 0.88);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
@@ -57,8 +65,13 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  overflow: hidden;
+  height: 100%;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
   padding: 16px;
+  scrollbar-gutter: stable;
 }
 
 .brand-lockup {
@@ -286,6 +299,15 @@ button {
   padding-right: 2px;
 }
 
+.empty-list-state {
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+  text-align: center;
+}
+
 .project-row,
 .template-row,
 .session-row {
@@ -301,6 +323,8 @@ button {
 
 .template-row {
   grid-template-columns: minmax(0, 1fr) auto;
+  height: 64px;
+  align-items: stretch;
 }
 
 .session-row {
@@ -359,13 +383,31 @@ button {
 .template-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: center;
   gap: 5px 8px;
-  padding: 10px;
+  height: 100%;
+  overflow: hidden;
+  padding: 8px 10px;
 }
 
 .template-item small {
   grid-column: 2;
+}
+
+.template-item strong,
+.template-item small {
+  min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-row .icon-button {
+  width: 64px;
+  min-width: 64px;
+  overflow: hidden;
+  padding: 0 6px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -497,6 +539,8 @@ button {
 .session-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
   padding: 18px;
 }
 
@@ -670,12 +714,16 @@ button {
 
 .companion-panel {
   display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   place-items: center;
   padding: 18px;
 }
 
 .companion-stage {
   display: grid;
+  max-width: 100%;
   justify-items: center;
   gap: 22px;
 }
@@ -928,7 +976,7 @@ button {
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1280px) {
   body {
     overflow: auto;
   }
@@ -936,9 +984,33 @@ button {
   .app-shell {
     grid-template-columns: 1fr;
     gap: 16px;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .resize-handle {
     display: none;
+  }
+
+  .workspace-rail,
+  .session-panel,
+  .companion-panel {
+    overflow: hidden;
+  }
+
+  .workspace-rail {
+    height: calc(100vh - 32px);
+    max-height: calc(100vh - 32px);
+    overflow-x: hidden;
+    overflow-y: scroll;
+  }
+
+  .session-panel {
+    min-height: 560px;
+  }
+
+  .companion-panel {
+    min-height: 260px;
   }
 }

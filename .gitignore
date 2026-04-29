@@ -4,3 +4,9 @@ out
 .DS_Store
 .eslintcache
 *.log*
+
+# Local app state and personal workspace configuration
+workspaces.json
+*.workspaces.json
+.pixel-companion/
+.pixel-coding-companion/

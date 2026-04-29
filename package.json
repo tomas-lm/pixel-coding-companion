@@ -1,5 +1,6 @@
 {
   "name": "pixel-coding-companion",
+  "productName": "Pixel Companion",
   "version": "1.0.0",
   "description": "A pixel companion for coordinating local coding agent sessions.",
   "main": "./out/main/index.js",
