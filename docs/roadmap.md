@@ -51,18 +51,21 @@ Goal: make workspace panels adjustable like an IDE layout.
 - Added `View > Reset default` to restore the original layout sizes.
 - Preserved the stacked responsive layout on narrower windows.
 
-## Phase 3: Agent Presets
+## Phase 3: Basic Agent State
 
-Goal: launch common coding agents as managed sessions.
+Goal: detect useful state changes from managed CLI agent sessions.
 
-- Add presets for Codex, Claude Code, shell, and custom commands.
-- Store command history per project.
-- Detect basic running, done, and error states.
+- Keep terminal setup command-first and user-configured.
+- Detect basic running, done, and error states from process lifecycle.
+- Track session start, exit code, duration, and last activity.
+- Surface state changes in the companion panel.
+- Create the event foundation for future XP, companion evolution, and MCP messages.
 
 ## Phase 4: Pixel Companion
 
 Goal: turn session state into a companion interface.
 
+- Add companion profile data: species, level, XP, and visual stage.
 - Add sprite states: idle, working, speaking, waiting_input, error.
 - Color speech by active project.
 - Show short agent messages from the active session.

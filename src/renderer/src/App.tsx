@@ -80,7 +80,7 @@ function createEmptyTerminalForm(): TerminalForm {
     name: '',
     kind: 'ai',
     cwd: '',
-    commandsText: 'codex'
+    commandsText: ''
   }
 }
 
