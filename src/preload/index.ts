@@ -11,6 +11,7 @@ import {
   type TerminalStartResponse
 } from '../shared/terminal'
 import {
+  VIEW_CHANNELS,
   WORKSPACE_CHANNELS,
   type FolderPickResult,
   type WorkspaceConfig
@@ -46,6 +47,13 @@ const api: CompanionApi = {
       ipcRenderer.invoke(WORKSPACE_CHANNELS.loadConfig),
     saveConfig: (config: WorkspaceConfig): Promise<void> =>
       ipcRenderer.invoke(WORKSPACE_CHANNELS.saveConfig, config)
+  },
+  view: {
+    onResetLayout: (callback: () => void) => {
+      const listener = (): void => callback()
+      ipcRenderer.on(VIEW_CHANNELS.resetLayout, listener)
+      return () => ipcRenderer.removeListener(VIEW_CHANNELS.resetLayout, listener)
+    }
   }
 }
 

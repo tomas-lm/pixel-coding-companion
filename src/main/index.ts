@@ -1,4 +1,13 @@
-import { app, shell, BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  type MenuItemConstructorOptions,
+  type OpenDialogOptions
+} from 'electron'
 import { basename, join } from 'path'
 import { existsSync } from 'fs'
 import { mkdir, readFile, writeFile } from 'fs/promises'
@@ -14,6 +23,7 @@ import {
   type TerminalStartResponse
 } from '../shared/terminal'
 import {
+  VIEW_CHANNELS,
   WORKSPACE_CHANNELS,
   type FolderPickResult,
   type WorkspaceConfig
@@ -172,12 +182,79 @@ function registerWorkspaceIpc(): void {
   )
 }
 
+function sendLayoutReset(targetWindow: BrowserWindow): void {
+  if (!targetWindow.isDestroyed()) {
+    targetWindow.webContents.send(VIEW_CHANNELS.resetLayout)
+  }
+}
+
+function registerAppMenu(mainWindow: BrowserWindow): void {
+  const editMenu: MenuItemConstructorOptions = {
+    label: 'Edit',
+    submenu: [
+      { role: 'undo' },
+      { role: 'redo' },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      { role: 'selectAll' }
+    ]
+  }
+  const viewMenu: MenuItemConstructorOptions = {
+    label: 'View',
+    submenu: [
+      {
+        label: 'Reset default',
+        click: () => {
+          sendLayoutReset(BrowserWindow.getFocusedWindow() ?? mainWindow)
+        }
+      },
+      { type: 'separator' },
+      { role: 'reload' },
+      { role: 'forceReload' },
+      { role: 'toggleDevTools' },
+      { type: 'separator' },
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' },
+      { type: 'separator' },
+      { role: 'togglefullscreen' }
+    ]
+  }
+  const template: MenuItemConstructorOptions[] = [
+    ...(process.platform === 'darwin'
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about' },
+              { type: 'separator' },
+              { role: 'services' },
+              { type: 'separator' },
+              { role: 'hide' },
+              { role: 'hideOthers' },
+              { role: 'unhide' },
+              { type: 'separator' },
+              { role: 'quit' }
+            ]
+          } satisfies MenuItemConstructorOptions
+        ]
+      : []),
+    editMenu,
+    viewMenu,
+    { role: 'windowMenu' }
+  ]
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
+
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1180,
     height: 760,
     show: false,
-    autoHideMenuBar: true,
+    autoHideMenuBar: false,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -197,6 +274,8 @@ function createWindow(): void {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
+
+  registerAppMenu(mainWindow)
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])

@@ -40,6 +40,17 @@ Goal: make the app useful for multiple work contexts.
 - Added JSON persistence for workspace configuration.
 - Added UI to create/rename workspaces and add/edit configured terminals.
 
+## Phase 2.1: UI Responsiveness
+
+Goal: make workspace panels adjustable like an IDE layout.
+
+- Status: Done.
+- Added draggable horizontal resizing between the project rail, terminal panel, and companion panel.
+- Added draggable vertical resizing for Projects, Configured terminals, and Running inside the project rail.
+- Persisted layout sizes in the workspace JSON config.
+- Added `View > Reset default` to restore the original layout sizes.
+- Preserved the stacked responsive layout on narrower windows.
+
 ## Phase 3: Agent Presets
 
 Goal: launch common coding agents as managed sessions.

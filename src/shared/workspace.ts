@@ -4,6 +4,10 @@ export const WORKSPACE_CHANNELS = {
   saveConfig: 'workspace:save-config'
 } as const
 
+export const VIEW_CHANNELS = {
+  resetLayout: 'view:reset-layout'
+} as const
+
 export type SessionKind = 'ai' | 'shell' | 'dev_server' | 'logs' | 'test' | 'custom'
 
 export type Project = {
@@ -40,6 +44,7 @@ export type WorkspaceConfig = {
   projects: Project[]
   terminalConfigs: TerminalConfig[]
   activeProjectId?: string
+  layout?: WorkspaceLayout
 }
 
 export type FolderPickResult = {
@@ -47,8 +52,19 @@ export type FolderPickResult = {
   path: string
 } | null
 
+export type WorkspaceLayout = {
+  railWidth: number
+  companionWidth: number
+  projectsHeight: number
+  terminalsHeight: number
+}
+
 export type WorkspaceApi = {
   pickFolder: () => Promise<FolderPickResult>
   loadConfig: () => Promise<WorkspaceConfig | null>
   saveConfig: (config: WorkspaceConfig) => Promise<void>
+}
+
+export type ViewApi = {
+  onResetLayout: (callback: () => void) => () => void
 }

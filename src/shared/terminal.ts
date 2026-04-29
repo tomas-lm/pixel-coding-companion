@@ -1,4 +1,4 @@
-import type { WorkspaceApi } from './workspace'
+import type { ViewApi, WorkspaceApi } from './workspace'
 
 export const TERMINAL_CHANNELS = {
   start: 'terminal:start',
@@ -62,4 +62,5 @@ export type TerminalApi = {
 export type CompanionApi = {
   terminal: TerminalApi
   workspace: WorkspaceApi
+  view: ViewApi
 }

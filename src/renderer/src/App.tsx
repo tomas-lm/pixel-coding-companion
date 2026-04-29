@@ -5,13 +5,26 @@ import {
   type RunningSessionStatus,
   type SessionKind,
   type TerminalConfig,
-  type WorkspaceConfig
+  type WorkspaceConfig,
+  type WorkspaceLayout
 } from '../../shared/workspace'
 import { TerminalPane } from './components/TerminalPane'
 
 const PROJECT_COLORS = ['#4ea1ff', '#ef5b5b', '#f7d56f', '#7fe7dc', '#c084fc', '#34d399']
 const DEV_ROOT = '/Users/tomasmuniz/dev'
 const CIANO_ROOT = `${DEV_ROOT}/ciano-io`
+const DEFAULT_LAYOUT: WorkspaceLayout = {
+  railWidth: 300,
+  companionWidth: 320,
+  projectsHeight: 178,
+  terminalsHeight: 260
+}
+const LAYOUT_LIMITS: Record<keyof WorkspaceLayout, { min: number; max: number }> = {
+  railWidth: { min: 240, max: 520 },
+  companionWidth: { min: 220, max: 520 },
+  projectsHeight: { min: 110, max: 360 },
+  terminalsHeight: { min: 130, max: 420 }
+}
 
 const KIND_LABELS: Record<SessionKind, string> = {
   ai: 'AI',
@@ -66,8 +79,27 @@ type StartWorkspaceSelection = {
   selectedConfigIds: string[]
 }
 
+type LayoutResizeTarget = keyof WorkspaceLayout
+
 function createId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
+}
+
+function normalizeLayout(layout?: Partial<WorkspaceLayout>): WorkspaceLayout {
+  return Object.fromEntries(
+    Object.entries(DEFAULT_LAYOUT).map(([key, fallback]) => {
+      const layoutKey = key as keyof WorkspaceLayout
+      const value = layout?.[layoutKey]
+      const limits = LAYOUT_LIMITS[layoutKey]
+      const numericValue = typeof value === 'number' && Number.isFinite(value) ? value : fallback
+
+      return [layoutKey, clamp(numericValue, limits.min, limits.max)]
+    })
+  ) as WorkspaceLayout
 }
 
 function createCodexConfig(
@@ -162,7 +194,8 @@ function buildSeedConfig(): WorkspaceConfig {
   return {
     projects: PRESET_PROJECTS,
     terminalConfigs: PRESET_TERMINALS,
-    activeProjectId: PRESET_PROJECTS[0].id
+    activeProjectId: PRESET_PROJECTS[0].id,
+    layout: DEFAULT_LAYOUT
   }
 }
 
@@ -182,6 +215,7 @@ function App(): React.JSX.Element {
   const [projectForm, setProjectForm] = useState<ProjectForm | null>(null)
   const [terminalForm, setTerminalForm] = useState<TerminalForm | null>(null)
   const [startSelection, setStartSelection] = useState<StartWorkspaceSelection | null>(null)
+  const [layout, setLayout] = useState<WorkspaceLayout>(DEFAULT_LAYOUT)
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? projects[0]
   const activeProjectConfigs = terminalConfigs.filter(
@@ -196,7 +230,13 @@ function App(): React.JSX.Element {
     ) ??
     activeProjectSessions[0] ??
     null
-  const activeStyle = { '--active-project-color': activeProject.color } as CSSProperties
+  const activeStyle = {
+    '--active-project-color': activeProject.color,
+    '--rail-width': `${layout.railWidth}px`,
+    '--companion-width': `${layout.companionWidth}px`,
+    '--projects-height': `${layout.projectsHeight}px`,
+    '--terminals-height': `${layout.terminalsHeight}px`
+  } as CSSProperties
   const startProject = startSelection
     ? (projects.find((project) => project.id === startSelection.projectId) ?? null)
     : null
@@ -227,6 +267,7 @@ function App(): React.JSX.Element {
           setProjects(config.projects)
           setTerminalConfigs(config.terminalConfigs)
           setActiveProjectId(config.activeProjectId ?? config.projects[0].id)
+          setLayout(normalizeLayout(config.layout))
         }
       })
       .finally(() => {
@@ -241,12 +282,23 @@ function App(): React.JSX.Element {
   useEffect(() => {
     if (!configLoaded) return
 
-    void window.api.workspace.saveConfig({
-      projects,
-      terminalConfigs,
-      activeProjectId
+    const saveTimer = window.setTimeout(() => {
+      void window.api.workspace.saveConfig({
+        projects,
+        terminalConfigs,
+        activeProjectId,
+        layout
+      })
+    }, 180)
+
+    return () => window.clearTimeout(saveTimer)
+  }, [activeProjectId, configLoaded, layout, projects, terminalConfigs])
+
+  useEffect(() => {
+    return window.api.view.onResetLayout(() => {
+      setLayout(DEFAULT_LAYOUT)
     })
-  }, [activeProjectId, configLoaded, projects, terminalConfigs])
+  }, [])
 
   const updateSessionStatus = useCallback(
     (sessionId: string, status: RunningSessionStatus): void => {
@@ -272,6 +324,49 @@ function App(): React.JSX.Element {
     setActiveSessionId(
       runningSessions.find((session) => session.projectId === projectId)?.id ?? null
     )
+  }
+
+  const startLayoutResize = (
+    event: React.PointerEvent<HTMLButtonElement>,
+    target: LayoutResizeTarget
+  ): void => {
+    event.preventDefault()
+
+    const startX = event.clientX
+    const startY = event.clientY
+    const startLayout = layout
+    const resizeClass = target === 'railWidth' || target === 'companionWidth' ? 'column' : 'row'
+
+    document.body.classList.add('is-resizing', `is-resizing--${resizeClass}`)
+
+    const updateLayout = (moveEvent: PointerEvent): void => {
+      const deltaX = moveEvent.clientX - startX
+      const deltaY = moveEvent.clientY - startY
+      const nextLayout = { ...startLayout }
+
+      if (target === 'railWidth') {
+        nextLayout.railWidth = startLayout.railWidth + deltaX
+      } else if (target === 'companionWidth') {
+        nextLayout.companionWidth = startLayout.companionWidth - deltaX
+      } else if (target === 'projectsHeight') {
+        nextLayout.projectsHeight = startLayout.projectsHeight + deltaY
+      } else {
+        nextLayout.terminalsHeight = startLayout.terminalsHeight + deltaY
+      }
+
+      setLayout(normalizeLayout(nextLayout))
+    }
+
+    const stopResize = (): void => {
+      document.body.classList.remove('is-resizing', `is-resizing--${resizeClass}`)
+      window.removeEventListener('pointermove', updateLayout)
+      window.removeEventListener('pointerup', stopResize)
+      window.removeEventListener('pointercancel', stopResize)
+    }
+
+    window.addEventListener('pointermove', updateLayout)
+    window.addEventListener('pointerup', stopResize)
+    window.addEventListener('pointercancel', stopResize)
   }
 
   const startConfig = (config: TerminalConfig): void => {
@@ -550,6 +645,13 @@ function App(): React.JSX.Element {
           </div>
         </section>
 
+        <button
+          className="resize-handle resize-handle--row"
+          type="button"
+          aria-label="Resize projects"
+          onPointerDown={(event) => startLayoutResize(event, 'projectsHeight')}
+        />
+
         <section className="rail-section" aria-label="Workspace actions">
           <button className="primary-button" type="button" onClick={openStartWorkspace}>
             Start {activeProject.name}
@@ -586,6 +688,13 @@ function App(): React.JSX.Element {
           </div>
         </section>
 
+        <button
+          className="resize-handle resize-handle--row"
+          type="button"
+          aria-label="Resize configured terminals"
+          onPointerDown={(event) => startLayoutResize(event, 'terminalsHeight')}
+        />
+
         <section className="rail-section" aria-label="Running sessions">
           <div className="rail-header">
             <span>Running</span>
@@ -621,6 +730,13 @@ function App(): React.JSX.Element {
           </div>
         </section>
       </aside>
+
+      <button
+        className="resize-handle resize-handle--column"
+        type="button"
+        aria-label="Resize project rail"
+        onPointerDown={(event) => startLayoutResize(event, 'railWidth')}
+      />
 
       <section className="session-panel" aria-label="Session preview">
         <header className="session-header">
@@ -671,6 +787,13 @@ function App(): React.JSX.Element {
           )}
         </div>
       </section>
+
+      <button
+        className="resize-handle resize-handle--column"
+        type="button"
+        aria-label="Resize companion panel"
+        onPointerDown={(event) => startLayoutResize(event, 'companionWidth')}
+      />
 
       <aside className="companion-panel" aria-label="Companion preview">
         <div className="companion-stage">

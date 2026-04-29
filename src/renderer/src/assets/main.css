@@ -8,6 +8,21 @@ body {
   user-select: none;
 }
 
+body.is-resizing,
+body.is-resizing * {
+  user-select: none;
+}
+
+body.is-resizing--column,
+body.is-resizing--column * {
+  cursor: col-resize;
+}
+
+body.is-resizing--row,
+body.is-resizing--row * {
+  cursor: row-resize;
+}
+
 button {
   font: inherit;
 }
@@ -18,9 +33,13 @@ button {
 
 .app-shell {
   --active-project-color: #4ea1ff;
+  --rail-width: 300px;
+  --companion-width: 320px;
+  --projects-height: 178px;
+  --terminals-height: 260px;
   display: grid;
-  grid-template-columns: 300px minmax(440px, 1fr) 320px;
-  gap: 16px;
+  grid-template-columns: var(--rail-width) 16px minmax(440px, 1fr) 16px var(--companion-width);
+  gap: 0;
   min-height: 100vh;
   padding: 16px;
 }
@@ -36,8 +55,10 @@ button {
 
 .workspace-rail {
   display: grid;
-  grid-template-rows: auto auto auto auto minmax(0, 1fr);
-  gap: 18px;
+  grid-template-rows:
+    auto minmax(110px, var(--projects-height)) 10px auto
+    minmax(130px, var(--terminals-height)) 10px minmax(120px, 1fr);
+  gap: 8px;
   overflow: hidden;
   padding: 16px;
 }
@@ -110,6 +131,7 @@ button {
 .rail-section {
   display: grid;
   gap: 10px;
+  min-height: 0;
   min-width: 0;
 }
 
@@ -151,9 +173,61 @@ button {
 }
 
 .rail-section--config .template-list {
-  max-height: 260px;
   overflow: auto;
   padding-right: 2px;
+}
+
+.resize-handle {
+  position: relative;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: grab;
+}
+
+.resize-handle::before {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  transition:
+    background 120ms ease,
+    transform 120ms ease;
+}
+
+.resize-handle:hover::before,
+.resize-handle:focus-visible::before {
+  background: color-mix(in srgb, var(--active-project-color) 62%, rgba(255, 255, 255, 0.14));
+}
+
+.resize-handle--column {
+  min-width: 16px;
+  cursor: col-resize;
+}
+
+.resize-handle--column::before {
+  inset: 18px 7px;
+  width: 2px;
+}
+
+.resize-handle--column:hover::before,
+.resize-handle--column:focus-visible::before {
+  transform: scaleX(1.8);
+}
+
+.resize-handle--row {
+  min-height: 10px;
+  cursor: row-resize;
+}
+
+.resize-handle--row::before {
+  inset: 4px 24px;
+  height: 2px;
+}
+
+.resize-handle--row:hover::before,
+.resize-handle--row:focus-visible::before {
+  transform: scaleY(1.8);
 }
 
 .primary-button {
@@ -845,9 +919,14 @@ button {
 
   .app-shell {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 
   .workspace-rail {
     grid-template-rows: auto;
+  }
+
+  .resize-handle {
+    display: none;
   }
 }
