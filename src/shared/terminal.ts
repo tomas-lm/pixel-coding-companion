@@ -15,12 +15,14 @@ export type TerminalSessionId = string
 
 export type TerminalStartRequest = {
   id: TerminalSessionId
+  autoLaunchInput?: string
   cols: number
   rows: number
   companionContext?: TerminalCompanionContext
   cwd?: string
   commands?: string[]
   env?: Record<string, string>
+  suppressCommandExitMarker?: boolean
 }
 
 export type TerminalCompanionContext = {

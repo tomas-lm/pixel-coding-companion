@@ -131,6 +131,7 @@ export function TerminalPane({
       window.api.terminal
         .start({
           id: session.id,
+          autoLaunchInput: session.autoLaunchInstruction,
           companionContext: {
             cwd: session.cwd,
             projectColor: session.projectColor,
@@ -144,6 +145,7 @@ export function TerminalPane({
           rows: terminal.rows,
           cwd: session.cwd || undefined,
           commands: session.commands,
+          suppressCommandExitMarker: Boolean(session.autoLaunchInstruction),
           env: {
             PIXEL_COMPANION_CWD: session.cwd,
             PIXEL_COMPANION_PROJECT_COLOR: session.projectColor,
@@ -186,6 +188,7 @@ export function TerminalPane({
     onSessionExit,
     onSessionStartError,
     onSessionStarted,
+    session.autoLaunchInstruction,
     session.commands,
     session.configId,
     session.cwd,

@@ -37,6 +37,8 @@ import {
 
 type PtyProcess = ReturnType<typeof pty.spawn>
 type ManagedTerminal = {
+  autoLaunchInput?: string
+  autoLaunchInputSent: boolean
   pendingData: string
   process: PtyProcess
 }
@@ -56,6 +58,10 @@ const COMMAND_EXIT_PATTERN = new RegExp(
   `(?:\\r?\\n)?${COMMAND_EXIT_MARKER}(-?\\d+)(?:\\r?\\n)?`,
   'g'
 )
+const AUTO_LAUNCH_FALLBACK_DELAY_MS = 7000
+const AUTO_LAUNCH_SUBMIT_DELAY_MS = 180
+const ANSI_SEQUENCE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[ -/]*[@-~]`, 'g')
+const CODEX_CLI_READY_PATTERNS = [/Tip: Use \/skills/i, /›\s*$/]
 const terminals = new Map<TerminalSessionId, ManagedTerminal>()
 let terminalContextRegistryQueue: Promise<void> = Promise.resolve()
 
@@ -257,7 +263,8 @@ function getMarkerPrefixLength(data: string): number {
 function writeStartupCommands(
   terminal: PtyProcess,
   id: TerminalSessionId,
-  commands: string[]
+  commands: string[],
+  options: { writeExitMarker: boolean }
 ): void {
   commands.forEach((command, index) => {
     setTimeout(() => {
@@ -267,11 +274,60 @@ function writeStartupCommands(
     }, index * 80)
   })
 
+  if (!options.writeExitMarker) return
+
   setTimeout(() => {
     if (terminals.get(id)?.process === terminal) {
       terminal.write(`${COMMAND_EXIT_COMMAND}\r`)
     }
   }, commands.length * 80)
+}
+
+function isCodexCliReady(output: string): boolean {
+  const plainOutput = output.replace(ANSI_SEQUENCE_PATTERN, '')
+  return CODEX_CLI_READY_PATTERNS.some((pattern) => pattern.test(plainOutput))
+}
+
+function writeAutoLaunchInput(terminal: PtyProcess, id: TerminalSessionId): void {
+  const managedTerminal = terminals.get(id)
+  if (!managedTerminal?.autoLaunchInput || managedTerminal.autoLaunchInputSent) return
+
+  managedTerminal.autoLaunchInputSent = true
+  terminal.write(managedTerminal.autoLaunchInput)
+
+  setTimeout(() => {
+    if (terminals.get(id)?.process === terminal) {
+      terminal.write('\r')
+    }
+  }, AUTO_LAUNCH_SUBMIT_DELAY_MS)
+}
+
+function writeAutoLaunchInputIfCodexReady(
+  terminal: PtyProcess,
+  id: TerminalSessionId,
+  output: string
+): void {
+  if (!isCodexCliReady(output)) return
+
+  setTimeout(() => {
+    if (terminals.get(id)?.process === terminal) {
+      writeAutoLaunchInput(terminal, id)
+    }
+  }, 350)
+}
+
+function scheduleAutoLaunchInputFallback(
+  terminal: PtyProcess,
+  id: TerminalSessionId,
+  commandCount: number
+): void {
+  const delayMs = commandCount * 120 + AUTO_LAUNCH_FALLBACK_DELAY_MS
+
+  setTimeout(() => {
+    if (terminals.get(id)?.process === terminal) {
+      writeAutoLaunchInput(terminal, id)
+    }
+  }, delayMs)
 }
 
 function registerTerminalIpc(): void {
@@ -296,6 +352,8 @@ function registerTerminalIpc(): void {
       await registerTerminalContextProcess(request.id, terminal.pid, request.companionContext)
 
       terminals.set(request.id, {
+        autoLaunchInput: request.autoLaunchInput?.trim() || undefined,
+        autoLaunchInputSent: false,
         pendingData: '',
         process: terminal
       })
@@ -327,6 +385,8 @@ function registerTerminalIpc(): void {
         managedTerminal.pendingData = pendingLength > 0 ? visibleData.slice(-pendingLength) : ''
         visibleData = pendingLength > 0 ? visibleData.slice(0, -pendingLength) : visibleData
 
+        writeAutoLaunchInputIfCodexReady(terminal, request.id, visibleData)
+
         if (!event.sender.isDestroyed()) {
           event.sender.send(TERMINAL_CHANNELS.data, { id: request.id, data: visibleData })
         }
@@ -342,7 +402,13 @@ function registerTerminalIpc(): void {
 
       const commands = request.commands?.map((command) => command.trim()).filter(Boolean) ?? []
       if (commands.length > 0) {
-        writeStartupCommands(terminal, request.id, commands)
+        writeStartupCommands(terminal, request.id, commands, {
+          writeExitMarker: !request.suppressCommandExitMarker
+        })
+      }
+
+      if (request.autoLaunchInput) {
+        scheduleAutoLaunchInputFallback(terminal, request.id, commands.length)
       }
 
       return {

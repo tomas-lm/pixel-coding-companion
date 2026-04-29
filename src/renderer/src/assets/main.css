@@ -1050,6 +1050,51 @@ button {
   gap: 8px;
 }
 
+.start-agent-instruction-panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--active-project-color) 34%, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--active-project-color) 10%, rgba(255, 255, 255, 0.04));
+}
+
+.start-agent-toggle {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.start-agent-toggle input {
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--active-project-color);
+}
+
+.start-agent-toggle span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.start-agent-toggle strong {
+  color: var(--ev-c-text-1);
+  font-size: 13px;
+}
+
+.start-agent-toggle small,
+.start-agent-warning {
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+}
+
+.start-agent-warning {
+  margin: 0;
+  line-height: 1.45;
+}
+
 .start-config-list {
   display: grid;
   gap: 8px;

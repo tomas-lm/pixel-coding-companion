@@ -69,6 +69,7 @@ type TerminalForm = {
 }
 
 type StartWorkspaceSelection = {
+  autoLaunchInstruction: boolean
   projectId: string
   selectedConfigIds: string[]
 }
@@ -118,14 +119,36 @@ function createEmptyTerminalForm(): TerminalForm {
   }
 }
 
-function createRunningSession(config: TerminalConfig, project: Project | null): RunningSession {
+function createAutoLaunchInstruction(config: TerminalConfig, project: Project | null): string {
+  const projectName = project?.name ?? 'this project'
+
+  return [
+    '[Pixel Companion setup]',
+    'This is a startup instruction, not a user task.',
+    `You are running in the Pixel Companion terminal "${config.name}" for "${projectName}".`,
+    'Use the pixel-companion MCP companion_report tool when meaningful work starts, finishes, fails, or needs user input.',
+    'Write Ghou messages as natural user-facing speech, matching the user language.',
+    'Do not mention MCP/tool calls unless the user is debugging Pixel Companion itself.'
+  ].join(' ')
+}
+
+function createRunningSession(
+  config: TerminalConfig,
+  project: Project | null,
+  useAutoLaunchInstruction = false
+): RunningSession {
   const now = new Date().toISOString()
+  const autoLaunchInstruction =
+    useAutoLaunchInstruction && config.kind === 'ai' && config.commands.length > 0
+      ? createAutoLaunchInstruction(config, project)
+      : undefined
 
   return {
     id: createId('session'),
     projectId: config.projectId,
     configId: config.id,
     name: config.name,
+    autoLaunchInstruction,
     projectColor: project?.color ?? PROJECT_COLORS[0],
     projectName: project?.name ?? 'Unknown project',
     kind: config.kind,
@@ -417,6 +440,11 @@ function App(): React.JSX.Element {
       )
     : []
   const shouldShowOnboarding = configLoaded && projects.length === 0
+  const selectedStartAutoLaunchConfigs = selectedStartConfigs.filter(
+    (config) => config.kind === 'ai' && config.commands.length > 0
+  )
+  const selectedStartAutoLaunchLabel =
+    selectedStartAutoLaunchConfigs.length === 1 ? 'terminal' : 'terminals'
 
   useEffect(() => {
     let mounted = true
@@ -624,7 +652,7 @@ function App(): React.JSX.Element {
     }
 
     const project = projects.find((candidate) => candidate.id === config.projectId) ?? null
-    const session = createRunningSession(config, project)
+    const session = createRunningSession(config, project, config.kind === 'ai')
     setRunningSessions((currentSessions) => [...currentSessions, session])
     setActiveProjectId(config.projectId)
     setActiveSessionId(session.id)
@@ -639,6 +667,7 @@ function App(): React.JSX.Element {
       .map((config) => config.id)
 
     setStartSelection({
+      autoLaunchInstruction: true,
       projectId: activeProject.id,
       selectedConfigIds
     })
@@ -684,6 +713,17 @@ function App(): React.JSX.Element {
     })
   }
 
+  const toggleStartAutoLaunchInstruction = (): void => {
+    setStartSelection((currentSelection) =>
+      currentSelection
+        ? {
+            ...currentSelection,
+            autoLaunchInstruction: !currentSelection.autoLaunchInstruction
+          }
+        : currentSelection
+    )
+  }
+
   const startSelectedWorkspaceConfigs = (): void => {
     if (!startSelection) return
 
@@ -697,7 +737,7 @@ function App(): React.JSX.Element {
       )
       .map((config) => {
         const project = projects.find((candidate) => candidate.id === config.projectId) ?? null
-        return createRunningSession(config, project)
+        return createRunningSession(config, project, startSelection.autoLaunchInstruction)
       })
     const firstExistingSession = runningSessions.find(
       (session) => session.projectId === startSelection.projectId && isLiveSession(session)
@@ -1242,6 +1282,27 @@ function App(): React.JSX.Element {
               >
                 Run only
               </button>
+            </div>
+
+            <div className="start-agent-instruction-panel">
+              <label className="start-agent-toggle">
+                <input
+                  type="checkbox"
+                  checked={startSelection.autoLaunchInstruction}
+                  onChange={toggleStartAutoLaunchInstruction}
+                />
+                <span>
+                  <strong>Auto-launch Ghou instruction</strong>
+                  <small>
+                    Sends the companion setup prompt to selected AI terminals after launch.
+                  </small>
+                </span>
+              </label>
+              <p className="start-agent-warning">
+                Keep this on for AI terminals if you want Ghou to receive updates without manually
+                prompting Codex or Claude. It applies to {selectedStartAutoLaunchConfigs.length}
+                selected AI {selectedStartAutoLaunchLabel} with launch commands.
+              </p>
             </div>
 
             <div className="start-config-list">
