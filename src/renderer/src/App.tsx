@@ -559,154 +559,160 @@ function App(): React.JSX.Element {
   return (
     <main className="app-shell" style={activeStyle}>
       <aside className="workspace-rail">
-        <div className="brand-lockup">
-          <span className="brand-mark" aria-hidden="true" />
-          <div className="brand-title-row">
-            <strong>Pixel Companion</strong>
-            <span className="brand-version">v1.0.0</span>
+        <div className="workspace-rail-scroll">
+          <div className="brand-lockup">
+            <span className="brand-mark" aria-hidden="true" />
+            <div className="brand-title-row">
+              <strong>Pixel Companion</strong>
+              <span className="brand-version">v1.0.0</span>
+            </div>
           </div>
+
+          <section className="rail-section rail-section--projects" aria-label="Projects">
+            <div className="rail-header">
+              <span>Projects</span>
+              <button className="secondary-button" type="button" onClick={openCreateProject}>
+                Add workspace
+              </button>
+            </div>
+
+            <div className="project-list">
+              {projects.length === 0 && (
+                <div className="empty-list-state">No workspaces configured.</div>
+              )}
+
+              {projects.map((project) => (
+                <div
+                  key={project.id}
+                  className={`project-row${project.id === activeProject?.id ? ' project-row--active' : ''}`}
+                  style={{ '--project-color': project.color } as CSSProperties}
+                >
+                  <button
+                    className="project-item"
+                    type="button"
+                    onClick={() => selectProject(project.id)}
+                  >
+                    <span className="project-dot" aria-hidden="true" />
+                    <span>{project.name}</span>
+                    <small>{getProjectLiveLabel(project.id, runningSessions)}</small>
+                  </button>
+                  <button
+                    className="icon-button"
+                    type="button"
+                    title={`Edit ${project.name}`}
+                    onClick={() => openEditProject(project)}
+                  >
+                    Settings
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <button
+            className="resize-handle resize-handle--row"
+            type="button"
+            aria-label="Resize projects"
+            onPointerDown={(event) => startLayoutResize(event, 'projectsHeight')}
+          />
+
+          <section className="rail-section rail-section--actions" aria-label="Workspace actions">
+            {activeProject ? (
+              <button className="primary-button" type="button" onClick={openStartWorkspace}>
+                Start {activeProject.name}
+              </button>
+            ) : (
+              <button className="primary-button" type="button" onClick={openCreateProject}>
+                Add workspace
+              </button>
+            )}
+          </section>
+
+          <section className="rail-section rail-section--config" aria-label="Configured terminals">
+            <div className="rail-header">
+              <span>Configured terminals</span>
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={!activeProject}
+                onClick={openCreateTerminal}
+              >
+                Add terminal
+              </button>
+            </div>
+            <div className="template-list">
+              {!activeProject && (
+                <div className="empty-list-state">Select or create a workspace first.</div>
+              )}
+
+              {activeProjectConfigs.map((config) => (
+                <div key={config.id} className="template-row">
+                  <button
+                    className="template-item"
+                    type="button"
+                    onClick={() => startConfig(config)}
+                  >
+                    <span className={`kind-badge kind-badge--${config.kind}`}>
+                      {KIND_LABELS[config.kind]}
+                    </span>
+                    <strong>{config.name}</strong>
+                    <small>{getTerminalDetail(config)}</small>
+                  </button>
+                  <button
+                    className="icon-button"
+                    type="button"
+                    title={`Configure ${config.name}`}
+                    onClick={() => openEditTerminal(config)}
+                  >
+                    Settings
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <button
+            className="resize-handle resize-handle--row"
+            type="button"
+            aria-label="Resize configured terminals"
+            onPointerDown={(event) => startLayoutResize(event, 'terminalsHeight')}
+          />
+
+          <section className="rail-section rail-section--running" aria-label="Running sessions">
+            <div className="rail-header">
+              <span>Running</span>
+              <small>{activeProjectSessions.length}</small>
+            </div>
+
+            <div className="session-list">
+              {activeProjectSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className={`session-row${session.id === selectedSessionId ? ' session-row--active' : ''}`}
+                >
+                  <button
+                    className="session-item"
+                    type="button"
+                    onClick={() => setActiveSessionId(session.id)}
+                  >
+                    <span className={`kind-badge kind-badge--${session.kind}`}>
+                      {KIND_LABELS[session.kind]}
+                    </span>
+                    <strong>{session.name}</strong>
+                    <small>{session.status}</small>
+                  </button>
+                  <button
+                    className="session-stop"
+                    type="button"
+                    onClick={() => stopSession(session.id)}
+                  >
+                    Stop
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
-
-        <section className="rail-section rail-section--projects" aria-label="Projects">
-          <div className="rail-header">
-            <span>Projects</span>
-            <button className="secondary-button" type="button" onClick={openCreateProject}>
-              Add workspace
-            </button>
-          </div>
-
-          <div className="project-list">
-            {projects.length === 0 && (
-              <div className="empty-list-state">No workspaces configured.</div>
-            )}
-
-            {projects.map((project) => (
-              <div
-                key={project.id}
-                className={`project-row${project.id === activeProject?.id ? ' project-row--active' : ''}`}
-                style={{ '--project-color': project.color } as CSSProperties}
-              >
-                <button
-                  className="project-item"
-                  type="button"
-                  onClick={() => selectProject(project.id)}
-                >
-                  <span className="project-dot" aria-hidden="true" />
-                  <span>{project.name}</span>
-                  <small>{getProjectLiveLabel(project.id, runningSessions)}</small>
-                </button>
-                <button
-                  className="icon-button"
-                  type="button"
-                  title={`Edit ${project.name}`}
-                  onClick={() => openEditProject(project)}
-                >
-                  Settings
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <button
-          className="resize-handle resize-handle--row"
-          type="button"
-          aria-label="Resize projects"
-          onPointerDown={(event) => startLayoutResize(event, 'projectsHeight')}
-        />
-
-        <section className="rail-section rail-section--actions" aria-label="Workspace actions">
-          {activeProject ? (
-            <button className="primary-button" type="button" onClick={openStartWorkspace}>
-              Start {activeProject.name}
-            </button>
-          ) : (
-            <button className="primary-button" type="button" onClick={openCreateProject}>
-              Add workspace
-            </button>
-          )}
-        </section>
-
-        <section className="rail-section rail-section--config" aria-label="Configured terminals">
-          <div className="rail-header">
-            <span>Configured terminals</span>
-            <button
-              className="secondary-button"
-              type="button"
-              disabled={!activeProject}
-              onClick={openCreateTerminal}
-            >
-              Add terminal
-            </button>
-          </div>
-          <div className="template-list">
-            {!activeProject && (
-              <div className="empty-list-state">Select or create a workspace first.</div>
-            )}
-
-            {activeProjectConfigs.map((config) => (
-              <div key={config.id} className="template-row">
-                <button className="template-item" type="button" onClick={() => startConfig(config)}>
-                  <span className={`kind-badge kind-badge--${config.kind}`}>
-                    {KIND_LABELS[config.kind]}
-                  </span>
-                  <strong>{config.name}</strong>
-                  <small>{getTerminalDetail(config)}</small>
-                </button>
-                <button
-                  className="icon-button"
-                  type="button"
-                  title={`Configure ${config.name}`}
-                  onClick={() => openEditTerminal(config)}
-                >
-                  Settings
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <button
-          className="resize-handle resize-handle--row"
-          type="button"
-          aria-label="Resize configured terminals"
-          onPointerDown={(event) => startLayoutResize(event, 'terminalsHeight')}
-        />
-
-        <section className="rail-section rail-section--running" aria-label="Running sessions">
-          <div className="rail-header">
-            <span>Running</span>
-            <small>{activeProjectSessions.length}</small>
-          </div>
-
-          <div className="session-list">
-            {activeProjectSessions.map((session) => (
-              <div
-                key={session.id}
-                className={`session-row${session.id === selectedSessionId ? ' session-row--active' : ''}`}
-              >
-                <button
-                  className="session-item"
-                  type="button"
-                  onClick={() => setActiveSessionId(session.id)}
-                >
-                  <span className={`kind-badge kind-badge--${session.kind}`}>
-                    {KIND_LABELS[session.kind]}
-                  </span>
-                  <strong>{session.name}</strong>
-                  <small>{session.status}</small>
-                </button>
-                <button
-                  className="session-stop"
-                  type="button"
-                  onClick={() => stopSession(session.id)}
-                >
-                  Stop
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
       </aside>
 
       <button
