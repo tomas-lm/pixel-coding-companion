@@ -19,7 +19,7 @@ Phase 2 is the first workspace-manager version:
 - native folder picker
 - multiple in-memory terminal sessions
 
-The app can create projects from folders, start session templates, and keep multiple terminal sessions alive while switching between them.
+The app treats projects as logical workspaces. A workspace can launch several configured terminal sessions across different folders, so contexts like Engelmig and BAMAQ can each own their own assistant/backend/frontend terminals.
 
 ## Local Development
 

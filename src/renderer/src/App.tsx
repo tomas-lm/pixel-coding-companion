@@ -9,6 +9,8 @@ import {
 import { TerminalPane } from './components/TerminalPane'
 
 const PROJECT_COLORS = ['#4ea1ff', '#ef5b5b', '#f7d56f', '#7fe7dc', '#c084fc', '#34d399']
+const DEV_ROOT = '/Users/tomasmuniz/dev'
+const CIANO_ROOT = `${DEV_ROOT}/ciano-io`
 
 const KIND_LABELS: Record<SessionKind, string> = {
   ai: 'AI',
@@ -21,15 +23,37 @@ const KIND_LABELS: Record<SessionKind, string> = {
 
 const INITIAL_PROJECTS: Project[] = [
   {
-    id: 'local-workspace',
-    name: 'Local Workspace',
+    id: 'engelmig',
+    name: 'Engelmig',
     color: PROJECT_COLORS[0],
-    path: ''
+    description: 'Assistant, backend and frontend Codex sessions'
+  },
+  {
+    id: 'bamaq',
+    name: 'BAMAQ',
+    color: PROJECT_COLORS[1],
+    description: 'Assistant, GWM frontend and GWM backend Codex sessions'
   }
 ]
 
 function createId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`
+}
+
+function createCodexTemplate(
+  projectId: string,
+  suffix: string,
+  name: string,
+  cwd: string
+): SessionTemplate {
+  return {
+    id: `${projectId}-${suffix}`,
+    projectId,
+    name,
+    kind: 'ai',
+    command: 'codex',
+    cwd
+  }
 }
 
 function createDefaultTemplates(projectId: string, cwd: string): SessionTemplate[] {
@@ -61,7 +85,19 @@ function createDefaultTemplates(projectId: string, cwd: string): SessionTemplate
   ]
 }
 
-const INITIAL_TEMPLATES = createDefaultTemplates(INITIAL_PROJECTS[0].id, INITIAL_PROJECTS[0].path)
+const INITIAL_TEMPLATES: SessionTemplate[] = [
+  createCodexTemplate('engelmig', 'assistant', 'Assistant', DEV_ROOT),
+  createCodexTemplate('engelmig', 'backend', 'Engelmig', `${CIANO_ROOT}/engelmig`),
+  createCodexTemplate(
+    'engelmig',
+    'frontend',
+    'Engelmig Frontend',
+    `${CIANO_ROOT}/engelmig-frontend`
+  ),
+  createCodexTemplate('bamaq', 'assistant', 'Assistant', DEV_ROOT),
+  createCodexTemplate('bamaq', 'frontend', 'GWM Frontend', `${CIANO_ROOT}/bamaq-gwm-frontend`),
+  createCodexTemplate('bamaq', 'backend', 'GWM Backend', `${CIANO_ROOT}/bamaq-gwm-backend`)
+]
 
 function createRunningSession(template: SessionTemplate): RunningSession {
   return {
@@ -77,8 +113,16 @@ function createRunningSession(template: SessionTemplate): RunningSession {
   }
 }
 
-function getProjectPathLabel(path: string): string {
-  return path || 'Home folder'
+function getProjectSummary(project: Project, templates: SessionTemplate[]): string {
+  const configuredCount = templates.filter((template) => template.projectId === project.id).length
+  const suffix = configuredCount === 1 ? 'terminal' : 'terminals'
+
+  return `${configuredCount} configured ${suffix} - ${project.description}`
+}
+
+function getTemplateDetail(template: SessionTemplate): string {
+  const command = template.command || 'interactive shell'
+  return `${command} - ${template.cwd}`
 }
 
 function getProjectLiveLabel(projectId: string, runningSessions: RunningSession[]): string {
@@ -210,13 +254,13 @@ function App(): React.JSX.Element {
       id: createId('project'),
       name: folder.name,
       color: PROJECT_COLORS[projects.length % PROJECT_COLORS.length],
-      path: folder.path
+      description: `Single-folder workspace at ${folder.path}`
     }
 
     setProjects((currentProjects) => [...currentProjects, project])
     setTemplates((currentTemplates) => [
       ...currentTemplates,
-      ...createDefaultTemplates(project.id, project.path)
+      ...createDefaultTemplates(project.id, folder.path)
     ])
     setActiveProjectId(project.id)
     setActiveSessionId(null)
@@ -243,7 +287,7 @@ function App(): React.JSX.Element {
           <div className="rail-header">
             <span>Projects</span>
             <button className="secondary-button" type="button" onClick={addProjectFromFolder}>
-              Add folder
+              Add workspace
             </button>
           </div>
 
@@ -264,14 +308,19 @@ function App(): React.JSX.Element {
           </div>
         </section>
 
-        <section className="rail-section" aria-label="Session templates">
+        <section className="rail-section" aria-label="Workspace actions">
           <div className="rail-header">
-            <span>Templates</span>
             <button className="primary-button" type="button" onClick={startWorkspace}>
-              Start workspace
+              Start {activeProject.name}
             </button>
           </div>
+        </section>
 
+        <section className="rail-section rail-section--config" aria-label="Configured terminals">
+          <div className="rail-header">
+            <span>Configured terminals</span>
+            <small>{activeProjectTemplates.length}</small>
+          </div>
           <div className="template-list">
             {activeProjectTemplates.map((template) => (
               <button
@@ -284,7 +333,7 @@ function App(): React.JSX.Element {
                   {KIND_LABELS[template.kind]}
                 </span>
                 <strong>{template.name}</strong>
-                <small>{template.command || 'interactive shell'}</small>
+                <small>{getTemplateDetail(template)}</small>
               </button>
             ))}
           </div>
@@ -338,7 +387,7 @@ function App(): React.JSX.Element {
           <div>
             <span className="eyebrow">{activeProject.name}</span>
             <h1>{terminalTitle}</h1>
-            <p>{getProjectPathLabel(activeProject.path)}</p>
+            <p>{getProjectSummary(activeProject, templates)}</p>
           </div>
           <div className="session-header-actions">
             <span className={`kind-badge kind-badge--${activeSessionKind}`}>

@@ -36,7 +36,7 @@ button {
 
 .workspace-rail {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   gap: 18px;
   overflow: hidden;
   padding: 16px;
@@ -105,6 +105,22 @@ button {
   padding: 0 10px;
   color: var(--ev-c-text-1);
   cursor: pointer;
+}
+
+.rail-section[aria-label='Workspace actions'] .primary-button {
+  width: 100%;
+  min-height: 38px;
+  font-weight: 700;
+}
+
+.rail-section--config {
+  gap: 8px;
+}
+
+.rail-section--config .template-list {
+  max-height: 180px;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .primary-button {

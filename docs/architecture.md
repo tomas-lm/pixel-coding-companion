@@ -21,12 +21,14 @@ Pixel Coding Companion starts as a local-first macOS desktop app for coordinatin
 
 ## Core Domain Model
 
+Projects are logical workspaces, not necessarily one filesystem folder. A project such as Engelmig can own terminal configs for `/Users/tomasmuniz/dev`, `engelmig`, and `engelmig-frontend`.
+
 ```ts
 type Project = {
   id: string
   name: string
   color: string
-  path: string
+  description: string
 }
 
 type SessionStatus = 'idle' | 'running' | 'needs_input' | 'done' | 'error'
