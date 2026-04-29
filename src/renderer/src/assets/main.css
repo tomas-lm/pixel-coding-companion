@@ -54,17 +54,16 @@ button {
 }
 
 .workspace-rail {
-  display: grid;
-  grid-template-rows:
-    auto minmax(110px, var(--projects-height)) 10px auto
-    minmax(130px, var(--terminals-height)) 10px minmax(120px, 1fr);
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   overflow: hidden;
   padding: 16px;
 }
 
 .brand-lockup {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 12px;
 }
@@ -131,16 +130,21 @@ button {
 .rail-section {
   display: grid;
   gap: 10px;
+  align-content: start;
   min-height: 0;
   min-width: 0;
 }
 
-.rail-section:last-child {
-  min-height: 0;
+.rail-section--projects {
+  flex: 0 0 var(--projects-height);
+  min-height: 110px;
+  max-height: 360px;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
-.rail-section[aria-label='Projects'] {
-  min-height: 0;
+.rail-section--actions {
+  flex: 0 0 auto;
+  padding-top: 2px;
 }
 
 .rail-header {
@@ -168,13 +172,22 @@ button {
 }
 
 .rail-section--config {
+  flex: 0 0 auto;
+  grid-template-rows: auto auto;
   gap: 8px;
   min-height: 0;
 }
 
 .rail-section--config .template-list {
+  max-height: var(--terminals-height);
   overflow: auto;
   padding-right: 2px;
+}
+
+.rail-section--running {
+  flex: 1 1 0;
+  min-height: 120px;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .resize-handle {
@@ -216,6 +229,7 @@ button {
 }
 
 .resize-handle--row {
+  flex: 0 0 10px;
   min-height: 10px;
   cursor: row-resize;
 }
@@ -254,7 +268,9 @@ button {
 .template-list,
 .session-list {
   display: grid;
+  grid-auto-rows: max-content;
   gap: 8px;
+  align-content: start;
   min-width: 0;
 }
 
@@ -920,10 +936,6 @@ button {
   .app-shell {
     grid-template-columns: 1fr;
     gap: 16px;
-  }
-
-  .workspace-rail {
-    grid-template-rows: auto;
   }
 
   .resize-handle {

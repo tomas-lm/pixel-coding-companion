@@ -608,7 +608,7 @@ function App(): React.JSX.Element {
           </div>
         </div>
 
-        <section className="rail-section" aria-label="Projects">
+        <section className="rail-section rail-section--projects" aria-label="Projects">
           <div className="rail-header">
             <span>Projects</span>
             <button className="secondary-button" type="button" onClick={openCreateProject}>
@@ -652,7 +652,7 @@ function App(): React.JSX.Element {
           onPointerDown={(event) => startLayoutResize(event, 'projectsHeight')}
         />
 
-        <section className="rail-section" aria-label="Workspace actions">
+        <section className="rail-section rail-section--actions" aria-label="Workspace actions">
           <button className="primary-button" type="button" onClick={openStartWorkspace}>
             Start {activeProject.name}
           </button>
@@ -695,7 +695,7 @@ function App(): React.JSX.Element {
           onPointerDown={(event) => startLayoutResize(event, 'terminalsHeight')}
         />
 
-        <section className="rail-section" aria-label="Running sessions">
+        <section className="rail-section rail-section--running" aria-label="Running sessions">
           <div className="rail-header">
             <span>Running</span>
             <small>{activeProjectSessions.length}</small>
