@@ -10,3 +10,7 @@ workspaces.json
 *.workspaces.json
 .pixel-companion/
 .pixel-coding-companion/
+
+
+# IDEs
+.codex
