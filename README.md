@@ -6,15 +6,17 @@ The first target is macOS: a small pixel companion that lives on a second screen
 
 ## Status
 
-Phase 0 is the project base:
+Phase 1 is the first functional terminal spine:
 
 - Electron
 - React
 - TypeScript
 - electron-vite
 - electron-builder
+- xterm.js
+- node-pty
 
-The next milestone is a real terminal pane using xterm.js and node-pty.
+The app now starts one real local shell inside the Electron window. The next milestone is project-bound multi-session management.
 
 ## Local Development
 

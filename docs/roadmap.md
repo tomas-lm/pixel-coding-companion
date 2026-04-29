@@ -4,22 +4,25 @@
 
 Goal: create a clean public Electron + React + TypeScript repo.
 
-- Scaffold Electron app.
-- Replace template branding with project shell.
-- Add initial docs and license.
-- Publish the public GitHub repository.
-- Verify typecheck/build.
+- Status: Done.
+- Scaffolded Electron app.
+- Replaced template branding with project shell.
+- Added initial docs and license.
+- Published the public GitHub repository.
+- Verified typecheck/build.
 
 ## Phase 1: Real Terminal
 
 Goal: run a real local terminal inside the app.
 
-- Add xterm.js.
-- Add node-pty.
-- Spawn `/bin/zsh` from the Electron main process.
-- Stream PTY output to the renderer.
-- Send input from the renderer to the PTY.
-- Resize PTY when the terminal pane changes size.
+- Status: Done.
+- Added xterm.js.
+- Added node-pty.
+- Spawned the user's default shell from the Electron main process.
+- Streamed PTY output to the renderer.
+- Sent input from the renderer to the PTY.
+- Added basic resize support through `ResizeObserver` and xterm's fit addon.
+- Cleaned up the shell process when the window/app closes.
 
 ## Phase 2: Projects And Sessions
 

@@ -42,7 +42,7 @@ type Session = {
 
 ## First Technical Spine
 
-The app should prove the terminal manager before adding agent intelligence:
+The app proves the terminal manager before adding agent intelligence:
 
 1. Open one real shell through a PTY.
 2. Render it through xterm.js.
@@ -51,3 +51,18 @@ The app should prove the terminal manager before adding agent intelligence:
 5. Add multiple project-bound sessions.
 
 MCP should come after this spine works. It is useful as a control surface, but it should not be the app's first primitive.
+
+## Terminal IPC
+
+The renderer does not get direct Node access. It uses the preload bridge exposed at `window.api.terminal`.
+
+Current channels:
+
+- `terminal:start`
+- `terminal:stop`
+- `terminal:input`
+- `terminal:resize`
+- `terminal:data`
+- `terminal:exit`
+
+The Electron main process owns the `node-pty` process map. The React renderer owns only the xterm.js view and sends input/resize events through typed IPC.

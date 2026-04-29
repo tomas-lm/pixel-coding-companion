@@ -1,3 +1,5 @@
+import { TerminalPane } from './components/TerminalPane'
+
 function App(): React.JSX.Element {
   return (
     <main className="app-shell">
@@ -38,17 +40,7 @@ function App(): React.JSX.Element {
           <span className="status-pill">running</span>
         </header>
 
-        <div className="terminal-frame" aria-label="Terminal placeholder">
-          <div className="terminal-toolbar">
-            <span />
-            <span />
-            <span />
-          </div>
-          <pre>{`$ codex
-> analyzing repository
-> preparing terminal bridge
-> waiting for the first real PTY integration`}</pre>
-        </div>
+        <TerminalPane />
       </section>
 
       <aside className="companion-panel" aria-label="Companion preview">

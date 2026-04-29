@@ -1,7 +1,115 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
+import { existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import * as pty from 'node-pty'
 import icon from '../../resources/icon.png?asset'
+import {
+  TERMINAL_CHANNELS,
+  type TerminalInputRequest,
+  type TerminalResizeRequest,
+  type TerminalSessionId,
+  type TerminalStartRequest,
+  type TerminalStartResponse
+} from '../shared/terminal'
+
+type PtyProcess = ReturnType<typeof pty.spawn>
+
+const terminals = new Map<TerminalSessionId, PtyProcess>()
+
+function getDefaultShell(): string {
+  if (process.platform === 'win32') return process.env.ComSpec ?? 'powershell.exe'
+  return process.env.SHELL ?? '/bin/zsh'
+}
+
+function getSafeCwd(cwd?: string): string {
+  if (cwd && existsSync(cwd)) return cwd
+  return app.getPath('home')
+}
+
+function getPtyEnv(): Record<string, string> {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string'
+    )
+  )
+
+  return {
+    ...env,
+    TERM: 'xterm-256color',
+    COLORTERM: 'truecolor'
+  }
+}
+
+function stopTerminal(id: TerminalSessionId): void {
+  const terminal = terminals.get(id)
+  if (!terminal) return
+
+  terminals.delete(id)
+  terminal.kill()
+}
+
+function stopAllTerminals(): void {
+  for (const id of terminals.keys()) {
+    stopTerminal(id)
+  }
+}
+
+function registerTerminalIpc(): void {
+  ipcMain.handle(
+    TERMINAL_CHANNELS.start,
+    (event, request: TerminalStartRequest): TerminalStartResponse => {
+      stopTerminal(request.id)
+
+      const shellPath = getDefaultShell()
+      const cwd = getSafeCwd(request.cwd)
+      const terminal = pty.spawn(shellPath, [], {
+        name: 'xterm-256color',
+        cols: Math.max(request.cols, 2),
+        rows: Math.max(request.rows, 2),
+        cwd,
+        env: getPtyEnv()
+      })
+
+      terminals.set(request.id, terminal)
+
+      terminal.onData((data) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send(TERMINAL_CHANNELS.data, { id: request.id, data })
+        }
+      })
+
+      terminal.onExit(({ exitCode, signal }) => {
+        terminals.delete(request.id)
+        if (!event.sender.isDestroyed()) {
+          event.sender.send(TERMINAL_CHANNELS.exit, { id: request.id, exitCode, signal })
+        }
+      })
+
+      return {
+        id: request.id,
+        pid: terminal.pid,
+        shell: shellPath,
+        cwd
+      }
+    }
+  )
+
+  ipcMain.handle(TERMINAL_CHANNELS.stop, (_, id: TerminalSessionId) => {
+    stopTerminal(id)
+  })
+
+  ipcMain.on(TERMINAL_CHANNELS.input, (_, request: TerminalInputRequest) => {
+    terminals.get(request.id)?.write(request.data)
+  })
+
+  ipcMain.on(TERMINAL_CHANNELS.resize, (_, request: TerminalResizeRequest) => {
+    const terminal = terminals.get(request.id)
+    if (!terminal) return
+
+    terminal.resize(Math.max(request.cols, 2), Math.max(request.rows, 2))
+  })
+}
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -18,6 +126,10 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+
+  mainWindow.on('closed', () => {
+    stopAllTerminals()
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -46,7 +158,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  ipcMain.on('ping', () => console.log('pong'))
+  registerTerminalIpc()
 
   createWindow()
 
@@ -64,6 +176,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  stopAllTerminals()
 })
 
 // In this file you can include the rest of your app's specific main process

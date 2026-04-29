@@ -1,8 +1,7 @@
-import { ElectronAPI } from '@electron-toolkit/preload'
+import type { CompanionApi } from '../shared/terminal'
 
 declare global {
   interface Window {
-    electron: ElectronAPI
-    api: unknown
+    api: CompanionApi
   }
 }
