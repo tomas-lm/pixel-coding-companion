@@ -1,0 +1,53 @@
+# Architecture
+
+Pixel Coding Companion starts as a local-first macOS desktop app for coordinating coding agent sessions.
+
+## Stack
+
+- Desktop shell: Electron
+- UI: React and TypeScript
+- Build tooling: electron-vite and electron-builder
+- Terminal renderer, phase 1: xterm.js
+- Process runtime, phase 1: node-pty
+- Persistence, later phase: SQLite
+- MCP integration, later phase: local MCP server with allowlisted tools
+
+## Process Boundaries
+
+- `src/main`: owns Electron windows, OS integration, child processes, and future PTY sessions.
+- `src/preload`: exposes a narrow, typed bridge from the main process to the renderer.
+- `src/renderer`: owns the React interface, companion visuals, project navigation, and session views.
+- `src/shared`, future: shared TypeScript types for projects, sessions, and events.
+
+## Core Domain Model
+
+```ts
+type Project = {
+  id: string
+  name: string
+  color: string
+  path: string
+}
+
+type SessionStatus = 'idle' | 'running' | 'needs_input' | 'done' | 'error'
+
+type Session = {
+  id: string
+  projectId: string
+  title: string
+  command: string
+  status: SessionStatus
+}
+```
+
+## First Technical Spine
+
+The app should prove the terminal manager before adding agent intelligence:
+
+1. Open one real shell through a PTY.
+2. Render it through xterm.js.
+3. Route input from React to the PTY.
+4. Keep session state in the main process.
+5. Add multiple project-bound sessions.
+
+MCP should come after this spine works. It is useful as a control surface, but it should not be the app's first primitive.

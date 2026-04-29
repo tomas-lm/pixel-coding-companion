@@ -1,0 +1,29 @@
+name: Bug report
+description: Report something that is broken or risky.
+title: '[Bug]: '
+labels: ['bug']
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest steps that reproduce the issue.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      placeholder: 'macOS 15, Apple Silicon'
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      render: shell
