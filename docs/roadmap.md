@@ -30,13 +30,15 @@ Goal: make the app useful for multiple work contexts.
 
 - Status: Done.
 - Added project records with name, color, and description.
-- Added session templates with name, kind, command, and cwd.
+- Added terminal configs with name, kind, cwd, and command lists.
 - Added running session records with status and metadata.
 - Added native folder picker for adding projects.
 - Added `Start Workspace` to launch all templates for the active project.
 - Supported multiple terminal sessions without killing hidden sessions.
 - Routed visible status and companion color by active project.
 - Updated the project model so projects are logical workspaces that can span multiple terminal folders.
+- Added JSON persistence for workspace configuration.
+- Added UI to create/rename workspaces and add/edit configured terminals.
 
 ## Phase 3: Agent Presets
 
@@ -58,8 +60,8 @@ Goal: turn session state into a companion interface.
 
 Goal: survive app restarts.
 
-- Add SQLite.
-- Store projects, sessions, settings, and session events.
+- Upgrade JSON persistence to SQLite if the config/event model outgrows flat files.
+- Store projects, terminal configs, sessions, settings, and session events.
 - Restore last window layout and active project.
 
 ## Phase 6: Local MCP Server

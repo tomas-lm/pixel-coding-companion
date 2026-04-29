@@ -9,7 +9,7 @@ Pixel Coding Companion starts as a local-first macOS desktop app for coordinatin
 - Build tooling: electron-vite and electron-builder
 - Terminal renderer, phase 1: xterm.js
 - Process runtime, phase 1: node-pty
-- Persistence, later phase: SQLite
+- Persistence: JSON workspace config in Electron `userData`
 - MCP integration, later phase: local MCP server with allowlisted tools
 
 ## Process Boundaries
@@ -42,28 +42,28 @@ type Session = {
 }
 ```
 
-Phase 2 expands this into session templates and running sessions:
+Phase 2 expands this into terminal configs and running sessions:
 
 ```ts
 type SessionKind = 'ai' | 'shell' | 'dev_server' | 'logs' | 'test' | 'custom'
 
-type SessionTemplate = {
+type TerminalConfig = {
   id: string
   projectId: string
   name: string
   kind: SessionKind
-  command: string
   cwd: string
+  commands: string[]
 }
 
 type RunningSession = {
   id: string
   projectId: string
-  templateId: string
+  configId: string
   name: string
   kind: SessionKind
-  command: string
   cwd: string
+  commands: string[]
   status: 'starting' | 'running' | 'exited' | 'error'
   metadata: string
 }
@@ -103,5 +103,7 @@ The renderer asks the main process to open native OS dialogs. It does not direct
 Current workspace channel:
 
 - `workspace:pick-folder`
+- `workspace:load-config`
+- `workspace:save-config`
 
-The folder picker returns the selected path and folder name. Persistence is intentionally not implemented yet; phase 2 keeps projects and sessions in memory while the interaction model settles.
+The folder picker returns the selected path and folder name. Workspace config persists to `workspaces.json` under Electron's `userData` path. Presets are seeded only when no saved config exists.

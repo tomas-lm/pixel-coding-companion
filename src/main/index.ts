@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from 'electron'
 import { basename, join } from 'path'
 import { existsSync } from 'fs'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import * as pty from 'node-pty'
 import icon from '../../resources/icon.png?asset'
@@ -12,7 +13,11 @@ import {
   type TerminalStartRequest,
   type TerminalStartResponse
 } from '../shared/terminal'
-import { WORKSPACE_CHANNELS, type FolderPickResult } from '../shared/workspace'
+import {
+  WORKSPACE_CHANNELS,
+  type FolderPickResult,
+  type WorkspaceConfig
+} from '../shared/workspace'
 
 type PtyProcess = ReturnType<typeof pty.spawn>
 
@@ -40,6 +45,10 @@ function getPtyEnv(): Record<string, string> {
     TERM: 'xterm-256color',
     COLORTERM: 'truecolor'
   }
+}
+
+function getWorkspaceConfigPath(): string {
+  return join(app.getPath('userData'), 'workspaces.json')
 }
 
 function stopTerminal(id: TerminalSessionId): void {
@@ -87,8 +96,15 @@ function registerTerminalIpc(): void {
         }
       })
 
-      if (request.command?.trim()) {
-        terminal.write(`${request.command}\r`)
+      const commands = request.commands?.map((command) => command.trim()).filter(Boolean) ?? []
+      if (commands.length > 0) {
+        commands.forEach((command, index) => {
+          setTimeout(() => {
+            if (terminals.get(request.id) === terminal) {
+              terminal.write(`${command}\r`)
+            }
+          }, index * 80)
+        })
       }
 
       return {
@@ -135,6 +151,25 @@ function registerWorkspaceIpc(): void {
       path: folderPath
     }
   })
+
+  ipcMain.handle(WORKSPACE_CHANNELS.loadConfig, async (): Promise<WorkspaceConfig | null> => {
+    try {
+      const file = await readFile(getWorkspaceConfigPath(), 'utf8')
+      return JSON.parse(file) as WorkspaceConfig
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+      throw error
+    }
+  })
+
+  ipcMain.handle(
+    WORKSPACE_CHANNELS.saveConfig,
+    async (_, config: WorkspaceConfig): Promise<void> => {
+      const configPath = getWorkspaceConfigPath()
+      await mkdir(app.getPath('userData'), { recursive: true })
+      await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
+    }
+  )
 }
 
 function createWindow(): void {

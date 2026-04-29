@@ -16,7 +16,7 @@ export type TerminalStartRequest = {
   cols: number
   rows: number
   cwd?: string
-  command?: string
+  commands?: string[]
 }
 
 export type TerminalStartResponse = {

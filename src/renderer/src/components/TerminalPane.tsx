@@ -112,7 +112,7 @@ export function TerminalPane({
           cols: terminal.cols,
           rows: terminal.rows,
           cwd: session.cwd || undefined,
-          command: session.command || undefined
+          commands: session.commands
         })
         .then((response) => {
           if (disposed) return
@@ -140,7 +140,7 @@ export function TerminalPane({
       terminalRef.current = null
       fitAddonRef.current = null
     }
-  }, [onMetadataChange, onStatusChange, session.command, session.cwd, session.id])
+  }, [onMetadataChange, onStatusChange, session.commands, session.cwd, session.id])
 
   return (
     <div className="terminal-frame" aria-label={`${session.name} terminal`}>

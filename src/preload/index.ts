@@ -10,7 +10,11 @@ import {
   type TerminalStartRequest,
   type TerminalStartResponse
 } from '../shared/terminal'
-import { WORKSPACE_CHANNELS, type FolderPickResult } from '../shared/workspace'
+import {
+  WORKSPACE_CHANNELS,
+  type FolderPickResult,
+  type WorkspaceConfig
+} from '../shared/workspace'
 
 const api: CompanionApi = {
   terminal: {
@@ -37,7 +41,11 @@ const api: CompanionApi = {
     }
   },
   workspace: {
-    pickFolder: (): Promise<FolderPickResult> => ipcRenderer.invoke(WORKSPACE_CHANNELS.pickFolder)
+    pickFolder: (): Promise<FolderPickResult> => ipcRenderer.invoke(WORKSPACE_CHANNELS.pickFolder),
+    loadConfig: (): Promise<WorkspaceConfig | null> =>
+      ipcRenderer.invoke(WORKSPACE_CHANNELS.loadConfig),
+    saveConfig: (config: WorkspaceConfig): Promise<void> =>
+      ipcRenderer.invoke(WORKSPACE_CHANNELS.saveConfig, config)
   }
 }
 

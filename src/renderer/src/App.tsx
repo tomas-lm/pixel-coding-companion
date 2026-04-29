@@ -1,10 +1,11 @@
-import { useCallback, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import {
   type Project,
   type RunningSession,
   type RunningSessionStatus,
   type SessionKind,
-  type SessionTemplate
+  type TerminalConfig,
+  type WorkspaceConfig
 } from '../../shared/workspace'
 import { TerminalPane } from './components/TerminalPane'
 
@@ -21,7 +22,7 @@ const KIND_LABELS: Record<SessionKind, string> = {
   custom: 'Custom'
 }
 
-const INITIAL_PROJECTS: Project[] = [
+const PRESET_PROJECTS: Project[] = [
   {
     id: 'engelmig',
     name: 'Engelmig',
@@ -36,93 +37,99 @@ const INITIAL_PROJECTS: Project[] = [
   }
 ]
 
+const PRESET_TERMINALS: TerminalConfig[] = [
+  createCodexConfig('engelmig', 'assistant', 'Assistant', DEV_ROOT),
+  createCodexConfig('engelmig', 'backend', 'Engelmig', `${CIANO_ROOT}/engelmig`),
+  createCodexConfig('engelmig', 'frontend', 'Engelmig Frontend', `${CIANO_ROOT}/engelmig-frontend`),
+  createCodexConfig('bamaq', 'assistant', 'Assistant', DEV_ROOT),
+  createCodexConfig('bamaq', 'frontend', 'GWM Frontend', `${CIANO_ROOT}/bamaq-gwm-frontend`),
+  createCodexConfig('bamaq', 'backend', 'GWM Backend', `${CIANO_ROOT}/bamaq-gwm-backend`)
+]
+
+type ProjectForm = {
+  id?: string
+  name: string
+  description: string
+  color: string
+}
+
+type TerminalForm = {
+  id?: string
+  name: string
+  kind: SessionKind
+  cwd: string
+  commandsText: string
+}
+
+type RunningSessionForm = {
+  id: string
+  name: string
+}
+
 function createId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`
 }
 
-function createCodexTemplate(
+function createCodexConfig(
   projectId: string,
   suffix: string,
   name: string,
   cwd: string
-): SessionTemplate {
+): TerminalConfig {
   return {
     id: `${projectId}-${suffix}`,
     projectId,
     name,
     kind: 'ai',
-    command: 'codex',
-    cwd
+    cwd,
+    commands: ['codex']
   }
 }
 
-function createDefaultTemplates(projectId: string, cwd: string): SessionTemplate[] {
-  return [
-    {
-      id: `${projectId}-shell`,
-      projectId,
-      name: 'Shell',
-      kind: 'shell',
-      command: '',
-      cwd
-    },
-    {
-      id: `${projectId}-ai-terminal`,
-      projectId,
-      name: 'AI Terminal',
-      kind: 'ai',
-      command: '',
-      cwd
-    },
-    {
-      id: `${projectId}-dev-server`,
-      projectId,
-      name: 'Dev Server',
-      kind: 'dev_server',
-      command: '',
-      cwd
-    }
-  ]
+function createEmptyTerminalForm(): TerminalForm {
+  return {
+    name: '',
+    kind: 'ai',
+    cwd: '',
+    commandsText: 'codex'
+  }
 }
 
-const INITIAL_TEMPLATES: SessionTemplate[] = [
-  createCodexTemplate('engelmig', 'assistant', 'Assistant', DEV_ROOT),
-  createCodexTemplate('engelmig', 'backend', 'Engelmig', `${CIANO_ROOT}/engelmig`),
-  createCodexTemplate(
-    'engelmig',
-    'frontend',
-    'Engelmig Frontend',
-    `${CIANO_ROOT}/engelmig-frontend`
-  ),
-  createCodexTemplate('bamaq', 'assistant', 'Assistant', DEV_ROOT),
-  createCodexTemplate('bamaq', 'frontend', 'GWM Frontend', `${CIANO_ROOT}/bamaq-gwm-frontend`),
-  createCodexTemplate('bamaq', 'backend', 'GWM Backend', `${CIANO_ROOT}/bamaq-gwm-backend`)
-]
-
-function createRunningSession(template: SessionTemplate): RunningSession {
+function createRunningSession(config: TerminalConfig): RunningSession {
   return {
     id: createId('session'),
-    projectId: template.projectId,
-    templateId: template.id,
-    name: template.name,
-    kind: template.kind,
-    command: template.command,
-    cwd: template.cwd,
+    projectId: config.projectId,
+    configId: config.id,
+    name: config.name,
+    kind: config.kind,
+    cwd: config.cwd,
+    commands: config.commands,
     status: 'starting',
-    metadata: template.cwd || 'home folder'
+    metadata: config.cwd || 'home folder'
   }
 }
 
-function getProjectSummary(project: Project, templates: SessionTemplate[]): string {
-  const configuredCount = templates.filter((template) => template.projectId === project.id).length
-  const suffix = configuredCount === 1 ? 'terminal' : 'terminals'
-
-  return `${configuredCount} configured ${suffix} - ${project.description}`
+function commandsFromText(commandsText: string): string[] {
+  return commandsText
+    .split('\n')
+    .map((command) => command.trim())
+    .filter(Boolean)
 }
 
-function getTemplateDetail(template: SessionTemplate): string {
-  const command = template.command || 'interactive shell'
-  return `${command} - ${template.cwd}`
+function commandsToText(commands: string[]): string {
+  return commands.join('\n')
+}
+
+function getProjectSummary(project: Project, configs: TerminalConfig[]): string {
+  const configuredCount = configs.filter((config) => config.projectId === project.id).length
+  const suffix = configuredCount === 1 ? 'terminal' : 'terminals'
+
+  return `${configuredCount} configured ${suffix} - ${project.description || 'No description'}`
+}
+
+function getTerminalDetail(config: TerminalConfig): string {
+  const command = config.commands.length > 0 ? config.commands.join(' -> ') : 'interactive shell'
+  return `${command} - ${config.cwd || 'home folder'}`
 }
 
 function getProjectLiveLabel(projectId: string, runningSessions: RunningSession[]): string {
@@ -143,16 +150,34 @@ function getCompanionMessage(session: RunningSession | null): string {
   return `${session.name} precisa de atencao.`
 }
 
+function buildSeedConfig(): WorkspaceConfig {
+  return {
+    projects: PRESET_PROJECTS,
+    terminalConfigs: PRESET_TERMINALS,
+    activeProjectId: PRESET_PROJECTS[0].id
+  }
+}
+
+const SEED_CONFIG = buildSeedConfig()
+
 function App(): React.JSX.Element {
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS)
-  const [templates, setTemplates] = useState<SessionTemplate[]>(INITIAL_TEMPLATES)
+  const [projects, setProjects] = useState<Project[]>(SEED_CONFIG.projects)
+  const [terminalConfigs, setTerminalConfigs] = useState<TerminalConfig[]>(
+    SEED_CONFIG.terminalConfigs
+  )
   const [runningSessions, setRunningSessions] = useState<RunningSession[]>([])
-  const [activeProjectId, setActiveProjectId] = useState(INITIAL_PROJECTS[0].id)
+  const [activeProjectId, setActiveProjectId] = useState(
+    SEED_CONFIG.activeProjectId ?? SEED_CONFIG.projects[0].id
+  )
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [configLoaded, setConfigLoaded] = useState(false)
+  const [projectForm, setProjectForm] = useState<ProjectForm | null>(null)
+  const [terminalForm, setTerminalForm] = useState<TerminalForm | null>(null)
+  const [runningSessionForm, setRunningSessionForm] = useState<RunningSessionForm | null>(null)
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? projects[0]
-  const activeProjectTemplates = templates.filter(
-    (template) => template.projectId === activeProject.id
+  const activeProjectConfigs = terminalConfigs.filter(
+    (config) => config.projectId === activeProject.id
   )
   const activeProjectSessions = runningSessions.filter(
     (session) => session.projectId === activeProject.id
@@ -164,6 +189,39 @@ function App(): React.JSX.Element {
     activeProjectSessions[0] ??
     null
   const activeStyle = { '--active-project-color': activeProject.color } as CSSProperties
+
+  useEffect(() => {
+    let mounted = true
+
+    window.api.workspace
+      .loadConfig()
+      .then((config) => {
+        if (!mounted) return
+
+        if (config?.projects.length) {
+          setProjects(config.projects)
+          setTerminalConfigs(config.terminalConfigs)
+          setActiveProjectId(config.activeProjectId ?? config.projects[0].id)
+        }
+      })
+      .finally(() => {
+        if (mounted) setConfigLoaded(true)
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!configLoaded) return
+
+    void window.api.workspace.saveConfig({
+      projects,
+      terminalConfigs,
+      activeProjectId
+    })
+  }, [activeProjectId, configLoaded, projects, terminalConfigs])
 
   const updateSessionStatus = useCallback(
     (sessionId: string, status: RunningSessionStatus): void => {
@@ -191,9 +249,9 @@ function App(): React.JSX.Element {
     )
   }
 
-  const startTemplate = (template: SessionTemplate): void => {
+  const startConfig = (config: TerminalConfig): void => {
     const existingSession = runningSessions.find(
-      (session) => session.templateId === template.id && session.status !== 'exited'
+      (session) => session.configId === config.id && session.status !== 'exited'
     )
 
     if (existingSession) {
@@ -202,20 +260,20 @@ function App(): React.JSX.Element {
       return
     }
 
-    const session = createRunningSession(template)
+    const session = createRunningSession(config)
     setRunningSessions((currentSessions) => [...currentSessions, session])
-    setActiveProjectId(template.projectId)
+    setActiveProjectId(config.projectId)
     setActiveSessionId(session.id)
   }
 
   const startWorkspace = (): void => {
-    const liveTemplateIds = new Set(
+    const liveConfigIds = new Set(
       runningSessions
         .filter((session) => session.projectId === activeProject.id && session.status !== 'exited')
-        .map((session) => session.templateId)
+        .map((session) => session.configId)
     )
-    const sessionsToStart = activeProjectTemplates
-      .filter((template) => !liveTemplateIds.has(template.id))
+    const sessionsToStart = activeProjectConfigs
+      .filter((config) => !liveConfigIds.has(config.id))
       .map(createRunningSession)
     const firstExistingSession = runningSessions.find(
       (session) => session.projectId === activeProject.id && session.status !== 'exited'
@@ -246,24 +304,132 @@ function App(): React.JSX.Element {
     }
   }
 
-  const addProjectFromFolder = async (): Promise<void> => {
-    const folder = await window.api.workspace.pickFolder()
-    if (!folder) return
+  const openCreateProject = (): void => {
+    setProjectForm({
+      name: '',
+      description: 'Custom workspace',
+      color: PROJECT_COLORS[projects.length % PROJECT_COLORS.length]
+    })
+  }
+
+  const openEditProject = (project: Project): void => {
+    setProjectForm({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      color: project.color
+    })
+  }
+
+  const saveProjectForm = (): void => {
+    if (!projectForm?.name.trim()) return
+
+    if (projectForm.id) {
+      setProjects((currentProjects) =>
+        currentProjects.map((project) =>
+          project.id === projectForm.id
+            ? {
+                ...project,
+                name: projectForm.name.trim(),
+                description: projectForm.description.trim(),
+                color: projectForm.color
+              }
+            : project
+        )
+      )
+      setProjectForm(null)
+      return
+    }
 
     const project: Project = {
       id: createId('project'),
-      name: folder.name,
-      color: PROJECT_COLORS[projects.length % PROJECT_COLORS.length],
-      description: `Single-folder workspace at ${folder.path}`
+      name: projectForm.name.trim(),
+      description: projectForm.description.trim() || 'Custom workspace',
+      color: projectForm.color
     }
 
     setProjects((currentProjects) => [...currentProjects, project])
-    setTemplates((currentTemplates) => [
-      ...currentTemplates,
-      ...createDefaultTemplates(project.id, folder.path)
-    ])
     setActiveProjectId(project.id)
     setActiveSessionId(null)
+    setProjectForm(null)
+  }
+
+  const openCreateTerminal = (): void => {
+    setTerminalForm(createEmptyTerminalForm())
+  }
+
+  const openEditTerminal = (config: TerminalConfig): void => {
+    setTerminalForm({
+      id: config.id,
+      name: config.name,
+      kind: config.kind,
+      cwd: config.cwd,
+      commandsText: commandsToText(config.commands)
+    })
+  }
+
+  const pickTerminalFolder = async (): Promise<void> => {
+    const folder = await window.api.workspace.pickFolder()
+    if (!folder) return
+
+    setTerminalForm((currentForm) =>
+      currentForm
+        ? {
+            ...currentForm,
+            cwd: folder.path,
+            name: currentForm.name || folder.name
+          }
+        : currentForm
+    )
+  }
+
+  const saveTerminalForm = (): void => {
+    if (!terminalForm?.name.trim()) return
+
+    const commands = commandsFromText(terminalForm.commandsText)
+    const nextConfig: TerminalConfig = {
+      id: terminalForm.id ?? createId('terminal'),
+      projectId: activeProject.id,
+      name: terminalForm.name.trim(),
+      kind: terminalForm.kind,
+      cwd: terminalForm.cwd.trim(),
+      commands
+    }
+
+    setTerminalConfigs((currentConfigs) => {
+      if (terminalForm.id) {
+        return currentConfigs.map((config) => (config.id === terminalForm.id ? nextConfig : config))
+      }
+
+      return [...currentConfigs, nextConfig]
+    })
+    setTerminalForm(null)
+  }
+
+  const deleteTerminalConfig = (configId: string): void => {
+    setTerminalConfigs((currentConfigs) =>
+      currentConfigs.filter((config) => config.id !== configId)
+    )
+  }
+
+  const openRenameRunningSession = (session: RunningSession): void => {
+    setRunningSessionForm({
+      id: session.id,
+      name: session.name
+    })
+  }
+
+  const saveRunningSessionName = (): void => {
+    if (!runningSessionForm?.name.trim()) return
+
+    setRunningSessions((currentSessions) =>
+      currentSessions.map((session) =>
+        session.id === runningSessionForm.id
+          ? { ...session, name: runningSessionForm.name.trim() }
+          : session
+      )
+    )
+    setRunningSessionForm(null)
   }
 
   const companionMessage = getCompanionMessage(activeSession)
@@ -286,55 +452,72 @@ function App(): React.JSX.Element {
         <section className="rail-section" aria-label="Projects">
           <div className="rail-header">
             <span>Projects</span>
-            <button className="secondary-button" type="button" onClick={addProjectFromFolder}>
+            <button className="secondary-button" type="button" onClick={openCreateProject}>
               Add workspace
             </button>
           </div>
 
           <div className="project-list">
             {projects.map((project) => (
-              <button
+              <div
                 key={project.id}
-                className={`project-item${project.id === activeProject.id ? ' project-item--active' : ''}`}
+                className={`project-row${project.id === activeProject.id ? ' project-row--active' : ''}`}
                 style={{ '--project-color': project.color } as CSSProperties}
-                type="button"
-                onClick={() => selectProject(project.id)}
               >
-                <span className="project-dot" aria-hidden="true" />
-                <span>{project.name}</span>
-                <small>{getProjectLiveLabel(project.id, runningSessions)}</small>
-              </button>
+                <button
+                  className="project-item"
+                  type="button"
+                  onClick={() => selectProject(project.id)}
+                >
+                  <span className="project-dot" aria-hidden="true" />
+                  <span>{project.name}</span>
+                  <small>{getProjectLiveLabel(project.id, runningSessions)}</small>
+                </button>
+                <button
+                  className="icon-button"
+                  type="button"
+                  title={`Edit ${project.name}`}
+                  onClick={() => openEditProject(project)}
+                >
+                  Settings
+                </button>
+              </div>
             ))}
           </div>
         </section>
 
         <section className="rail-section" aria-label="Workspace actions">
-          <div className="rail-header">
-            <button className="primary-button" type="button" onClick={startWorkspace}>
-              Start {activeProject.name}
-            </button>
-          </div>
+          <button className="primary-button" type="button" onClick={startWorkspace}>
+            Start {activeProject.name}
+          </button>
         </section>
 
         <section className="rail-section rail-section--config" aria-label="Configured terminals">
           <div className="rail-header">
             <span>Configured terminals</span>
-            <small>{activeProjectTemplates.length}</small>
+            <button className="secondary-button" type="button" onClick={openCreateTerminal}>
+              Add terminal
+            </button>
           </div>
           <div className="template-list">
-            {activeProjectTemplates.map((template) => (
-              <button
-                key={template.id}
-                className="template-item"
-                type="button"
-                onClick={() => startTemplate(template)}
-              >
-                <span className={`kind-badge kind-badge--${template.kind}`}>
-                  {KIND_LABELS[template.kind]}
-                </span>
-                <strong>{template.name}</strong>
-                <small>{getTemplateDetail(template)}</small>
-              </button>
+            {activeProjectConfigs.map((config) => (
+              <div key={config.id} className="template-row">
+                <button className="template-item" type="button" onClick={() => startConfig(config)}>
+                  <span className={`kind-badge kind-badge--${config.kind}`}>
+                    {KIND_LABELS[config.kind]}
+                  </span>
+                  <strong>{config.name}</strong>
+                  <small>{getTerminalDetail(config)}</small>
+                </button>
+                <button
+                  className="icon-button"
+                  type="button"
+                  title={`Configure ${config.name}`}
+                  onClick={() => openEditTerminal(config)}
+                >
+                  Settings
+                </button>
+              </div>
             ))}
           </div>
         </section>
@@ -347,36 +530,37 @@ function App(): React.JSX.Element {
 
           <div className="session-list">
             {activeProjectSessions.map((session) => (
-              <button
+              <div
                 key={session.id}
-                className={`session-item${session.id === selectedSessionId ? ' session-item--active' : ''}`}
-                type="button"
-                onClick={() => setActiveSessionId(session.id)}
+                className={`session-row${session.id === selectedSessionId ? ' session-row--active' : ''}`}
               >
-                <span className={`kind-badge kind-badge--${session.kind}`}>
-                  {KIND_LABELS[session.kind]}
-                </span>
-                <strong>{session.name}</strong>
-                <small>{session.status}</small>
-                <span
+                <button
+                  className="session-item"
+                  type="button"
+                  onClick={() => setActiveSessionId(session.id)}
+                >
+                  <span className={`kind-badge kind-badge--${session.kind}`}>
+                    {KIND_LABELS[session.kind]}
+                  </span>
+                  <strong>{session.name}</strong>
+                  <small>{session.status}</small>
+                </button>
+                <button
+                  className="icon-button"
+                  type="button"
+                  title={`Rename ${session.name}`}
+                  onClick={() => openRenameRunningSession(session)}
+                >
+                  Rename
+                </button>
+                <button
                   className="session-stop"
-                  role="button"
-                  tabIndex={0}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    stopSession(session.id)
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      stopSession(session.id)
-                    }
-                  }}
+                  type="button"
+                  onClick={() => stopSession(session.id)}
                 >
                   Stop
-                </span>
-              </button>
+                </button>
+              </div>
             ))}
           </div>
         </section>
@@ -387,7 +571,7 @@ function App(): React.JSX.Element {
           <div>
             <span className="eyebrow">{activeProject.name}</span>
             <h1>{terminalTitle}</h1>
-            <p>{getProjectSummary(activeProject, templates)}</p>
+            <p>{getProjectSummary(activeProject, terminalConfigs)}</p>
           </div>
           <div className="session-header-actions">
             <span className={`kind-badge kind-badge--${activeSessionKind}`}>
@@ -418,9 +602,15 @@ function App(): React.JSX.Element {
           {!activeSession && (
             <div className="empty-terminal">
               <strong>{activeProject.name}</strong>
-              <button className="primary-button" type="button" onClick={startWorkspace}>
-                Start workspace
-              </button>
+              {activeProjectConfigs.length === 0 ? (
+                <button className="primary-button" type="button" onClick={openCreateTerminal}>
+                  Add terminal
+                </button>
+              ) : (
+                <button className="primary-button" type="button" onClick={startWorkspace}>
+                  Start workspace
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -440,6 +630,203 @@ function App(): React.JSX.Element {
           <div className="shadow" />
         </div>
       </aside>
+
+      {projectForm && (
+        <div className="modal-backdrop">
+          <section className="modal" aria-label="Workspace settings">
+            <header className="modal-header">
+              <h2>{projectForm.id ? 'Edit workspace' : 'Add workspace'}</h2>
+              <button className="icon-button" type="button" onClick={() => setProjectForm(null)}>
+                Close
+              </button>
+            </header>
+            <label>
+              <span>Name</span>
+              <input
+                value={projectForm.name}
+                autoFocus
+                onChange={(event) =>
+                  setProjectForm((currentForm) =>
+                    currentForm ? { ...currentForm, name: event.target.value } : currentForm
+                  )
+                }
+              />
+            </label>
+            <label>
+              <span>Description</span>
+              <input
+                value={projectForm.description}
+                onChange={(event) =>
+                  setProjectForm((currentForm) =>
+                    currentForm ? { ...currentForm, description: event.target.value } : currentForm
+                  )
+                }
+              />
+            </label>
+            <label>
+              <span>Color</span>
+              <input
+                type="color"
+                value={projectForm.color}
+                onChange={(event) =>
+                  setProjectForm((currentForm) =>
+                    currentForm ? { ...currentForm, color: event.target.value } : currentForm
+                  )
+                }
+              />
+            </label>
+            <footer className="modal-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setProjectForm(null)}
+              >
+                Cancel
+              </button>
+              <button className="primary-button" type="button" onClick={saveProjectForm}>
+                Save workspace
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
+      {terminalForm && (
+        <div className="modal-backdrop">
+          <section className="modal modal--wide" aria-label="Terminal settings">
+            <header className="modal-header">
+              <h2>{terminalForm.id ? 'Configure terminal' : 'Add terminal'}</h2>
+              <button className="icon-button" type="button" onClick={() => setTerminalForm(null)}>
+                Close
+              </button>
+            </header>
+            <label>
+              <span>Name</span>
+              <input
+                value={terminalForm.name}
+                autoFocus
+                onChange={(event) =>
+                  setTerminalForm((currentForm) =>
+                    currentForm ? { ...currentForm, name: event.target.value } : currentForm
+                  )
+                }
+              />
+            </label>
+            <label>
+              <span>Type</span>
+              <select
+                value={terminalForm.kind}
+                onChange={(event) =>
+                  setTerminalForm((currentForm) =>
+                    currentForm
+                      ? { ...currentForm, kind: event.target.value as SessionKind }
+                      : currentForm
+                  )
+                }
+              >
+                {Object.entries(KIND_LABELS).map(([kind, label]) => (
+                  <option key={kind} value={kind}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Folder</span>
+              <div className="input-row">
+                <input
+                  value={terminalForm.cwd}
+                  onChange={(event) =>
+                    setTerminalForm((currentForm) =>
+                      currentForm ? { ...currentForm, cwd: event.target.value } : currentForm
+                    )
+                  }
+                />
+                <button className="secondary-button" type="button" onClick={pickTerminalFolder}>
+                  Pick
+                </button>
+              </div>
+            </label>
+            <label>
+              <span>Commands</span>
+              <textarea
+                rows={6}
+                value={terminalForm.commandsText}
+                onChange={(event) =>
+                  setTerminalForm((currentForm) =>
+                    currentForm ? { ...currentForm, commandsText: event.target.value } : currentForm
+                  )
+                }
+              />
+            </label>
+            <footer className="modal-actions">
+              {terminalForm.id && (
+                <button
+                  className="danger-button"
+                  type="button"
+                  onClick={() => {
+                    deleteTerminalConfig(terminalForm.id!)
+                    setTerminalForm(null)
+                  }}
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setTerminalForm(null)}
+              >
+                Cancel
+              </button>
+              <button className="primary-button" type="button" onClick={saveTerminalForm}>
+                Save terminal
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+
+      {runningSessionForm && (
+        <div className="modal-backdrop">
+          <section className="modal" aria-label="Rename running session">
+            <header className="modal-header">
+              <h2>Rename running session</h2>
+              <button
+                className="icon-button"
+                type="button"
+                onClick={() => setRunningSessionForm(null)}
+              >
+                Close
+              </button>
+            </header>
+            <label>
+              <span>Name</span>
+              <input
+                value={runningSessionForm.name}
+                autoFocus
+                onChange={(event) =>
+                  setRunningSessionForm((currentForm) =>
+                    currentForm ? { ...currentForm, name: event.target.value } : currentForm
+                  )
+                }
+              />
+            </label>
+            <footer className="modal-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setRunningSessionForm(null)}
+              >
+                Cancel
+              </button>
+              <button className="primary-button" type="button" onClick={saveRunningSessionName}>
+                Save name
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
     </main>
   )
 }
