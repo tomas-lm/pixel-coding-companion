@@ -66,6 +66,11 @@ type RunningSessionForm = {
   name: string
 }
 
+type StartWorkspaceSelection = {
+  projectId: string
+  selectedConfigIds: string[]
+}
+
 function createId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`
 }
@@ -142,6 +147,14 @@ function getProjectLiveLabel(projectId: string, runningSessions: RunningSession[
   return 'ready'
 }
 
+function getLiveConfigIds(projectId: string, runningSessions: RunningSession[]): Set<string> {
+  return new Set(
+    runningSessions
+      .filter((session) => session.projectId === projectId && session.status !== 'exited')
+      .map((session) => session.configId)
+  )
+}
+
 function getCompanionMessage(session: RunningSession | null): string {
   if (!session) return 'Workspace pronto.'
   if (session.status === 'starting') return `${session.name} esta iniciando.`
@@ -174,6 +187,7 @@ function App(): React.JSX.Element {
   const [projectForm, setProjectForm] = useState<ProjectForm | null>(null)
   const [terminalForm, setTerminalForm] = useState<TerminalForm | null>(null)
   const [runningSessionForm, setRunningSessionForm] = useState<RunningSessionForm | null>(null)
+  const [startSelection, setStartSelection] = useState<StartWorkspaceSelection | null>(null)
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? projects[0]
   const activeProjectConfigs = terminalConfigs.filter(
@@ -189,6 +203,23 @@ function App(): React.JSX.Element {
     activeProjectSessions[0] ??
     null
   const activeStyle = { '--active-project-color': activeProject.color } as CSSProperties
+  const startProject = startSelection
+    ? (projects.find((project) => project.id === startSelection.projectId) ?? null)
+    : null
+  const startProjectConfigs = startProject
+    ? terminalConfigs.filter((config) => config.projectId === startProject.id)
+    : []
+  const startProjectLiveConfigIds = startProject
+    ? getLiveConfigIds(startProject.id, runningSessions)
+    : new Set<string>()
+  const selectableStartConfigs = startProjectConfigs.filter(
+    (config) => !startProjectLiveConfigIds.has(config.id)
+  )
+  const selectedStartConfigs = startSelection
+    ? selectableStartConfigs.filter((config) =>
+        startSelection.selectedConfigIds.includes(config.id)
+      )
+    : []
 
   useEffect(() => {
     let mounted = true
@@ -266,26 +297,85 @@ function App(): React.JSX.Element {
     setActiveSessionId(session.id)
   }
 
-  const startWorkspace = (): void => {
-    const liveConfigIds = new Set(
-      runningSessions
-        .filter((session) => session.projectId === activeProject.id && session.status !== 'exited')
-        .map((session) => session.configId)
-    )
-    const sessionsToStart = activeProjectConfigs
+  const openStartWorkspace = (): void => {
+    const liveConfigIds = getLiveConfigIds(activeProject.id, runningSessions)
+    const selectedConfigIds = activeProjectConfigs
       .filter((config) => !liveConfigIds.has(config.id))
+      .map((config) => config.id)
+
+    setStartSelection({
+      projectId: activeProject.id,
+      selectedConfigIds
+    })
+  }
+
+  const selectStartCategory = (category: 'all' | 'ai' | 'run'): void => {
+    setStartSelection((currentSelection) => {
+      if (!currentSelection) return currentSelection
+
+      const liveConfigIds = getLiveConfigIds(currentSelection.projectId, runningSessions)
+      const availableConfigs = terminalConfigs.filter(
+        (config) => config.projectId === currentSelection.projectId && !liveConfigIds.has(config.id)
+      )
+      const selectedConfigIds = availableConfigs
+        .filter((config) => {
+          if (category === 'ai') return config.kind === 'ai'
+          if (category === 'run') return config.kind !== 'ai'
+          return true
+        })
+        .map((config) => config.id)
+
+      return {
+        ...currentSelection,
+        selectedConfigIds
+      }
+    })
+  }
+
+  const toggleStartConfig = (configId: string): void => {
+    setStartSelection((currentSelection) => {
+      if (!currentSelection) return currentSelection
+
+      const selectedConfigIds = currentSelection.selectedConfigIds.includes(configId)
+        ? currentSelection.selectedConfigIds.filter(
+            (selectedConfigId) => selectedConfigId !== configId
+          )
+        : [...currentSelection.selectedConfigIds, configId]
+
+      return {
+        ...currentSelection,
+        selectedConfigIds
+      }
+    })
+  }
+
+  const startSelectedWorkspaceConfigs = (): void => {
+    if (!startSelection) return
+
+    const liveConfigIds = getLiveConfigIds(startSelection.projectId, runningSessions)
+    const sessionsToStart = terminalConfigs
+      .filter(
+        (config) =>
+          config.projectId === startSelection.projectId &&
+          startSelection.selectedConfigIds.includes(config.id) &&
+          !liveConfigIds.has(config.id)
+      )
       .map(createRunningSession)
     const firstExistingSession = runningSessions.find(
-      (session) => session.projectId === activeProject.id && session.status !== 'exited'
+      (session) => session.projectId === startSelection.projectId && session.status !== 'exited'
     )
+
+    setStartSelection(null)
 
     if (sessionsToStart.length > 0) {
       setRunningSessions((currentSessions) => [...currentSessions, ...sessionsToStart])
+      setActiveProjectId(startSelection.projectId)
       setActiveSessionId(sessionsToStart[0].id)
       return
     }
 
     if (firstExistingSession) {
+      setActiveProjectId(firstExistingSession.projectId)
       setActiveSessionId(firstExistingSession.id)
     }
   }
@@ -487,7 +577,7 @@ function App(): React.JSX.Element {
         </section>
 
         <section className="rail-section" aria-label="Workspace actions">
-          <button className="primary-button" type="button" onClick={startWorkspace}>
+          <button className="primary-button" type="button" onClick={openStartWorkspace}>
             Start {activeProject.name}
           </button>
         </section>
@@ -607,7 +697,7 @@ function App(): React.JSX.Element {
                   Add terminal
                 </button>
               ) : (
-                <button className="primary-button" type="button" onClick={startWorkspace}>
+                <button className="primary-button" type="button" onClick={openStartWorkspace}>
                   Start workspace
                 </button>
               )}
@@ -630,6 +720,97 @@ function App(): React.JSX.Element {
           <div className="shadow" />
         </div>
       </aside>
+
+      {startSelection && startProject && (
+        <div className="modal-backdrop">
+          <section className="modal modal--wide" aria-label={`Start ${startProject.name}`}>
+            <header className="modal-header">
+              <div>
+                <h2>Start {startProject.name}</h2>
+                <p className="modal-subtitle">Choose which terminals should launch now.</p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setStartSelection(null)}>
+                Close
+              </button>
+            </header>
+
+            <div className="start-filter-row" role="group" aria-label="Start selection filters">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => selectStartCategory('all')}
+              >
+                All
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => selectStartCategory('ai')}
+              >
+                AI only
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => selectStartCategory('run')}
+              >
+                Run only
+              </button>
+            </div>
+
+            <div className="start-config-list">
+              {startProjectConfigs.length === 0 && (
+                <div className="empty-start-state">No configured terminals yet.</div>
+              )}
+
+              {startProjectConfigs.map((config) => {
+                const isLive = startProjectLiveConfigIds.has(config.id)
+                const isSelected = startSelection.selectedConfigIds.includes(config.id) && !isLive
+
+                return (
+                  <label
+                    key={config.id}
+                    className={`start-config-item${isLive ? ' start-config-item--disabled' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      disabled={isLive}
+                      onChange={() => toggleStartConfig(config.id)}
+                    />
+                    <span className={`kind-badge kind-badge--${config.kind}`}>
+                      {KIND_LABELS[config.kind]}
+                    </span>
+                    <strong>{config.name}</strong>
+                    <small>{isLive ? 'Already running' : getTerminalDetail(config)}</small>
+                  </label>
+                )
+              })}
+            </div>
+
+            <footer className="modal-actions">
+              <span className="selection-count">{selectedStartConfigs.length} selected</span>
+              <div className="modal-action-buttons">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => setStartSelection(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={selectedStartConfigs.length === 0}
+                  onClick={startSelectedWorkspaceConfigs}
+                >
+                  Start selected
+                </button>
+              </div>
+            </footer>
+          </section>
+        </div>
+      )}
 
       {projectForm && (
         <div className="modal-backdrop">

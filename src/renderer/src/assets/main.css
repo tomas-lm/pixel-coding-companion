@@ -143,6 +143,12 @@ button {
   border-color: color-mix(in srgb, var(--active-project-color) 72%, rgba(255, 255, 255, 0.12));
 }
 
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .project-list,
 .template-list,
 .session-list {
@@ -168,6 +174,7 @@ button {
 }
 
 .project-row {
+  --project-color: #4ea1ff;
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
@@ -176,7 +183,9 @@ button {
 }
 
 .session-row {
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) 64px 48px;
+  height: 54px;
+  align-items: stretch;
 }
 
 .project-item,
@@ -195,13 +204,22 @@ button {
 }
 
 .project-item {
-  --project-color: #4ea1ff;
   display: grid;
   grid-template-columns: 12px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-height: 44px;
   padding: 0 12px;
+  border-color: color-mix(in srgb, var(--project-color) 24%, rgba(255, 255, 255, 0.06));
+  background: color-mix(in srgb, var(--project-color) 6%, rgba(255, 255, 255, 0.04));
+}
+
+.project-item span,
+.project-item small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-row--active .project-item {
@@ -233,8 +251,12 @@ button {
 .session-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: center;
   gap: 5px 8px;
-  padding: 10px;
+  height: 100%;
+  overflow: hidden;
+  padding: 8px 10px;
 }
 
 .session-row--active .session-item {
@@ -246,19 +268,39 @@ button {
   grid-column: 2;
 }
 
+.session-item strong,
+.session-item small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-row .icon-button {
+  width: 64px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .session-stop {
   align-self: center;
-  width: auto;
+  width: 48px;
   height: 100%;
   min-width: 48px;
   border: 1px solid rgba(248, 113, 113, 0.22);
   border-radius: 7px;
-  padding: 3px 8px;
+  padding: 0;
   color: #fca5a5;
   background: rgba(248, 113, 113, 0.1);
   font-size: 12px;
   font-weight: 700;
+  overflow: hidden;
   text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .icon-button {
@@ -621,6 +663,12 @@ button {
   letter-spacing: 0;
 }
 
+.modal-subtitle {
+  margin: 4px 0 0;
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+}
+
 .modal label {
   display: grid;
   gap: 6px;
@@ -649,6 +697,90 @@ button {
   resize: vertical;
   font-family: 'Menlo', 'Lucida Console', monospace;
   font-size: 13px;
+}
+
+.start-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.start-config-list {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  min-width: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.start-config-item {
+  display: grid;
+  grid-template-columns: 18px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px 8px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  cursor: pointer;
+}
+
+.start-config-item:hover {
+  border-color: color-mix(in srgb, var(--active-project-color) 44%, rgba(255, 255, 255, 0.08));
+}
+
+.start-config-item input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--active-project-color);
+}
+
+.start-config-item strong,
+.start-config-item small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.start-config-item small {
+  grid-column: 3;
+  color: var(--ev-c-text-2);
+}
+
+.start-config-item--disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.start-config-item--disabled:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.start-config-item--disabled input {
+  cursor: not-allowed;
+}
+
+.empty-start-state,
+.selection-count {
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+}
+
+.empty-start-state {
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 14px;
+  text-align: center;
+}
+
+.modal-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .input-row {
