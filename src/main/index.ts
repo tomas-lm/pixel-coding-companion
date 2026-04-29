@@ -1,5 +1,5 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
+import { app, shell, BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from 'electron'
+import { basename, join } from 'path'
 import { existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import * as pty from 'node-pty'
@@ -12,6 +12,7 @@ import {
   type TerminalStartRequest,
   type TerminalStartResponse
 } from '../shared/terminal'
+import { WORKSPACE_CHANNELS, type FolderPickResult } from '../shared/workspace'
 
 type PtyProcess = ReturnType<typeof pty.spawn>
 
@@ -86,6 +87,10 @@ function registerTerminalIpc(): void {
         }
       })
 
+      if (request.command?.trim()) {
+        terminal.write(`${request.command}\r`)
+      }
+
       return {
         id: request.id,
         pid: terminal.pid,
@@ -108,6 +113,27 @@ function registerTerminalIpc(): void {
     if (!terminal) return
 
     terminal.resize(Math.max(request.cols, 2), Math.max(request.rows, 2))
+  })
+}
+
+function registerWorkspaceIpc(): void {
+  ipcMain.handle(WORKSPACE_CHANNELS.pickFolder, async (event): Promise<FolderPickResult> => {
+    const owner = BrowserWindow.fromWebContents(event.sender)
+    const options: OpenDialogOptions = {
+      title: 'Add project folder',
+      properties: ['openDirectory', 'createDirectory']
+    }
+    const result = owner
+      ? await dialog.showOpenDialog(owner, options)
+      : await dialog.showOpenDialog(options)
+
+    if (result.canceled || result.filePaths.length === 0) return null
+
+    const folderPath = result.filePaths[0]
+    return {
+      name: basename(folderPath),
+      path: folderPath
+    }
   })
 }
 
@@ -159,6 +185,7 @@ app.whenReady().then(() => {
   })
 
   registerTerminalIpc()
+  registerWorkspaceIpc()
 
   createWindow()
 

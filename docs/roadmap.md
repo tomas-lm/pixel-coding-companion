@@ -28,10 +28,14 @@ Goal: run a real local terminal inside the app.
 
 Goal: make the app useful for multiple work contexts.
 
-- Add project records with name, color, and path.
-- Add session records with command, status, and project ownership.
-- Support multiple terminal sessions.
-- Route visible status by active project color.
+- Status: Done.
+- Added project records with name, color, and path.
+- Added session templates with name, kind, command, and cwd.
+- Added running session records with status and metadata.
+- Added native folder picker for adding projects.
+- Added `Start Workspace` to launch all templates for the active project.
+- Supported multiple terminal sessions without killing hidden sessions.
+- Routed visible status and companion color by active project.
 
 ## Phase 3: Agent Presets
 

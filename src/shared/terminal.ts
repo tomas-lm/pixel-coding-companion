@@ -1,3 +1,5 @@
+import type { WorkspaceApi } from './workspace'
+
 export const TERMINAL_CHANNELS = {
   start: 'terminal:start',
   stop: 'terminal:stop',
@@ -14,6 +16,7 @@ export type TerminalStartRequest = {
   cols: number
   rows: number
   cwd?: string
+  command?: string
 }
 
 export type TerminalStartResponse = {
@@ -58,4 +61,5 @@ export type TerminalApi = {
 
 export type CompanionApi = {
   terminal: TerminalApi
+  workspace: WorkspaceApi
 }

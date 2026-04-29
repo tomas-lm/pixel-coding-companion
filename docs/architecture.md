@@ -40,6 +40,33 @@ type Session = {
 }
 ```
 
+Phase 2 expands this into session templates and running sessions:
+
+```ts
+type SessionKind = 'ai' | 'shell' | 'dev_server' | 'logs' | 'test' | 'custom'
+
+type SessionTemplate = {
+  id: string
+  projectId: string
+  name: string
+  kind: SessionKind
+  command: string
+  cwd: string
+}
+
+type RunningSession = {
+  id: string
+  projectId: string
+  templateId: string
+  name: string
+  kind: SessionKind
+  command: string
+  cwd: string
+  status: 'starting' | 'running' | 'exited' | 'error'
+  metadata: string
+}
+```
+
 ## First Technical Spine
 
 The app proves the terminal manager before adding agent intelligence:
@@ -66,3 +93,13 @@ Current channels:
 - `terminal:exit`
 
 The Electron main process owns the `node-pty` process map. The React renderer owns only the xterm.js view and sends input/resize events through typed IPC.
+
+## Workspace IPC
+
+The renderer asks the main process to open native OS dialogs. It does not directly access filesystem APIs.
+
+Current workspace channel:
+
+- `workspace:pick-folder`
+
+The folder picker returns the selected path and folder name. Persistence is intentionally not implemented yet; phase 2 keeps projects and sessions in memory while the interaction model settles.
