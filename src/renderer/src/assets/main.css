@@ -795,11 +795,11 @@ button {
 
 .companion-stage {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 0.92fr) auto auto auto;
   max-width: 100%;
   min-height: 0;
   justify-items: center;
-  gap: 14px;
+  gap: 10px;
 }
 
 .companion-terminal {
@@ -961,9 +961,80 @@ button {
 
 .shadow {
   width: 120px;
-  height: 16px;
+  height: 12px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.28);
+}
+
+.companion-progress {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 220px);
+  min-width: 0;
+  font-family: 'Menlo', 'Lucida Console', monospace;
+  text-align: center;
+}
+
+.companion-progress-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.companion-progress-header strong,
+.companion-progress-header span,
+.companion-progress small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.companion-progress-header strong {
+  color: color-mix(in srgb, var(--active-project-color) 76%, white);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.companion-progress-header span {
+  color: var(--ev-c-text-1);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.companion-progress-track {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 3px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.05) 0 0) 0 0 / 8px 100%,
+    rgba(255, 255, 255, 0.06);
+  background-repeat: repeat;
+}
+
+.companion-progress-fill {
+  display: block;
+  width: var(--companion-xp-progress);
+  height: 100%;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.22) 0 0) 0 0 / 8px 100%,
+    color-mix(in srgb, var(--active-project-color) 78%, #34d399);
+  background-repeat: repeat;
+}
+
+.companion-progress small {
+  color: var(--ev-c-text-2);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .modal-backdrop {

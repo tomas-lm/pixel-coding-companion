@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
-import type {
-  CompanionBridgeMessage,
-  CompanionBridgeState,
-  CompanionCliState
-} from '../../shared/companion'
+import type { CompanionBridgeMessage, CompanionBridgeState } from '../../shared/companion'
 import {
   type Project,
   type RunningSession,
@@ -12,8 +8,10 @@ import {
   type TerminalConfig,
   type WorkspaceLayout
 } from '../../shared/workspace'
+import { CompanionPanel } from './components/CompanionPanel'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { TerminalPane } from './components/TerminalPane'
+import { createCompanionProgressSnapshot } from './lib/companionProgress'
 
 const COMPANION_NAME = 'Ghou'
 const PROJECT_COLORS = ['#4ea1ff', '#ef5b5b', '#f7d56f', '#7fe7dc', '#c084fc', '#34d399']
@@ -294,18 +292,6 @@ function getCompanionMessage(session: RunningSession | null): string {
   if (session.status === 'done')
     return `${session.name} terminou em ${getSessionDurationLabel(session) ?? 'pouco tempo'}.`
   return `${session.name} precisa de atencao.`
-}
-
-function formatCompanionTime(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(value))
-}
-
-function getCompanionStateLabel(state: CompanionCliState): string {
-  if (state === 'waiting_input') return 'waiting input'
-  return state
 }
 
 function normalizeProjectKey(value?: string): string {
@@ -947,6 +933,11 @@ function App(): React.JSX.Element {
       : activeSession?.status === 'error'
         ? 'error'
         : 'idle'
+  const companionProgress = createCompanionProgressSnapshot({
+    currentXp: 0,
+    level: 0,
+    name: COMPANION_NAME
+  })
   const terminalTitle =
     activeSession?.name ?? (activeProject ? 'Workspace' : 'No workspace selected')
   const terminalStatus = activeSession ? getStatusLabel(activeSession.status) : 'Ready'
@@ -1185,67 +1176,16 @@ function App(): React.JSX.Element {
         </div>
       </section>
 
-      <button
-        className="resize-handle resize-handle--column"
-        type="button"
-        aria-label="Resize companion panel"
-        onPointerDown={(event) => startLayoutResize(event, 'companionWidth')}
+      <CompanionPanel
+        companionName={COMPANION_NAME}
+        companionState={companionTerminalState}
+        getMessageColor={(message) =>
+          getCompanionMessageColor(message, projects, terminalConfigs, activeProjectColor)
+        }
+        messages={companionTerminalMessages}
+        onResizePointerDown={(event) => startLayoutResize(event, 'companionWidth')}
+        progress={companionProgress}
       />
-
-      <aside className="companion-panel" aria-label="Companion preview">
-        <div className="companion-stage">
-          <div className="companion-terminal">
-            <header className="companion-terminal-header">
-              <div className="terminal-controls" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </div>
-              <strong>{COMPANION_NAME}</strong>
-              <small>{getCompanionStateLabel(companionTerminalState)}</small>
-            </header>
-            <div className="companion-terminal-screen">
-              {companionTerminalMessages.map((message) => (
-                <article
-                  key={message.id}
-                  className={`companion-line companion-line--${message.cliState}`}
-                  style={
-                    {
-                      '--message-color': getCompanionMessageColor(
-                        message,
-                        projects,
-                        terminalConfigs,
-                        activeProjectColor
-                      )
-                    } as CSSProperties
-                  }
-                >
-                  <div className="companion-line-meta">
-                    <span>{formatCompanionTime(message.createdAt)}</span>
-                    <strong>{COMPANION_NAME}</strong>
-                    {(message.agentName || message.projectName) && (
-                      <small>
-                        {[message.agentName, message.projectName].filter(Boolean).join(' / ')}
-                      </small>
-                    )}
-                  </div>
-                  <p>{message.summary}</p>
-                  {message.details && <pre>{message.details}</pre>}
-                </article>
-              ))}
-            </div>
-          </div>
-          <div
-            className={`pixel-companion pixel-companion--${companionTerminalState}`}
-            aria-hidden="true"
-          >
-            <span className="pixel-eye pixel-eye--left" />
-            <span className="pixel-eye pixel-eye--right" />
-            <span className="pixel-mouth" />
-          </div>
-          <div className="shadow" />
-        </div>
-      </aside>
 
       {startSelection && startProject && (
         <div className="modal-backdrop">
