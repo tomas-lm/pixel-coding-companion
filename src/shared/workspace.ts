@@ -26,7 +26,7 @@ export type TerminalConfig = {
   commands: string[]
 }
 
-export type RunningSessionStatus = 'starting' | 'running' | 'exited' | 'error'
+export type RunningSessionStatus = 'starting' | 'running' | 'done' | 'error'
 
 export type RunningSession = {
   id: string
@@ -38,6 +38,13 @@ export type RunningSession = {
   commands: string[]
   status: RunningSessionStatus
   metadata: string
+  startedAt: string
+  endedAt?: string
+  exitCode?: number
+  exitSignal?: number
+  durationMs?: number
+  lastActivityAt?: string
+  lastOutputPreview?: string
 }
 
 export type WorkspaceConfig = {

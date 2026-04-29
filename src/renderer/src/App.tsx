@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import type {
+  CompanionBridgeMessage,
+  CompanionBridgeState,
+  CompanionCliState
+} from '../../shared/companion'
 import {
   type Project,
   type RunningSession,
@@ -32,6 +37,20 @@ const KIND_LABELS: Record<SessionKind, string> = {
   custom: 'Custom'
 }
 
+const SESSION_STATUS_LABELS: Record<RunningSessionStatus, string> = {
+  starting: 'Starting',
+  running: 'Running',
+  done: 'Done',
+  error: 'Error'
+}
+
+const ANSI_SEQUENCE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[ -/]*[@-~]`, 'g')
+const ACTIVE_SESSION_STATUSES = new Set<RunningSessionStatus>(['starting', 'running'])
+const DEFAULT_COMPANION_BRIDGE_STATE: CompanionBridgeState = {
+  currentState: 'idle',
+  messages: []
+}
+
 type ProjectForm = {
   id?: string
   name: string
@@ -53,6 +72,19 @@ type StartWorkspaceSelection = {
 }
 
 type LayoutResizeTarget = keyof WorkspaceLayout
+type RunningSessionPatch = Partial<
+  Pick<
+    RunningSession,
+    | 'durationMs'
+    | 'endedAt'
+    | 'exitCode'
+    | 'exitSignal'
+    | 'lastActivityAt'
+    | 'lastOutputPreview'
+    | 'metadata'
+    | 'status'
+  >
+>
 
 function createId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`
@@ -85,6 +117,8 @@ function createEmptyTerminalForm(): TerminalForm {
 }
 
 function createRunningSession(config: TerminalConfig): RunningSession {
+  const now = new Date().toISOString()
+
   return {
     id: createId('session'),
     projectId: config.projectId,
@@ -94,7 +128,9 @@ function createRunningSession(config: TerminalConfig): RunningSession {
     cwd: config.cwd,
     commands: config.commands,
     status: 'starting',
-    metadata: config.cwd || 'home folder'
+    metadata: config.cwd || 'home folder',
+    startedAt: now,
+    lastActivityAt: now
   }
 }
 
@@ -121,9 +157,94 @@ function getTerminalDetail(config: TerminalConfig): string {
   return `${command} - ${config.cwd || 'home folder'}`
 }
 
+function isLiveSession(session: RunningSession): boolean {
+  return ACTIVE_SESSION_STATUSES.has(session.status)
+}
+
+function getStatusLabel(status: RunningSessionStatus): string {
+  return SESSION_STATUS_LABELS[status]
+}
+
+function getTimeMs(value?: string): number | null {
+  if (!value) return null
+
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) ? timestamp : null
+}
+
+function formatDuration(durationMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(durationMs / 1000))
+  if (totalSeconds < 1) return '<1s'
+  if (totalSeconds < 60) return `${totalSeconds}s`
+
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  if (minutes < 60) return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`
+
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`
+}
+
+function getSessionDurationMs(session: RunningSession): number | null {
+  if (typeof session.durationMs === 'number') return session.durationMs
+
+  const startedAt = getTimeMs(session.startedAt)
+  if (!startedAt) return null
+
+  const endedAt = getTimeMs(session.endedAt) ?? Date.now()
+  return Math.max(0, endedAt - startedAt)
+}
+
+function getSessionDurationLabel(session: RunningSession): string | null {
+  const durationMs = getSessionDurationMs(session)
+  return typeof durationMs === 'number' ? formatDuration(durationMs) : null
+}
+
+function getLastActivityLabel(session: RunningSession): string | null {
+  const lastActivityAt = getTimeMs(session.lastActivityAt)
+  if (!lastActivityAt) return null
+
+  const secondsAgo = Math.max(0, Math.floor((Date.now() - lastActivityAt) / 1000))
+  if (secondsAgo < 5) return 'active now'
+  if (secondsAgo < 60) return `${secondsAgo}s ago`
+
+  const minutesAgo = Math.floor(secondsAgo / 60)
+  if (minutesAgo < 60) return `${minutesAgo}m ago`
+
+  const hoursAgo = Math.floor(minutesAgo / 60)
+  return `${hoursAgo}h ago`
+}
+
+function getOutputPreview(output: string): string | null {
+  const preview = output.replace(ANSI_SEQUENCE_PATTERN, '').replace(/\s+/g, ' ').trim()
+
+  if (!preview) return null
+  return preview.length > 120 ? preview.slice(-120) : preview
+}
+
+function getSessionCardDetail(session: RunningSession): string {
+  const duration = getSessionDurationLabel(session)
+  const exit = typeof session.exitCode === 'number' ? `exit ${session.exitCode}` : null
+  const details = [getStatusLabel(session.status), duration, exit].filter(Boolean)
+
+  return details.join(' - ')
+}
+
+function getActiveSessionSummary(session: RunningSession): string {
+  const duration = getSessionDurationLabel(session)
+  const activity = getLastActivityLabel(session)
+  const exit = typeof session.exitCode === 'number' ? `exit ${session.exitCode}` : null
+  const details = [session.metadata, duration ? `duration ${duration}` : null, activity, exit]
+    .filter(Boolean)
+    .join(' - ')
+
+  return session.lastOutputPreview ? `${details} - ${session.lastOutputPreview}` : details
+}
+
 function getProjectLiveLabel(projectId: string, runningSessions: RunningSession[]): string {
   const liveCount = runningSessions.filter(
-    (session) => session.projectId === projectId && session.status !== 'exited'
+    (session) => session.projectId === projectId && isLiveSession(session)
   ).length
 
   if (liveCount === 1) return '1 live'
@@ -134,7 +255,7 @@ function getProjectLiveLabel(projectId: string, runningSessions: RunningSession[
 function getLiveConfigIds(projectId: string, runningSessions: RunningSession[]): Set<string> {
   return new Set(
     runningSessions
-      .filter((session) => session.projectId === projectId && session.status !== 'exited')
+      .filter((session) => session.projectId === projectId && isLiveSession(session))
       .map((session) => session.configId)
   )
 }
@@ -143,8 +264,21 @@ function getCompanionMessage(session: RunningSession | null): string {
   if (!session) return 'Workspace pronto.'
   if (session.status === 'starting') return `${session.name} esta iniciando.`
   if (session.status === 'running') return `${session.name} esta ativo.`
-  if (session.status === 'exited') return `${session.name} encerrou.`
+  if (session.status === 'done')
+    return `${session.name} terminou em ${getSessionDurationLabel(session) ?? 'pouco tempo'}.`
   return `${session.name} precisa de atencao.`
+}
+
+function formatCompanionTime(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(value))
+}
+
+function getCompanionStateLabel(state: CompanionCliState): string {
+  if (state === 'waiting_input') return 'waiting input'
+  return state
 }
 
 function App(): React.JSX.Element {
@@ -158,6 +292,9 @@ function App(): React.JSX.Element {
   const [terminalForm, setTerminalForm] = useState<TerminalForm | null>(null)
   const [startSelection, setStartSelection] = useState<StartWorkspaceSelection | null>(null)
   const [layout, setLayout] = useState<WorkspaceLayout>(DEFAULT_LAYOUT)
+  const [companionBridgeState, setCompanionBridgeState] = useState<CompanionBridgeState>(
+    DEFAULT_COMPANION_BRIDGE_STATE
+  )
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null
   const activeProjectConfigs = activeProject
@@ -249,24 +386,100 @@ function App(): React.JSX.Element {
     })
   }, [])
 
-  const updateSessionStatus = useCallback(
-    (sessionId: string, status: RunningSessionStatus): void => {
+  useEffect(() => {
+    let mounted = true
+
+    const loadBridgeState = (): void => {
+      window.api.companion
+        .loadBridgeState()
+        .then((state) => {
+          if (mounted) setCompanionBridgeState(state)
+        })
+        .catch((error: unknown) => {
+          console.error('Failed to load companion bridge state', error)
+        })
+    }
+
+    loadBridgeState()
+    const bridgeTimer = window.setInterval(loadBridgeState, 1200)
+
+    return () => {
+      mounted = false
+      window.clearInterval(bridgeTimer)
+    }
+  }, [])
+
+  const updateSession = useCallback((sessionId: string, patch: RunningSessionPatch): void => {
+    setRunningSessions((currentSessions) =>
+      currentSessions.map((session) =>
+        session.id === sessionId ? { ...session, ...patch } : session
+      )
+    )
+  }, [])
+
+  const markSessionExited = useCallback(
+    (sessionId: string, exitCode: number, exitSignal?: number): void => {
+      const endedAt = new Date().toISOString()
+
       setRunningSessions((currentSessions) =>
-        currentSessions.map((session) =>
-          session.id === sessionId ? { ...session, status } : session
-        )
+        currentSessions.map((session) => {
+          if (session.id !== sessionId) return session
+
+          const startedAt = getTimeMs(session.startedAt)
+          const durationMs = startedAt ? Math.max(0, Date.parse(endedAt) - startedAt) : undefined
+          const status = session.status === 'error' || exitCode !== 0 ? 'error' : 'done'
+
+          return {
+            ...session,
+            durationMs,
+            endedAt,
+            exitCode,
+            exitSignal,
+            lastActivityAt: endedAt,
+            status
+          }
+        })
       )
     },
     []
   )
 
-  const updateSessionMetadata = useCallback((sessionId: string, metadata: string): void => {
-    setRunningSessions((currentSessions) =>
-      currentSessions.map((session) =>
-        session.id === sessionId ? { ...session, metadata } : session
-      )
-    )
-  }, [])
+  const markSessionStarted = useCallback(
+    (sessionId: string, metadata: string): void => {
+      updateSession(sessionId, {
+        lastActivityAt: new Date().toISOString(),
+        metadata,
+        status: 'running'
+      })
+    },
+    [updateSession]
+  )
+
+  const markSessionStartError = useCallback(
+    (sessionId: string, errorMessage: string): void => {
+      const endedAt = new Date().toISOString()
+
+      updateSession(sessionId, {
+        endedAt,
+        lastActivityAt: endedAt,
+        lastOutputPreview: errorMessage,
+        status: 'error'
+      })
+    },
+    [updateSession]
+  )
+
+  const updateSessionActivity = useCallback(
+    (sessionId: string, output: string): void => {
+      const preview = getOutputPreview(output)
+
+      updateSession(sessionId, {
+        lastActivityAt: new Date().toISOString(),
+        ...(preview ? { lastOutputPreview: preview } : {})
+      })
+    },
+    [updateSession]
+  )
 
   const selectProject = (projectId: string): void => {
     setActiveProjectId(projectId)
@@ -320,7 +533,7 @@ function App(): React.JSX.Element {
 
   const startConfig = (config: TerminalConfig): void => {
     const existingSession = runningSessions.find(
-      (session) => session.configId === config.id && session.status !== 'exited'
+      (session) => session.configId === config.id && isLiveSession(session)
     )
 
     if (existingSession) {
@@ -402,7 +615,7 @@ function App(): React.JSX.Element {
       )
       .map(createRunningSession)
     const firstExistingSession = runningSessions.find(
-      (session) => session.projectId === startSelection.projectId && session.status !== 'exited'
+      (session) => session.projectId === startSelection.projectId && isLiveSession(session)
     )
 
     setStartSelection(null)
@@ -547,14 +760,38 @@ function App(): React.JSX.Element {
   const companionMessage = activeProject
     ? getCompanionMessage(activeSession)
     : 'Create a workspace to get started.'
+  const companionTerminalMessages: CompanionBridgeMessage[] =
+    companionBridgeState.messages.length > 0
+      ? companionBridgeState.messages.slice(-8)
+      : [
+          {
+            id: 'local-companion-message',
+            cliState: activeSession?.status === 'error' ? 'error' : 'idle',
+            createdAt: new Date().toISOString(),
+            projectColor: activeProjectColor,
+            projectName: activeProject?.name ?? 'Pixel Companion',
+            source: 'app',
+            summary: companionMessage,
+            title: activeSession?.name ?? 'Ready'
+          }
+        ]
+  const companionTerminalState =
+    companionBridgeState.messages.length > 0
+      ? companionBridgeState.currentState
+      : activeSession?.status === 'error'
+        ? 'error'
+        : 'idle'
   const terminalTitle =
     activeSession?.name ?? (activeProject ? 'Workspace' : 'No workspace selected')
-  const terminalStatus = activeSession?.status ?? 'ready'
+  const terminalStatus = activeSession ? getStatusLabel(activeSession.status) : 'Ready'
+  const terminalStatusKey = activeSession?.status ?? 'ready'
   const activeSessionKind = activeSession?.kind ?? 'shell'
   const selectedSessionId = activeSession?.id ?? null
-  const sessionSummary = activeProject
-    ? getProjectSummary(activeProject, terminalConfigs)
-    : 'No workspace configured yet.'
+  const sessionSummary = activeSession
+    ? getActiveSessionSummary(activeSession)
+    : activeProject
+      ? getProjectSummary(activeProject, terminalConfigs)
+      : 'No workspace configured yet.'
 
   return (
     <main className="app-shell" style={activeStyle}>
@@ -688,7 +925,9 @@ function App(): React.JSX.Element {
               {activeProjectSessions.map((session) => (
                 <div
                   key={session.id}
-                  className={`session-row${session.id === selectedSessionId ? ' session-row--active' : ''}`}
+                  className={`session-row session-row--${session.status}${
+                    session.id === selectedSessionId ? ' session-row--active' : ''
+                  }`}
                 >
                   <button
                     className="session-item"
@@ -699,14 +938,14 @@ function App(): React.JSX.Element {
                       {KIND_LABELS[session.kind]}
                     </span>
                     <strong>{session.name}</strong>
-                    <small>{session.status}</small>
+                    <small>{getSessionCardDetail(session)}</small>
                   </button>
                   <button
                     className="session-stop"
                     type="button"
                     onClick={() => stopSession(session.id)}
                   >
-                    Stop
+                    {isLiveSession(session) ? 'Stop' : 'Clear'}
                   </button>
                 </div>
               ))}
@@ -733,7 +972,9 @@ function App(): React.JSX.Element {
             <span className={`kind-badge kind-badge--${activeSessionKind}`}>
               {KIND_LABELS[activeSessionKind]}
             </span>
-            <span className="status-pill">{terminalStatus}</span>
+            <span className={`status-pill status-pill--${terminalStatusKey}`}>
+              {terminalStatus}
+            </span>
           </div>
         </header>
 
@@ -749,8 +990,10 @@ function App(): React.JSX.Element {
                 <TerminalPane
                   session={session}
                   isActive={session.id === selectedSessionId}
-                  onMetadataChange={updateSessionMetadata}
-                  onStatusChange={updateSessionStatus}
+                  onSessionActivity={updateSessionActivity}
+                  onSessionExit={markSessionExited}
+                  onSessionStartError={markSessionStartError}
+                  onSessionStarted={markSessionStarted}
                 />
               </div>
             ))}
@@ -785,11 +1028,42 @@ function App(): React.JSX.Element {
 
       <aside className="companion-panel" aria-label="Companion preview">
         <div className="companion-stage">
-          <div className="speech-bubble">
-            <span>{activeProject?.name ?? 'Pixel Companion'}</span>
-            <p>{companionMessage}</p>
+          <div className="companion-terminal">
+            <header className="companion-terminal-header">
+              <div className="terminal-controls" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </div>
+              <strong>{activeProject?.name ?? 'Pixel Companion'}</strong>
+              <small>{getCompanionStateLabel(companionTerminalState)}</small>
+            </header>
+            <div className="companion-terminal-screen">
+              {companionTerminalMessages.map((message) => (
+                <article
+                  key={message.id}
+                  className={`companion-line companion-line--${message.cliState}`}
+                  style={
+                    {
+                      '--message-color': message.projectColor ?? activeProjectColor
+                    } as CSSProperties
+                  }
+                >
+                  <div className="companion-line-meta">
+                    <span>{formatCompanionTime(message.createdAt)}</span>
+                    <strong>{message.agentName ?? 'companion'}</strong>
+                    {message.projectName && <small>{message.projectName}</small>}
+                  </div>
+                  <p>{message.summary}</p>
+                  {message.details && <pre>{message.details}</pre>}
+                </article>
+              ))}
+            </div>
           </div>
-          <div className="pixel-companion" aria-hidden="true">
+          <div
+            className={`pixel-companion pixel-companion--${companionTerminalState}`}
+            aria-hidden="true"
+          >
             <span className="pixel-eye pixel-eye--left" />
             <span className="pixel-eye pixel-eye--right" />
             <span className="pixel-mouth" />

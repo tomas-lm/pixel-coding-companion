@@ -55,11 +55,23 @@ Goal: make workspace panels adjustable like an IDE layout.
 
 Goal: detect useful state changes from managed CLI agent sessions.
 
+- Status: Done.
 - Keep terminal setup command-first and user-configured.
 - Detect basic running, done, and error states from process lifecycle.
 - Track session start, exit code, duration, and last activity.
 - Surface state changes in the companion panel.
 - Create the event foundation for future XP, companion evolution, and MCP messages.
+
+## Phase 3.1: MCP Companion Bridge
+
+Goal: let local CLI agents report companion state directly through MCP.
+
+- Status: Done.
+- Added a stdio MCP server with `companion_report` and `companion_get_state` tools.
+- Persisted MCP companion messages to the app user-data directory.
+- Added Electron IPC for the renderer to read bridge state.
+- Replaced the small companion speech bubble with a terminal-style companion transcript.
+- Installed the MCP server globally in local Codex as `pixel-companion`.
 
 ## Phase 4: Pixel Companion
 

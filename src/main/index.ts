@@ -15,6 +15,11 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import * as pty from 'node-pty'
 import icon from '../../resources/icon.png?asset'
 import {
+  COMPANION_CHANNELS,
+  type CompanionBridgeMessage,
+  type CompanionBridgeState
+} from '../shared/companion'
+import {
   TERMINAL_CHANNELS,
   type TerminalInputRequest,
   type TerminalResizeRequest,
@@ -30,11 +35,21 @@ import {
 } from '../shared/workspace'
 
 type PtyProcess = ReturnType<typeof pty.spawn>
+type ManagedTerminal = {
+  pendingData: string
+  process: PtyProcess
+}
 
 const APP_NAME = 'Pixel Companion'
 const APP_ID = 'dev.tomasmuniz.pixel-coding-companion'
 const APP_USER_DATA_DIR = 'pixel-coding-companion'
-const terminals = new Map<TerminalSessionId, PtyProcess>()
+const COMMAND_EXIT_MARKER = '__PIXEL_COMPANION_COMMAND_EXIT__:'
+const COMMAND_EXIT_COMMAND = `printf '\\n${COMMAND_EXIT_MARKER}%s\\n' "$?"`
+const COMMAND_EXIT_PATTERN = new RegExp(
+  `(?:\\r?\\n)?${COMMAND_EXIT_MARKER}(-?\\d+)(?:\\r?\\n)?`,
+  'g'
+)
+const terminals = new Map<TerminalSessionId, ManagedTerminal>()
 
 app.setName(APP_NAME)
 // Keep persisted workspace data independent from the display name shown by macOS.
@@ -68,18 +83,84 @@ function getWorkspaceConfigPath(): string {
   return join(app.getPath('userData'), 'workspaces.json')
 }
 
+function getCompanionBridgeStatePath(): string {
+  return join(app.getPath('userData'), 'companion-state.json')
+}
+
+function createDefaultCompanionBridgeState(): CompanionBridgeState {
+  return {
+    currentState: 'idle',
+    messages: []
+  }
+}
+
+function normalizeCompanionBridgeState(value: unknown): CompanionBridgeState {
+  if (!value || typeof value !== 'object') return createDefaultCompanionBridgeState()
+
+  const state = value as Partial<CompanionBridgeState>
+  const messages = Array.isArray(state.messages)
+    ? (state.messages.filter((message) => {
+        if (!message || typeof message !== 'object') return false
+
+        const candidate = message as Partial<CompanionBridgeMessage>
+        return (
+          typeof candidate.id === 'string' &&
+          typeof candidate.createdAt === 'string' &&
+          typeof candidate.title === 'string' &&
+          typeof candidate.summary === 'string'
+        )
+      }) as CompanionBridgeMessage[])
+    : []
+
+  return {
+    currentState: state.currentState ?? 'idle',
+    messages: messages.slice(-80),
+    updatedAt: state.updatedAt
+  }
+}
+
 function stopTerminal(id: TerminalSessionId): void {
-  const terminal = terminals.get(id)
-  if (!terminal) return
+  const managedTerminal = terminals.get(id)
+  if (!managedTerminal) return
 
   terminals.delete(id)
-  terminal.kill()
+  managedTerminal.process.kill()
 }
 
 function stopAllTerminals(): void {
   for (const id of terminals.keys()) {
     stopTerminal(id)
   }
+}
+
+function getMarkerPrefixLength(data: string): number {
+  const maxLength = Math.min(COMMAND_EXIT_MARKER.length - 1, data.length)
+
+  for (let length = maxLength; length > 0; length -= 1) {
+    if (COMMAND_EXIT_MARKER.startsWith(data.slice(-length))) return length
+  }
+
+  return 0
+}
+
+function writeStartupCommands(
+  terminal: PtyProcess,
+  id: TerminalSessionId,
+  commands: string[]
+): void {
+  commands.forEach((command, index) => {
+    setTimeout(() => {
+      if (terminals.get(id)?.process === terminal) {
+        terminal.write(`${command}\r`)
+      }
+    }, index * 80)
+  })
+
+  setTimeout(() => {
+    if (terminals.get(id)?.process === terminal) {
+      terminal.write(`${COMMAND_EXIT_COMMAND}\r`)
+    }
+  }, commands.length * 80)
 }
 
 function registerTerminalIpc(): void {
@@ -98,11 +179,40 @@ function registerTerminalIpc(): void {
         env: getPtyEnv()
       })
 
-      terminals.set(request.id, terminal)
+      terminals.set(request.id, {
+        pendingData: '',
+        process: terminal
+      })
 
       terminal.onData((data) => {
+        const managedTerminal = terminals.get(request.id)
+        if (!managedTerminal) return
+
+        const combinedData = managedTerminal.pendingData + data
+        let visibleData = ''
+        let lastIndex = 0
+
+        for (const match of combinedData.matchAll(COMMAND_EXIT_PATTERN)) {
+          visibleData += combinedData.slice(lastIndex, match.index)
+          lastIndex = match.index + match[0].length
+
+          if (!event.sender.isDestroyed()) {
+            event.sender.send(TERMINAL_CHANNELS.commandExit, {
+              id: request.id,
+              exitCode: Number(match[1])
+            })
+          }
+        }
+
+        visibleData += combinedData.slice(lastIndex)
+        visibleData = visibleData.replaceAll(COMMAND_EXIT_COMMAND, '')
+
+        const pendingLength = getMarkerPrefixLength(visibleData)
+        managedTerminal.pendingData = pendingLength > 0 ? visibleData.slice(-pendingLength) : ''
+        visibleData = pendingLength > 0 ? visibleData.slice(0, -pendingLength) : visibleData
+
         if (!event.sender.isDestroyed()) {
-          event.sender.send(TERMINAL_CHANNELS.data, { id: request.id, data })
+          event.sender.send(TERMINAL_CHANNELS.data, { id: request.id, data: visibleData })
         }
       })
 
@@ -115,13 +225,7 @@ function registerTerminalIpc(): void {
 
       const commands = request.commands?.map((command) => command.trim()).filter(Boolean) ?? []
       if (commands.length > 0) {
-        commands.forEach((command, index) => {
-          setTimeout(() => {
-            if (terminals.get(request.id) === terminal) {
-              terminal.write(`${command}\r`)
-            }
-          }, index * 80)
-        })
+        writeStartupCommands(terminal, request.id, commands)
       }
 
       return {
@@ -138,14 +242,14 @@ function registerTerminalIpc(): void {
   })
 
   ipcMain.on(TERMINAL_CHANNELS.input, (_, request: TerminalInputRequest) => {
-    terminals.get(request.id)?.write(request.data)
+    terminals.get(request.id)?.process.write(request.data)
   })
 
   ipcMain.on(TERMINAL_CHANNELS.resize, (_, request: TerminalResizeRequest) => {
-    const terminal = terminals.get(request.id)
-    if (!terminal) return
+    const managedTerminal = terminals.get(request.id)
+    if (!managedTerminal) return
 
-    terminal.resize(Math.max(request.cols, 2), Math.max(request.rows, 2))
+    managedTerminal.process.resize(Math.max(request.cols, 2), Math.max(request.rows, 2))
   })
 }
 
@@ -187,6 +291,21 @@ function registerWorkspaceIpc(): void {
       await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
     }
   )
+}
+
+function registerCompanionIpc(): void {
+  ipcMain.handle(COMPANION_CHANNELS.loadBridgeState, async (): Promise<CompanionBridgeState> => {
+    try {
+      const file = await readFile(getCompanionBridgeStatePath(), 'utf8')
+      return normalizeCompanionBridgeState(JSON.parse(file))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return createDefaultCompanionBridgeState()
+      }
+
+      throw error
+    }
+  })
 }
 
 function sendLayoutReset(targetWindow: BrowserWindow): void {
@@ -314,6 +433,7 @@ app.whenReady().then(() => {
 
   registerTerminalIpc()
   registerWorkspaceIpc()
+  registerCompanionIpc()
 
   createWindow()
 

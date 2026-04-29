@@ -7,22 +7,26 @@ import '@xterm/xterm/css/xterm.css'
 type TerminalPaneProps = {
   session: RunningSession
   isActive: boolean
-  onMetadataChange: (sessionId: string, metadata: string) => void
-  onStatusChange: (sessionId: string, status: RunningSessionStatus) => void
+  onSessionActivity: (sessionId: string, output: string) => void
+  onSessionExit: (sessionId: string, exitCode: number, signal?: number) => void
+  onSessionStartError: (sessionId: string, errorMessage: string) => void
+  onSessionStarted: (sessionId: string, metadata: string) => void
 }
 
 function getStatusLabel(status: RunningSessionStatus): string {
   if (status === 'starting') return 'starting'
   if (status === 'running') return 'running'
-  if (status === 'exited') return 'exited'
+  if (status === 'done') return 'done'
   return 'error'
 }
 
 export function TerminalPane({
   session,
   isActive,
-  onMetadataChange,
-  onStatusChange
+  onSessionActivity,
+  onSessionExit,
+  onSessionStartError,
+  onSessionStarted
 }: TerminalPaneProps): React.JSX.Element {
   const terminalContainerRef = useRef<HTMLDivElement | null>(null)
   const terminalRef = useRef<Terminal | null>(null)
@@ -87,16 +91,34 @@ export function TerminalPane({
       window.api.terminal.write({ id: session.id, data })
     })
 
+    let lastActivityUpdate = 0
+
     const offData = window.api.terminal.onData((event) => {
       if (event.id === session.id) {
         terminal.write(event.data)
+
+        const now = Date.now()
+        if (event.data.trim() && (now - lastActivityUpdate > 1000 || event.data.includes('\n'))) {
+          lastActivityUpdate = now
+          onSessionActivity(session.id, event.data)
+        }
       }
+    })
+
+    const offCommandExit = window.api.terminal.onCommandExit((event) => {
+      if (event.id !== session.id) return
+
+      onSessionExit(session.id, event.exitCode)
+      terminal.writeln('')
+      terminal.writeln(
+        `[command ${event.exitCode === 0 ? 'completed' : 'failed'} with code ${event.exitCode}]`
+      )
     })
 
     const offExit = window.api.terminal.onExit((event) => {
       if (event.id !== session.id) return
 
-      onStatusChange(session.id, 'exited')
+      onSessionExit(session.id, event.exitCode, event.signal)
       terminal.writeln('')
       terminal.writeln(`[process exited with code ${event.exitCode}]`)
     })
@@ -117,14 +139,14 @@ export function TerminalPane({
         .then((response) => {
           if (disposed) return
 
-          onMetadataChange(session.id, `${response.shell} - pid ${response.pid}`)
-          onStatusChange(session.id, 'running')
+          onSessionStarted(session.id, `${response.shell} - pid ${response.pid}`)
         })
         .catch((error: unknown) => {
           if (disposed) return
 
-          onStatusChange(session.id, 'error')
-          terminal.writeln(`Failed to start terminal: ${String(error)}`)
+          const errorMessage = String(error)
+          onSessionStartError(session.id, errorMessage)
+          terminal.writeln(`Failed to start terminal: ${errorMessage}`)
         })
     })
 
@@ -134,13 +156,22 @@ export function TerminalPane({
       resizeObserver.disconnect()
       inputDisposable.dispose()
       offData()
+      offCommandExit()
       offExit()
       void window.api.terminal.stop(session.id)
       terminal.dispose()
       terminalRef.current = null
       fitAddonRef.current = null
     }
-  }, [onMetadataChange, onStatusChange, session.commands, session.cwd, session.id])
+  }, [
+    onSessionActivity,
+    onSessionExit,
+    onSessionStartError,
+    onSessionStarted,
+    session.commands,
+    session.cwd,
+    session.id
+  ])
 
   return (
     <div className="terminal-frame" aria-label={`${session.name} terminal`}>

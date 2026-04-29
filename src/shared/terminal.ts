@@ -1,3 +1,4 @@
+import type { CompanionBridgeApi } from './companion'
 import type { ViewApi, WorkspaceApi } from './workspace'
 
 export const TERMINAL_CHANNELS = {
@@ -6,7 +7,8 @@ export const TERMINAL_CHANNELS = {
   input: 'terminal:input',
   resize: 'terminal:resize',
   data: 'terminal:data',
-  exit: 'terminal:exit'
+  exit: 'terminal:exit',
+  commandExit: 'terminal:command-exit'
 } as const
 
 export type TerminalSessionId = string
@@ -48,6 +50,11 @@ export type TerminalExitEvent = {
   signal?: number
 }
 
+export type TerminalCommandExitEvent = {
+  id: TerminalSessionId
+  exitCode: number
+}
+
 export type Unsubscribe = () => void
 
 export type TerminalApi = {
@@ -57,9 +64,11 @@ export type TerminalApi = {
   resize: (request: TerminalResizeRequest) => void
   onData: (callback: (event: TerminalDataEvent) => void) => Unsubscribe
   onExit: (callback: (event: TerminalExitEvent) => void) => Unsubscribe
+  onCommandExit: (callback: (event: TerminalCommandExitEvent) => void) => Unsubscribe
 }
 
 export type CompanionApi = {
+  companion: CompanionBridgeApi
   terminal: TerminalApi
   workspace: WorkspaceApi
   view: ViewApi

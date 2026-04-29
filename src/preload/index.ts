@@ -1,7 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { COMPANION_CHANNELS, type CompanionBridgeState } from '../shared/companion'
 import {
   TERMINAL_CHANNELS,
   type CompanionApi,
+  type TerminalCommandExitEvent,
   type TerminalDataEvent,
   type TerminalExitEvent,
   type TerminalInputRequest,
@@ -18,6 +20,10 @@ import {
 } from '../shared/workspace'
 
 const api: CompanionApi = {
+  companion: {
+    loadBridgeState: (): Promise<CompanionBridgeState> =>
+      ipcRenderer.invoke(COMPANION_CHANNELS.loadBridgeState)
+  },
   terminal: {
     start: (request: TerminalStartRequest): Promise<TerminalStartResponse> =>
       ipcRenderer.invoke(TERMINAL_CHANNELS.start, request),
@@ -39,6 +45,12 @@ const api: CompanionApi = {
         callback(event)
       ipcRenderer.on(TERMINAL_CHANNELS.exit, listener)
       return () => ipcRenderer.removeListener(TERMINAL_CHANNELS.exit, listener)
+    },
+    onCommandExit: (callback: (event: TerminalCommandExitEvent) => void) => {
+      const listener = (_: Electron.IpcRendererEvent, event: TerminalCommandExitEvent): void =>
+        callback(event)
+      ipcRenderer.on(TERMINAL_CHANNELS.commandExit, listener)
+      return () => ipcRenderer.removeListener(TERMINAL_CHANNELS.commandExit, listener)
     }
   },
   workspace: {
