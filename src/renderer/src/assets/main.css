@@ -73,11 +73,35 @@ button {
   gap: 6px;
   height: 100%;
   max-height: 100%;
-  overflow-x: hidden;
-  overflow-y: scroll;
+  overflow: auto;
   overscroll-behavior: contain;
   padding: 16px;
-  scrollbar-gutter: stable;
+}
+
+:is(.workspace-rail-scroll, .project-list, .template-list, .session-list) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(235, 235, 245, 0.24) transparent;
+}
+
+:is(.workspace-rail-scroll, .project-list, .template-list, .session-list)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+:is(.workspace-rail-scroll, .project-list, .template-list, .session-list)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:is(.workspace-rail-scroll, .project-list, .template-list, .session-list)::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(235, 235, 245, 0.24);
+  background-clip: content-box;
+}
+
+:is(.workspace-rail-scroll, .project-list, .template-list, .session-list)::-webkit-scrollbar-thumb:hover {
+  background: rgba(235, 235, 245, 0.36);
+  background-clip: content-box;
 }
 
 .brand-lockup {
@@ -1013,8 +1037,7 @@ button {
   .workspace-rail-scroll {
     height: 100%;
     max-height: 100%;
-    overflow-x: hidden;
-    overflow-y: scroll;
+    overflow: auto;
   }
 
   .session-panel {
