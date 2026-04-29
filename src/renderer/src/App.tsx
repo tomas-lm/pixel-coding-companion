@@ -12,6 +12,7 @@ import {
   type TerminalConfig,
   type WorkspaceLayout
 } from '../../shared/workspace'
+import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { TerminalPane } from './components/TerminalPane'
 
 const PROJECT_COLORS = ['#4ea1ff', '#ef5b5b', '#f7d56f', '#7fe7dc', '#c084fc', '#34d399']
@@ -336,6 +337,7 @@ function App(): React.JSX.Element {
         startSelection.selectedConfigIds.includes(config.id)
       )
     : []
+  const shouldShowOnboarding = configLoaded && projects.length === 0
 
   useEffect(() => {
     let mounted = true
@@ -754,6 +756,47 @@ function App(): React.JSX.Element {
   const deleteTerminalConfig = (configId: string): void => {
     setTerminalConfigs((currentConfigs) =>
       currentConfigs.filter((config) => config.id !== configId)
+    )
+  }
+
+  const completeOnboarding = async ({
+    project,
+    terminalConfig
+  }: OnboardingResult): Promise<void> => {
+    const nextProjects = [project]
+    const nextTerminalConfigs = [terminalConfig]
+
+    await window.api.workspace.saveConfig({
+      projects: nextProjects,
+      terminalConfigs: nextTerminalConfigs,
+      activeProjectId: project.id,
+      layout
+    })
+
+    setProjects(nextProjects)
+    setTerminalConfigs(nextTerminalConfigs)
+    setActiveProjectId(project.id)
+    setActiveSessionId(null)
+  }
+
+  if (!configLoaded) {
+    return (
+      <main className="onboarding-shell">
+        <section className="onboarding-panel onboarding-panel--loading" aria-label="Loading setup">
+          <span className="eyebrow">Pixel Companion</span>
+          <h1>Loading workspace config</h1>
+        </section>
+      </main>
+    )
+  }
+
+  if (shouldShowOnboarding) {
+    return (
+      <OnboardingFlow
+        colors={PROJECT_COLORS}
+        onComplete={completeOnboarding}
+        onPickFolder={window.api.workspace.pickFolder}
+      />
     )
   }
 
