@@ -69,10 +69,10 @@ On macOS, that is usually:
 Example project layout:
 
 ```text
-Engelmig
+ProjectX
 - Assistant: /Users/you/dev
-- Backend: /Users/you/dev/company/engelmig
-- Frontend: /Users/you/dev/company/engelmig-frontend
+- Backend: /Users/you/dev/company/ProjectX
+- Frontend: /Users/you/dev/company/ProjectX-frontend
 ```
 
 Each project owns its configured terminals, even if multiple projects reuse the same
