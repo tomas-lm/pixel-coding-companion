@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
-import type { CompanionBridgeMessage, CompanionBridgeState } from '../../shared/companion'
+import type {
+  CompanionBridgeMessage,
+  CompanionBridgeState,
+  CompanionProgressState
+} from '../../shared/companion'
 import {
   type Project,
   type RunningSession,
@@ -50,6 +54,11 @@ const DEFAULT_COMPANION_BRIDGE_STATE: CompanionBridgeState = {
   currentState: 'idle',
   messages: []
 }
+const DEFAULT_COMPANION_PROGRESS_STATE: CompanionProgressState = createCompanionProgressSnapshot({
+  currentXp: 0,
+  level: 0,
+  name: COMPANION_NAME
+})
 
 type ProjectForm = {
   id?: string
@@ -384,6 +393,9 @@ function App(): React.JSX.Element {
   const [companionBridgeState, setCompanionBridgeState] = useState<CompanionBridgeState>(
     DEFAULT_COMPANION_BRIDGE_STATE
   )
+  const [companionProgress, setCompanionProgress] = useState<CompanionProgressState>(
+    DEFAULT_COMPANION_PROGRESS_STATE
+  )
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null
   const activeProjectConfigs = activeProject
@@ -485,13 +497,18 @@ function App(): React.JSX.Element {
     let mounted = true
 
     const loadBridgeState = (): void => {
-      window.api.companion
-        .loadBridgeState()
-        .then((state) => {
-          if (mounted) setCompanionBridgeState(state)
+      void Promise.all([
+        window.api.companion.loadBridgeState(),
+        window.api.companion.loadProgress()
+      ])
+        .then(([bridgeState, progress]) => {
+          if (!mounted) return
+
+          setCompanionBridgeState(bridgeState)
+          setCompanionProgress(progress)
         })
         .catch((error: unknown) => {
-          console.error('Failed to load companion bridge state', error)
+          console.error('Failed to load companion state', error)
         })
     }
 
@@ -933,11 +950,6 @@ function App(): React.JSX.Element {
       : activeSession?.status === 'error'
         ? 'error'
         : 'idle'
-  const companionProgress = createCompanionProgressSnapshot({
-    currentXp: 0,
-    level: 0,
-    name: COMPANION_NAME
-  })
   const terminalTitle =
     activeSession?.name ?? (activeProject ? 'Workspace' : 'No workspace selected')
   const terminalStatus = activeSession ? getStatusLabel(activeSession.status) : 'Ready'

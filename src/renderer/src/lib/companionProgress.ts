@@ -1,21 +1,18 @@
+import type { CompanionProgressState } from '../../../shared/companion'
+
 const MIN_COMPANION_LEVEL = 0
 const MAX_COMPANION_LEVEL = 100
 const BASE_NEXT_LEVEL_XP = 120
 const LEVEL_XP_GROWTH = 1.13
 
-export type CompanionProgress = {
-  currentXp: number
-  level: number
-  maxLevel: number
-  name: string
-  progressRatio: number
-  xpForNextLevel: number
-}
+export type CompanionProgress = CompanionProgressState
 
 export type CompanionProgressInput = {
   currentXp?: number
   level?: number
   name?: string
+  totalXp?: number
+  updatedAt?: string
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -45,6 +42,8 @@ export function createCompanionProgressSnapshot(
     maxLevel: MAX_COMPANION_LEVEL,
     name: input.name?.trim() || 'Ghou',
     progressRatio: xpForNextLevel > 0 ? currentXp / xpForNextLevel : 1,
+    totalXp: Math.max(0, Math.floor(input.totalXp ?? currentXp)),
+    updatedAt: input.updatedAt,
     xpForNextLevel
   }
 }

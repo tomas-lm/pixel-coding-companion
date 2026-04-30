@@ -17,7 +17,8 @@ import icon from '../../resources/icon.png?asset'
 import {
   COMPANION_CHANNELS,
   type CompanionBridgeMessage,
-  type CompanionBridgeState
+  type CompanionBridgeState,
+  type CompanionProgressState
 } from '../shared/companion'
 import {
   TERMINAL_CHANNELS,
@@ -62,6 +63,9 @@ const AUTO_LAUNCH_FALLBACK_DELAY_MS = 7000
 const AUTO_LAUNCH_SUBMIT_DELAY_MS = 180
 const ANSI_SEQUENCE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[ -/]*[@-~]`, 'g')
 const CODEX_CLI_READY_PATTERNS = [/Tip: Use \/skills/i, /›\s*$/]
+const COMPANION_MAX_LEVEL = 100
+const COMPANION_BASE_NEXT_LEVEL_XP = 120
+const COMPANION_LEVEL_XP_GROWTH = 1.13
 const terminals = new Map<TerminalSessionId, ManagedTerminal>()
 let terminalContextRegistryQueue: Promise<void> = Promise.resolve()
 
@@ -100,6 +104,10 @@ function getWorkspaceConfigPath(): string {
 
 function getCompanionBridgeStatePath(): string {
   return join(app.getPath('userData'), 'companion-state.json')
+}
+
+function getCompanionProgressPath(): string {
+  return join(app.getPath('userData'), 'companion-progress.json')
 }
 
 function getTerminalCompanionContextPath(sessionId: TerminalSessionId): string {
@@ -210,6 +218,26 @@ function createDefaultCompanionBridgeState(): CompanionBridgeState {
   }
 }
 
+function getXpRequiredForLevel(level: number): number {
+  const safeLevel = Math.min(Math.max(Math.floor(level), 0), COMPANION_MAX_LEVEL)
+
+  return Math.floor(COMPANION_BASE_NEXT_LEVEL_XP * Math.pow(COMPANION_LEVEL_XP_GROWTH, safeLevel))
+}
+
+function createDefaultCompanionProgressState(): CompanionProgressState {
+  const xpForNextLevel = getXpRequiredForLevel(0)
+
+  return {
+    currentXp: 0,
+    level: 0,
+    maxLevel: COMPANION_MAX_LEVEL,
+    name: 'Ghou',
+    progressRatio: 0,
+    totalXp: 0,
+    xpForNextLevel
+  }
+}
+
 function normalizeCompanionBridgeState(value: unknown): CompanionBridgeState {
   if (!value || typeof value !== 'object') return createDefaultCompanionBridgeState()
 
@@ -232,6 +260,38 @@ function normalizeCompanionBridgeState(value: unknown): CompanionBridgeState {
     currentState: state.currentState ?? 'idle',
     messages: messages.slice(-80),
     updatedAt: state.updatedAt
+  }
+}
+
+function normalizeCompanionProgressState(value: unknown): CompanionProgressState {
+  if (!value || typeof value !== 'object') return createDefaultCompanionProgressState()
+
+  const state = value as Partial<CompanionProgressState>
+  const level =
+    typeof state.level === 'number' && Number.isFinite(state.level)
+      ? Math.min(Math.max(Math.floor(state.level), 0), COMPANION_MAX_LEVEL)
+      : 0
+  const xpForNextLevel =
+    typeof state.xpForNextLevel === 'number' && Number.isFinite(state.xpForNextLevel)
+      ? Math.max(0, Math.floor(state.xpForNextLevel))
+      : getXpRequiredForLevel(level)
+  const currentXp =
+    typeof state.currentXp === 'number' && Number.isFinite(state.currentXp)
+      ? Math.min(Math.max(Math.floor(state.currentXp), 0), xpForNextLevel)
+      : 0
+
+  return {
+    currentXp,
+    level,
+    maxLevel: COMPANION_MAX_LEVEL,
+    name: typeof state.name === 'string' && state.name.trim() ? state.name.trim() : 'Ghou',
+    progressRatio: xpForNextLevel > 0 ? currentXp / xpForNextLevel : 1,
+    totalXp:
+      typeof state.totalXp === 'number' && Number.isFinite(state.totalXp)
+        ? Math.max(0, Math.floor(state.totalXp))
+        : currentXp,
+    updatedAt: typeof state.updatedAt === 'string' ? state.updatedAt : undefined,
+    xpForNextLevel
   }
 }
 
@@ -484,6 +544,19 @@ function registerCompanionIpc(): void {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return createDefaultCompanionBridgeState()
+      }
+
+      throw error
+    }
+  })
+
+  ipcMain.handle(COMPANION_CHANNELS.loadProgress, async (): Promise<CompanionProgressState> => {
+    try {
+      const file = await readFile(getCompanionProgressPath(), 'utf8')
+      return normalizeCompanionProgressState(JSON.parse(file))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return createDefaultCompanionProgressState()
       }
 
       throw error

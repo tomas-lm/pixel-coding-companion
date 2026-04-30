@@ -1,5 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { COMPANION_CHANNELS, type CompanionBridgeState } from '../shared/companion'
+import {
+  COMPANION_CHANNELS,
+  type CompanionBridgeState,
+  type CompanionProgressState
+} from '../shared/companion'
 import {
   TERMINAL_CHANNELS,
   type CompanionApi,
@@ -22,7 +26,9 @@ import {
 const api: CompanionApi = {
   companion: {
     loadBridgeState: (): Promise<CompanionBridgeState> =>
-      ipcRenderer.invoke(COMPANION_CHANNELS.loadBridgeState)
+      ipcRenderer.invoke(COMPANION_CHANNELS.loadBridgeState),
+    loadProgress: (): Promise<CompanionProgressState> =>
+      ipcRenderer.invoke(COMPANION_CHANNELS.loadProgress)
   },
   terminal: {
     start: (request: TerminalStartRequest): Promise<TerminalStartResponse> =>

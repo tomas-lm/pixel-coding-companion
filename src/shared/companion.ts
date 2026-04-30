@@ -1,5 +1,6 @@
 export const COMPANION_CHANNELS = {
-  loadBridgeState: 'companion:load-bridge-state'
+  loadBridgeState: 'companion:load-bridge-state',
+  loadProgress: 'companion:load-progress'
 } as const
 
 export type CompanionCliState = 'idle' | 'working' | 'done' | 'error' | 'waiting_input'
@@ -29,6 +30,18 @@ export type CompanionBridgeState = {
   updatedAt?: string
 }
 
+export type CompanionProgressState = {
+  currentXp: number
+  level: number
+  maxLevel: number
+  name: string
+  progressRatio: number
+  totalXp: number
+  updatedAt?: string
+  xpForNextLevel: number
+}
+
 export type CompanionBridgeApi = {
   loadBridgeState: () => Promise<CompanionBridgeState>
+  loadProgress: () => Promise<CompanionProgressState>
 }
