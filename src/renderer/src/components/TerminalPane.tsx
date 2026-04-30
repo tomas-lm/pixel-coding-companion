@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
-import { Terminal } from '@xterm/xterm'
+import { Terminal, type ILink } from '@xterm/xterm'
 import type {
   RunningSession,
   RunningSessionStatus,
   TerminalThemeId
 } from '../../../shared/workspace'
+import { getOpenTargetRequestFromHyperlink } from '../lib/terminalHyperlinks'
+import { findTerminalLinks, type TerminalLinkCandidate } from '../lib/terminalLinks'
 import { handleTerminalKeyEvent } from '../lib/terminalKeyboard'
 import { getTerminalTheme, getTerminalThemeStyle } from '../lib/terminalThemes'
 import '@xterm/xterm/css/xterm.css'
@@ -25,6 +27,16 @@ function getStatusLabel(status: RunningSessionStatus): string {
   if (status === 'running') return 'running'
   if (status === 'done') return 'done'
   return 'error'
+}
+
+function isOpenModifier(event: MouseEvent): boolean {
+  return navigator.platform.toLowerCase().includes('mac') ? event.metaKey : event.ctrlKey
+}
+
+function stopTerminalMouseEvent(event: MouseEvent): void {
+  event.preventDefault()
+  event.stopPropagation()
+  event.stopImmediatePropagation()
 }
 
 export function TerminalPane({
@@ -69,6 +81,18 @@ export function TerminalPane({
       fontSize: 13,
       lineHeight: 1.25,
       scrollback: 5000,
+      linkHandler: {
+        allowNonHttpProtocols: true,
+        activate: (event, text) => {
+          if (!isOpenModifier(event)) return
+
+          const request = getOpenTargetRequestFromHyperlink(text, session.cwd)
+          if (!request) return
+
+          event.preventDefault()
+          void window.api.system.openTarget(request)
+        }
+      },
       theme: getTerminalTheme(initialTerminalThemeIdRef.current)
     })
     const fitAddon = new FitAddon()
@@ -84,6 +108,66 @@ export function TerminalPane({
         window.api.terminal.write({ id: session.id, data })
       })
     )
+
+    let hoveredFallbackLink: TerminalLinkCandidate | null = null
+
+    const handleModifierMouseDown = (event: MouseEvent): void => {
+      if (!isOpenModifier(event)) return
+      if (!hoveredFallbackLink) return
+
+      stopTerminalMouseEvent(event)
+      void window.api.system.openTarget(hoveredFallbackLink.request)
+    }
+
+    terminalContainer.addEventListener('mousedown', handleModifierMouseDown, { capture: true })
+
+    const linkProviderDisposable = terminal.registerLinkProvider({
+      provideLinks: (bufferLineNumber, callback) => {
+        const bufferLine =
+          terminal.buffer.active.getLine(bufferLineNumber - 1) ??
+          terminal.buffer.active.getLine(bufferLineNumber)
+        const lineText = bufferLine?.translateToString(true)
+        if (!lineText) {
+          callback(undefined)
+          return
+        }
+
+        const links: ILink[] = findTerminalLinks(lineText, session.cwd).map((candidate) => ({
+          text: candidate.text,
+          range: {
+            start: {
+              x: candidate.startIndex + 1,
+              y: bufferLineNumber
+            },
+            end: {
+              x: candidate.endIndex,
+              y: bufferLineNumber
+            }
+          },
+          activate: (event) => {
+            if (!isOpenModifier(event)) return
+
+            event.preventDefault()
+            void window.api.system.openTarget(candidate.request)
+          },
+          hover: () => {
+            hoveredFallbackLink = candidate
+          },
+          leave: () => {
+            if (hoveredFallbackLink === candidate) {
+              hoveredFallbackLink = null
+            }
+          },
+          dispose: () => {
+            if (hoveredFallbackLink === candidate) {
+              hoveredFallbackLink = null
+            }
+          }
+        }))
+
+        callback(links.length > 0 ? links : undefined)
+      }
+    })
 
     const resize = (): void => {
       if (disposed) return
@@ -183,7 +267,9 @@ export function TerminalPane({
       disposed = true
       window.cancelAnimationFrame(animationFrame)
       resizeObserver.disconnect()
+      terminalContainer.removeEventListener('mousedown', handleModifierMouseDown, { capture: true })
       inputDisposable.dispose()
+      linkProviderDisposable.dispose()
       offData()
       offCommandExit()
       offExit()
