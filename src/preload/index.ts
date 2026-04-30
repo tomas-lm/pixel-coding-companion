@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { COMPANION_CHANNELS, type CompanionBridgeState } from '../shared/companion'
+import { SYSTEM_CHANNELS, type OpenTargetRequest, type OpenTargetResult } from '../shared/system'
 import {
   TERMINAL_CHANNELS,
   type CompanionApi,
@@ -23,6 +24,10 @@ const api: CompanionApi = {
   companion: {
     loadBridgeState: (): Promise<CompanionBridgeState> =>
       ipcRenderer.invoke(COMPANION_CHANNELS.loadBridgeState)
+  },
+  system: {
+    openTarget: (request: OpenTargetRequest): Promise<OpenTargetResult> =>
+      ipcRenderer.invoke(SYSTEM_CHANNELS.openTarget, request)
   },
   terminal: {
     start: (request: TerminalStartRequest): Promise<TerminalStartResponse> =>

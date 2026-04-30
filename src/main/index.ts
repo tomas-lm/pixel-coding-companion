@@ -14,11 +14,13 @@ import { mkdir, readFile, rename, writeFile } from 'fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import * as pty from 'node-pty'
 import icon from '../../resources/icon.png?asset'
+import { openTarget, isSafeExternalUrl } from './openTarget'
 import {
   COMPANION_CHANNELS,
   type CompanionBridgeMessage,
   type CompanionBridgeState
 } from '../shared/companion'
+import { SYSTEM_CHANNELS, type OpenTargetRequest, type OpenTargetResult } from '../shared/system'
 import {
   TERMINAL_CHANNELS,
   type TerminalCompanionContext,
@@ -491,6 +493,13 @@ function registerCompanionIpc(): void {
   })
 }
 
+function registerSystemIpc(): void {
+  ipcMain.handle(
+    SYSTEM_CHANNELS.openTarget,
+    async (_, request: OpenTargetRequest): Promise<OpenTargetResult> => openTarget(request)
+  )
+}
+
 function sendLayoutReset(targetWindow: BrowserWindow): void {
   if (!targetWindow.isDestroyed()) {
     targetWindow.webContents.send(VIEW_CHANNELS.resetLayout)
@@ -587,7 +596,9 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    if (isSafeExternalUrl(details.url)) {
+      void shell.openExternal(details.url)
+    }
     return { action: 'deny' }
   })
 
@@ -618,6 +629,7 @@ app.whenReady().then(() => {
   registerTerminalIpc()
   registerWorkspaceIpc()
   registerCompanionIpc()
+  registerSystemIpc()
 
   createWindow()
 
