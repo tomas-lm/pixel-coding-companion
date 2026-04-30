@@ -682,13 +682,21 @@ button {
 }
 
 .terminal-frame {
+  --terminal-background: #0d1117;
+  --terminal-foreground: #d1f7d6;
+  --terminal-blue: #4ea1ff;
+  --terminal-bright-black: #5b6470;
+  --terminal-cyan: #7fe7dc;
+  --terminal-green: #34d399;
+  --terminal-red: #ef5b5b;
+  --terminal-yellow: #f7d56f;
   display: grid;
   grid-template-rows: 34px minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid color-mix(in srgb, var(--terminal-foreground) 15%, var(--terminal-background));
   border-radius: 8px;
-  background: #0d1117;
+  background: var(--terminal-background);
 }
 
 .terminal-toolbar {
@@ -698,7 +706,9 @@ button {
   justify-content: space-between;
   gap: 7px;
   padding: 0 12px;
-  background: #151b23;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--terminal-foreground) 10%, var(--terminal-background));
+  background: color-mix(in srgb, var(--terminal-background) 84%, var(--terminal-foreground));
 }
 
 .terminal-controls {
@@ -710,15 +720,15 @@ button {
   width: 10px;
   height: 10px;
   border-radius: 99px;
-  background: #f87171;
+  background: var(--terminal-red);
 }
 
 .terminal-controls span:nth-child(2) {
-  background: #fbbf24;
+  background: var(--terminal-yellow);
 }
 
 .terminal-controls span:nth-child(3) {
-  background: #34d399;
+  background: var(--terminal-green);
 }
 
 .terminal-meta {
@@ -726,7 +736,7 @@ button {
   min-width: 0;
   align-items: center;
   gap: 10px;
-  color: var(--ev-c-text-2);
+  color: color-mix(in srgb, var(--terminal-foreground) 64%, var(--terminal-background));
   font-size: 12px;
 }
 
@@ -739,31 +749,32 @@ button {
 }
 
 .terminal-status {
-  color: #7fe7dc;
+  color: var(--terminal-cyan);
   font-size: 12px;
   font-weight: 700;
 }
 
 .terminal-status--running {
-  color: #7fe7dc;
+  color: var(--terminal-cyan);
 }
 
 .terminal-status--starting {
-  color: #bfdbfe;
+  color: var(--terminal-blue);
 }
 
 .terminal-status--done {
-  color: #34d399;
+  color: var(--terminal-green);
 }
 
 .terminal-status--error {
-  color: #f87171;
+  color: var(--terminal-red);
 }
 
 .terminal-surface {
   min-width: 0;
   min-height: 0;
   padding: 8px;
+  background: var(--terminal-background);
 }
 
 .terminal-surface .xterm {

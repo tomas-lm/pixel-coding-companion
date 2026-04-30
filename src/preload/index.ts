@@ -1,5 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { COMPANION_CHANNELS, type CompanionBridgeState } from '../shared/companion'
+import {
+  COMPANION_CHANNELS,
+  type CompanionBridgeState,
+  type CompanionProgressState
+} from '../shared/companion'
 import { SYSTEM_CHANNELS, type OpenTargetRequest, type OpenTargetResult } from '../shared/system'
 import {
   TERMINAL_CHANNELS,
@@ -17,13 +21,16 @@ import {
   VIEW_CHANNELS,
   WORKSPACE_CHANNELS,
   type FolderPickResult,
+  type TerminalThemeId,
   type WorkspaceConfig
 } from '../shared/workspace'
 
 const api: CompanionApi = {
   companion: {
     loadBridgeState: (): Promise<CompanionBridgeState> =>
-      ipcRenderer.invoke(COMPANION_CHANNELS.loadBridgeState)
+      ipcRenderer.invoke(COMPANION_CHANNELS.loadBridgeState),
+    loadProgress: (): Promise<CompanionProgressState> =>
+      ipcRenderer.invoke(COMPANION_CHANNELS.loadProgress)
   },
   system: {
     openTarget: (request: OpenTargetRequest): Promise<OpenTargetResult> =>
@@ -70,6 +77,15 @@ const api: CompanionApi = {
       const listener = (): void => callback()
       ipcRenderer.on(VIEW_CHANNELS.resetLayout, listener)
       return () => ipcRenderer.removeListener(VIEW_CHANNELS.resetLayout, listener)
+    },
+    onTerminalThemeSelected: (callback: (themeId: TerminalThemeId) => void) => {
+      const listener = (_: Electron.IpcRendererEvent, themeId: TerminalThemeId): void =>
+        callback(themeId)
+      ipcRenderer.on(VIEW_CHANNELS.selectTerminalTheme, listener)
+      return () => ipcRenderer.removeListener(VIEW_CHANNELS.selectTerminalTheme, listener)
+    },
+    setTerminalTheme: (themeId: TerminalThemeId): void => {
+      ipcRenderer.send(VIEW_CHANNELS.setTerminalTheme, themeId)
     }
   }
 }

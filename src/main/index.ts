@@ -18,7 +18,8 @@ import { openTarget, isSafeExternalUrl } from './openTarget'
 import {
   COMPANION_CHANNELS,
   type CompanionBridgeMessage,
-  type CompanionBridgeState
+  type CompanionBridgeState,
+  type CompanionProgressState
 } from '../shared/companion'
 import { SYSTEM_CHANNELS, type OpenTargetRequest, type OpenTargetResult } from '../shared/system'
 import {
@@ -31,9 +32,13 @@ import {
   type TerminalStartResponse
 } from '../shared/terminal'
 import {
+  DEFAULT_TERMINAL_THEME_ID,
+  TERMINAL_THEME_OPTIONS,
   VIEW_CHANNELS,
   WORKSPACE_CHANNELS,
   type FolderPickResult,
+  isTerminalThemeId,
+  type TerminalThemeId,
   type WorkspaceConfig
 } from '../shared/workspace'
 
@@ -64,7 +69,11 @@ const AUTO_LAUNCH_FALLBACK_DELAY_MS = 7000
 const AUTO_LAUNCH_SUBMIT_DELAY_MS = 180
 const ANSI_SEQUENCE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[ -/]*[@-~]`, 'g')
 const CODEX_CLI_READY_PATTERNS = [/Tip: Use \/skills/i, /›\s*$/]
+const COMPANION_MAX_LEVEL = 100
+const COMPANION_BASE_NEXT_LEVEL_XP = 120
+const COMPANION_LEVEL_XP_GROWTH = 1.13
 const terminals = new Map<TerminalSessionId, ManagedTerminal>()
+let selectedTerminalThemeId: TerminalThemeId = DEFAULT_TERMINAL_THEME_ID
 let terminalContextRegistryQueue: Promise<void> = Promise.resolve()
 
 app.setName(APP_NAME)
@@ -88,12 +97,19 @@ function getPtyEnv(extraEnv: Record<string, string> = {}): Record<string, string
     )
   )
 
-  return {
+  const nextEnv: Record<string, string> = {
     ...env,
     ...extraEnv,
     TERM: 'xterm-256color',
-    COLORTERM: 'truecolor'
+    COLORTERM: 'truecolor',
+    CLICOLOR: '1',
+    CLICOLOR_FORCE: '1',
+    FORCE_COLOR: '3',
+    TERM_PROGRAM: 'PixelCompanion'
   }
+
+  delete nextEnv.NO_COLOR
+  return nextEnv
 }
 
 function getWorkspaceConfigPath(): string {
@@ -102,6 +118,10 @@ function getWorkspaceConfigPath(): string {
 
 function getCompanionBridgeStatePath(): string {
   return join(app.getPath('userData'), 'companion-state.json')
+}
+
+function getCompanionProgressPath(): string {
+  return join(app.getPath('userData'), 'companion-progress.json')
 }
 
 function getTerminalCompanionContextPath(sessionId: TerminalSessionId): string {
@@ -212,6 +232,26 @@ function createDefaultCompanionBridgeState(): CompanionBridgeState {
   }
 }
 
+function getXpRequiredForLevel(level: number): number {
+  const safeLevel = Math.min(Math.max(Math.floor(level), 0), COMPANION_MAX_LEVEL)
+
+  return Math.floor(COMPANION_BASE_NEXT_LEVEL_XP * Math.pow(COMPANION_LEVEL_XP_GROWTH, safeLevel))
+}
+
+function createDefaultCompanionProgressState(): CompanionProgressState {
+  const xpForNextLevel = getXpRequiredForLevel(0)
+
+  return {
+    currentXp: 0,
+    level: 0,
+    maxLevel: COMPANION_MAX_LEVEL,
+    name: 'Ghou',
+    progressRatio: 0,
+    totalXp: 0,
+    xpForNextLevel
+  }
+}
+
 function normalizeCompanionBridgeState(value: unknown): CompanionBridgeState {
   if (!value || typeof value !== 'object') return createDefaultCompanionBridgeState()
 
@@ -234,6 +274,38 @@ function normalizeCompanionBridgeState(value: unknown): CompanionBridgeState {
     currentState: state.currentState ?? 'idle',
     messages: messages.slice(-80),
     updatedAt: state.updatedAt
+  }
+}
+
+function normalizeCompanionProgressState(value: unknown): CompanionProgressState {
+  if (!value || typeof value !== 'object') return createDefaultCompanionProgressState()
+
+  const state = value as Partial<CompanionProgressState>
+  const level =
+    typeof state.level === 'number' && Number.isFinite(state.level)
+      ? Math.min(Math.max(Math.floor(state.level), 0), COMPANION_MAX_LEVEL)
+      : 0
+  const xpForNextLevel =
+    typeof state.xpForNextLevel === 'number' && Number.isFinite(state.xpForNextLevel)
+      ? Math.max(0, Math.floor(state.xpForNextLevel))
+      : getXpRequiredForLevel(level)
+  const currentXp =
+    typeof state.currentXp === 'number' && Number.isFinite(state.currentXp)
+      ? Math.min(Math.max(Math.floor(state.currentXp), 0), xpForNextLevel)
+      : 0
+
+  return {
+    currentXp,
+    level,
+    maxLevel: COMPANION_MAX_LEVEL,
+    name: typeof state.name === 'string' && state.name.trim() ? state.name.trim() : 'Ghou',
+    progressRatio: xpForNextLevel > 0 ? currentXp / xpForNextLevel : 1,
+    totalXp:
+      typeof state.totalXp === 'number' && Number.isFinite(state.totalXp)
+        ? Math.max(0, Math.floor(state.totalXp))
+        : currentXp,
+    updatedAt: typeof state.updatedAt === 'string' ? state.updatedAt : undefined,
+    xpForNextLevel
   }
 }
 
@@ -478,6 +550,14 @@ function registerWorkspaceIpc(): void {
   )
 }
 
+function registerViewIpc(): void {
+  ipcMain.on(VIEW_CHANNELS.setTerminalTheme, (_, themeId: unknown) => {
+    if (isTerminalThemeId(themeId)) {
+      updateTerminalThemeMenu(themeId)
+    }
+  })
+}
+
 function registerCompanionIpc(): void {
   ipcMain.handle(COMPANION_CHANNELS.loadBridgeState, async (): Promise<CompanionBridgeState> => {
     try {
@@ -486,6 +566,19 @@ function registerCompanionIpc(): void {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return createDefaultCompanionBridgeState()
+      }
+
+      throw error
+    }
+  })
+
+  ipcMain.handle(COMPANION_CHANNELS.loadProgress, async (): Promise<CompanionProgressState> => {
+    try {
+      const file = await readFile(getCompanionProgressPath(), 'utf8')
+      return normalizeCompanionProgressState(JSON.parse(file))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return createDefaultCompanionProgressState()
       }
 
       throw error
@@ -503,6 +596,23 @@ function registerSystemIpc(): void {
 function sendLayoutReset(targetWindow: BrowserWindow): void {
   if (!targetWindow.isDestroyed()) {
     targetWindow.webContents.send(VIEW_CHANNELS.resetLayout)
+  }
+}
+
+function updateTerminalThemeMenu(themeId: TerminalThemeId): void {
+  selectedTerminalThemeId = themeId
+
+  const mainWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed())
+  if (mainWindow) {
+    registerAppMenu(mainWindow)
+  }
+}
+
+function sendTerminalThemeSelection(targetWindow: BrowserWindow, themeId: TerminalThemeId): void {
+  updateTerminalThemeMenu(themeId)
+
+  if (!targetWindow.isDestroyed()) {
+    targetWindow.webContents.send(VIEW_CHANNELS.selectTerminalTheme, themeId)
   }
 }
 
@@ -527,6 +637,18 @@ function registerAppMenu(mainWindow: BrowserWindow): void {
         click: () => {
           sendLayoutReset(BrowserWindow.getFocusedWindow() ?? mainWindow)
         }
+      },
+      {
+        label: 'Themes:',
+        submenu: TERMINAL_THEME_OPTIONS.map((theme) => ({
+          id: `terminal-theme:${theme.id}`,
+          label: theme.label,
+          type: 'checkbox',
+          checked: theme.id === selectedTerminalThemeId,
+          click: () => {
+            sendTerminalThemeSelection(BrowserWindow.getFocusedWindow() ?? mainWindow, theme.id)
+          }
+        }))
       },
       { type: 'separator' },
       { role: 'reload' },
@@ -628,6 +750,7 @@ app.whenReady().then(() => {
 
   registerTerminalIpc()
   registerWorkspaceIpc()
+  registerViewIpc()
   registerCompanionIpc()
   registerSystemIpc()
 
