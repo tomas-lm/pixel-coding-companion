@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import type { RunningSession, RunningSessionStatus } from '../../../shared/workspace'
+import { handleTerminalKeyEvent } from '../lib/terminalKeyboard'
 import '@xterm/xterm/css/xterm.css'
 
 type TerminalPaneProps = {
@@ -75,6 +76,11 @@ export function TerminalPane({
     fitAddonRef.current = fitAddon
     terminal.loadAddon(fitAddon)
     terminal.open(terminalContainer)
+    terminal.attachCustomKeyEventHandler((event) =>
+      handleTerminalKeyEvent(event, (data) => {
+        window.api.terminal.write({ id: session.id, data })
+      })
+    )
 
     const resize = (): void => {
       if (disposed) return
