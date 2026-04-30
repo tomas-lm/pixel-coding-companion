@@ -5,8 +5,23 @@ export const WORKSPACE_CHANNELS = {
 } as const
 
 export const VIEW_CHANNELS = {
-  resetLayout: 'view:reset-layout'
+  resetLayout: 'view:reset-layout',
+  selectTerminalTheme: 'view:select-terminal-theme',
+  setTerminalTheme: 'view:set-terminal-theme'
 } as const
+
+export const TERMINAL_THEME_OPTIONS = [
+  { id: 'catppuccin_mocha', label: 'Catppuccin Mocha' },
+  { id: 'one_dark_pro', label: 'One Dark Pro' },
+  { id: 'tokyo_night', label: 'Tokyo Night' },
+  { id: 'github_dark', label: 'GitHub Dark' },
+  { id: 'dracula', label: 'Dracula' },
+  { id: 'pixel_classic', label: 'Pixel Classic' }
+] as const
+
+export type TerminalThemeId = (typeof TERMINAL_THEME_OPTIONS)[number]['id']
+
+export const DEFAULT_TERMINAL_THEME_ID: TerminalThemeId = 'catppuccin_mocha'
 
 export type SessionKind = 'ai' | 'shell' | 'dev_server' | 'logs' | 'test' | 'custom'
 
@@ -55,6 +70,7 @@ export type WorkspaceConfig = {
   terminalConfigs: TerminalConfig[]
   activeProjectId?: string
   layout?: WorkspaceLayout
+  terminalThemeId?: TerminalThemeId
 }
 
 export type FolderPickResult = {
@@ -77,4 +93,10 @@ export type WorkspaceApi = {
 
 export type ViewApi = {
   onResetLayout: (callback: () => void) => () => void
+  onTerminalThemeSelected: (callback: (themeId: TerminalThemeId) => void) => () => void
+  setTerminalTheme: (themeId: TerminalThemeId) => void
+}
+
+export function isTerminalThemeId(value: unknown): value is TerminalThemeId {
+  return TERMINAL_THEME_OPTIONS.some((option) => option.id === value)
 }

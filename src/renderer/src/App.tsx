@@ -5,12 +5,15 @@ import type {
   CompanionProgressState
 } from '../../shared/companion'
 import {
+  DEFAULT_TERMINAL_THEME_ID,
   type Project,
   type RunningSession,
   type RunningSessionStatus,
   type SessionKind,
   type TerminalConfig,
-  type WorkspaceLayout
+  type TerminalThemeId,
+  type WorkspaceLayout,
+  isTerminalThemeId
 } from '../../shared/workspace'
 import { CompanionPanel } from './components/CompanionPanel'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
@@ -115,6 +118,10 @@ function normalizeLayout(layout?: Partial<WorkspaceLayout>): WorkspaceLayout {
       return [layoutKey, clamp(numericValue, limits.min, limits.max)]
     })
   ) as WorkspaceLayout
+}
+
+function normalizeTerminalThemeId(themeId?: unknown): TerminalThemeId {
+  return isTerminalThemeId(themeId) ? themeId : DEFAULT_TERMINAL_THEME_ID
 }
 
 function createEmptyTerminalForm(): TerminalForm {
@@ -390,6 +397,7 @@ function App(): React.JSX.Element {
   const [terminalForm, setTerminalForm] = useState<TerminalForm | null>(null)
   const [startSelection, setStartSelection] = useState<StartWorkspaceSelection | null>(null)
   const [layout, setLayout] = useState<WorkspaceLayout>(DEFAULT_LAYOUT)
+  const [terminalThemeId, setTerminalThemeId] = useState<TerminalThemeId>(DEFAULT_TERMINAL_THEME_ID)
   const [companionBridgeState, setCompanionBridgeState] = useState<CompanionBridgeState>(
     DEFAULT_COMPANION_BRIDGE_STATE
   )
@@ -453,6 +461,8 @@ function App(): React.JSX.Element {
         if (!mounted) return
 
         if (config) {
+          const loadedTerminalThemeId = normalizeTerminalThemeId(config.terminalThemeId)
+
           setProjects(config.projects)
           setTerminalConfigs(config.terminalConfigs)
           setActiveProjectId(
@@ -461,6 +471,8 @@ function App(): React.JSX.Element {
               null
           )
           setLayout(normalizeLayout(config.layout))
+          setTerminalThemeId(loadedTerminalThemeId)
+          window.api.view.setTerminalTheme(loadedTerminalThemeId)
         }
       })
       .finally(() => {
@@ -480,16 +492,26 @@ function App(): React.JSX.Element {
         projects,
         terminalConfigs,
         activeProjectId: activeProjectId ?? undefined,
-        layout
+        layout,
+        terminalThemeId
       })
     }, 180)
 
     return () => window.clearTimeout(saveTimer)
-  }, [activeProjectId, configLoaded, layout, projects, terminalConfigs])
+  }, [activeProjectId, configLoaded, layout, projects, terminalConfigs, terminalThemeId])
 
   useEffect(() => {
     return window.api.view.onResetLayout(() => {
       setLayout(DEFAULT_LAYOUT)
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.view.onTerminalThemeSelected((themeId) => {
+      const normalizedThemeId = normalizeTerminalThemeId(themeId)
+
+      setTerminalThemeId(normalizedThemeId)
+      window.api.view.setTerminalTheme(normalizedThemeId)
     })
   }, [])
 
@@ -896,7 +918,8 @@ function App(): React.JSX.Element {
       projects: nextProjects,
       terminalConfigs: nextTerminalConfigs,
       activeProjectId: project.id,
-      layout
+      layout,
+      terminalThemeId
     })
 
     setProjects(nextProjects)
@@ -1159,6 +1182,7 @@ function App(): React.JSX.Element {
                 <TerminalPane
                   session={session}
                   isActive={session.id === selectedSessionId}
+                  terminalThemeId={terminalThemeId}
                   onSessionActivity={updateSessionActivity}
                   onSessionExit={markSessionExited}
                   onSessionStartError={markSessionStartError}

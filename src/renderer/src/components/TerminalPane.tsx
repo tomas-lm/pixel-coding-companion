@@ -1,13 +1,19 @@
 import { useEffect, useRef } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
-import type { RunningSession, RunningSessionStatus } from '../../../shared/workspace'
+import type {
+  RunningSession,
+  RunningSessionStatus,
+  TerminalThemeId
+} from '../../../shared/workspace'
 import { handleTerminalKeyEvent } from '../lib/terminalKeyboard'
+import { getTerminalTheme, getTerminalThemeStyle } from '../lib/terminalThemes'
 import '@xterm/xterm/css/xterm.css'
 
 type TerminalPaneProps = {
   session: RunningSession
   isActive: boolean
+  terminalThemeId: TerminalThemeId
   onSessionActivity: (sessionId: string, output: string) => void
   onSessionExit: (sessionId: string, exitCode: number, signal?: number) => void
   onSessionStartError: (sessionId: string, errorMessage: string) => void
@@ -24,6 +30,7 @@ function getStatusLabel(status: RunningSessionStatus): string {
 export function TerminalPane({
   session,
   isActive,
+  terminalThemeId,
   onSessionActivity,
   onSessionExit,
   onSessionStartError,
@@ -32,6 +39,7 @@ export function TerminalPane({
   const terminalContainerRef = useRef<HTMLDivElement | null>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
+  const initialTerminalThemeIdRef = useRef(terminalThemeId)
 
   useEffect(() => {
     if (!isActive) return
@@ -61,12 +69,7 @@ export function TerminalPane({
       fontSize: 13,
       lineHeight: 1.25,
       scrollback: 5000,
-      theme: {
-        background: '#0d1117',
-        cursor: '#7fe7dc',
-        foreground: '#d1f7d6',
-        selectionBackground: '#284b63'
-      }
+      theme: getTerminalTheme(initialTerminalThemeIdRef.current)
     })
     const fitAddon = new FitAddon()
     let disposed = false
@@ -205,8 +208,19 @@ export function TerminalPane({
     session.projectName
   ])
 
+  useEffect(() => {
+    const terminal = terminalRef.current
+    if (!terminal) return
+
+    terminal.options.theme = getTerminalTheme(terminalThemeId)
+  }, [terminalThemeId])
+
   return (
-    <div className="terminal-frame" aria-label={`${session.name} terminal`}>
+    <div
+      className="terminal-frame"
+      style={getTerminalThemeStyle(terminalThemeId)}
+      aria-label={`${session.name} terminal`}
+    >
       <div className="terminal-toolbar">
         <div className="terminal-controls" aria-hidden="true">
           <span />

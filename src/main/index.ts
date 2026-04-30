@@ -30,9 +30,13 @@ import {
   type TerminalStartResponse
 } from '../shared/terminal'
 import {
+  DEFAULT_TERMINAL_THEME_ID,
+  TERMINAL_THEME_OPTIONS,
   VIEW_CHANNELS,
   WORKSPACE_CHANNELS,
   type FolderPickResult,
+  isTerminalThemeId,
+  type TerminalThemeId,
   type WorkspaceConfig
 } from '../shared/workspace'
 
@@ -67,6 +71,7 @@ const COMPANION_MAX_LEVEL = 100
 const COMPANION_BASE_NEXT_LEVEL_XP = 120
 const COMPANION_LEVEL_XP_GROWTH = 1.13
 const terminals = new Map<TerminalSessionId, ManagedTerminal>()
+let selectedTerminalThemeId: TerminalThemeId = DEFAULT_TERMINAL_THEME_ID
 let terminalContextRegistryQueue: Promise<void> = Promise.resolve()
 
 app.setName(APP_NAME)
@@ -90,12 +95,19 @@ function getPtyEnv(extraEnv: Record<string, string> = {}): Record<string, string
     )
   )
 
-  return {
+  const nextEnv: Record<string, string> = {
     ...env,
     ...extraEnv,
     TERM: 'xterm-256color',
-    COLORTERM: 'truecolor'
+    COLORTERM: 'truecolor',
+    CLICOLOR: '1',
+    CLICOLOR_FORCE: '1',
+    FORCE_COLOR: '3',
+    TERM_PROGRAM: 'PixelCompanion'
   }
+
+  delete nextEnv.NO_COLOR
+  return nextEnv
 }
 
 function getWorkspaceConfigPath(): string {
@@ -536,6 +548,14 @@ function registerWorkspaceIpc(): void {
   )
 }
 
+function registerViewIpc(): void {
+  ipcMain.on(VIEW_CHANNELS.setTerminalTheme, (_, themeId: unknown) => {
+    if (isTerminalThemeId(themeId)) {
+      updateTerminalThemeMenu(themeId)
+    }
+  })
+}
+
 function registerCompanionIpc(): void {
   ipcMain.handle(COMPANION_CHANNELS.loadBridgeState, async (): Promise<CompanionBridgeState> => {
     try {
@@ -570,6 +590,23 @@ function sendLayoutReset(targetWindow: BrowserWindow): void {
   }
 }
 
+function updateTerminalThemeMenu(themeId: TerminalThemeId): void {
+  selectedTerminalThemeId = themeId
+
+  const mainWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed())
+  if (mainWindow) {
+    registerAppMenu(mainWindow)
+  }
+}
+
+function sendTerminalThemeSelection(targetWindow: BrowserWindow, themeId: TerminalThemeId): void {
+  updateTerminalThemeMenu(themeId)
+
+  if (!targetWindow.isDestroyed()) {
+    targetWindow.webContents.send(VIEW_CHANNELS.selectTerminalTheme, themeId)
+  }
+}
+
 function registerAppMenu(mainWindow: BrowserWindow): void {
   const editMenu: MenuItemConstructorOptions = {
     label: 'Edit',
@@ -591,6 +628,18 @@ function registerAppMenu(mainWindow: BrowserWindow): void {
         click: () => {
           sendLayoutReset(BrowserWindow.getFocusedWindow() ?? mainWindow)
         }
+      },
+      {
+        label: 'Themes:',
+        submenu: TERMINAL_THEME_OPTIONS.map((theme) => ({
+          id: `terminal-theme:${theme.id}`,
+          label: theme.label,
+          type: 'checkbox',
+          checked: theme.id === selectedTerminalThemeId,
+          click: () => {
+            sendTerminalThemeSelection(BrowserWindow.getFocusedWindow() ?? mainWindow, theme.id)
+          }
+        }))
       },
       { type: 'separator' },
       { role: 'reload' },
@@ -690,6 +739,7 @@ app.whenReady().then(() => {
 
   registerTerminalIpc()
   registerWorkspaceIpc()
+  registerViewIpc()
   registerCompanionIpc()
 
   createWindow()
