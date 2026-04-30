@@ -13,6 +13,7 @@ import { z } from 'zod/v4'
 
 const MAX_MESSAGES = 80
 const CLI_STATES = ['idle', 'working', 'done', 'error', 'waiting_input']
+const COMPANION_EVENT_TYPES = ['started', 'finished', 'blocked', 'failed', 'needs_input', 'note']
 
 function getDefaultDataDir() {
   if (process.env.PIXEL_COMPANION_DATA_DIR) return process.env.PIXEL_COMPANION_DATA_DIR
@@ -35,7 +36,21 @@ const eventsPath = path.join(dataDir, 'companion-events.jsonl')
 const progressPath = path.join(dataDir, 'companion-progress.json')
 const workspacesPath = path.join(dataDir, 'workspaces.json')
 const terminalContextRegistryPath = path.join(dataDir, 'terminal-contexts', 'registry.json')
+const COMPANION_ID = 'ghou'
 const COMPANION_NAME = 'Ghou'
+const COMPANION_PROFILE = {
+  id: COMPANION_ID,
+  name: COMPANION_NAME,
+  archetype: 'pixel ghost coding companion',
+  personality: {
+    tone: 'calm, observant, useful, lightly playful',
+    humor: 'subtle and occasional; never at the expense of clarity',
+    responseLength: 'short by default, with details only when useful',
+    technicalStyle: 'practical and specific, avoiding audit-log phrasing',
+    errorStyle: 'clear and steady, focused on what failed and the next useful step',
+    successStyle: 'warm but concise, acknowledging progress without over-celebrating'
+  }
+}
 const execFileAsync = promisify(execFile)
 const MAX_COMPANION_LEVEL = 100
 const BASE_NEXT_LEVEL_XP = 120
@@ -51,10 +66,12 @@ const FINAL_XP_BONUS = {
   waiting_input: 6
 }
 const COMPANION_REPORT_DESCRIPTION = [
-  'Send a user-facing message from Ghou, the Pixel Companion, about what just happened in this CLI session.',
+  'Send a user-facing message from the active Pixel Companion about what just happened in this CLI session.',
+  `Active companion: ${COMPANION_PROFILE.name}, a ${COMPANION_PROFILE.archetype}. Personality: ${COMPANION_PROFILE.personality.tone}. Humor: ${COMPANION_PROFILE.personality.humor}.`,
   'The summary is displayed directly in the companion terminal, so write it like natural companion speech, not like an audit log or MCP status record.',
-  'Prefer concise first-person Portuguese when the user speaks Portuguese. Examples: "Terminei de rodar os testes do backend. Passou tudo." or "O build quebrou no typecheck; o erro principal foi X."',
-  'Do not write phrases like "Task concluida:", "Resumo:", "Mensagem registrada", "Status atualizado", or "companion_report foi chamado".'
+  'Match the user language and communication style. Do not assume a specific country, locale, or language.',
+  'Keep the main message concise. Mention the concrete result, failure, blocker, or next needed input. Add technical details only when they help the user act.',
+  'Do not write phrases like "Task completed:", "Summary:", "Message registered", "Status updated", or "companion_report was called".'
 ].join(' ')
 
 function createDefaultState() {
@@ -88,6 +105,32 @@ function createDefaultProgress() {
 
 function isValidState(value) {
   return CLI_STATES.includes(value)
+}
+
+function isValidCompanionEventType(value) {
+  return COMPANION_EVENT_TYPES.includes(value)
+}
+
+function getDefaultEventType(cliState) {
+  if (cliState === 'working') return 'started'
+  if (cliState === 'done') return 'finished'
+  if (cliState === 'error') return 'failed'
+  if (cliState === 'waiting_input') return 'needs_input'
+  return 'note'
+}
+
+function getCompanionVoiceGuidance() {
+  const { personality } = COMPANION_PROFILE
+
+  return [
+    `${COMPANION_PROFILE.name} is a ${COMPANION_PROFILE.archetype}.`,
+    `Tone: ${personality.tone}.`,
+    `Humor: ${personality.humor}.`,
+    `Length: ${personality.responseLength}.`,
+    `Technical style: ${personality.technicalStyle}.`,
+    'Always match the user language and communication style without assuming a specific locale.',
+    'Speak to the user naturally; do not mention MCP, tool calls, schemas, or internal reporting unless the user is debugging Pixel Companion.'
+  ].join(' ')
 }
 
 function normalizeKey(value) {
@@ -201,10 +244,16 @@ function normalizeMessage(message) {
     id: message.id,
     agentName: typeof message.agentName === 'string' ? message.agentName : undefined,
     cliState: isValidState(message.cliState) ? message.cliState : 'idle',
+    companionId: typeof message.companionId === 'string' ? message.companionId : COMPANION_ID,
+    companionName:
+      typeof message.companionName === 'string' ? message.companionName : COMPANION_NAME,
     contextSource: typeof message.contextSource === 'string' ? message.contextSource : undefined,
     createdAt: message.createdAt,
     cwd: typeof message.cwd === 'string' ? message.cwd : undefined,
     details: typeof message.details === 'string' ? message.details : undefined,
+    eventType: isValidCompanionEventType(message.eventType)
+      ? message.eventType
+      : getDefaultEventType(message.cliState),
     projectId: typeof message.projectId === 'string' ? message.projectId : undefined,
     projectColor: typeof message.projectColor === 'string' ? message.projectColor : undefined,
     projectName: typeof message.projectName === 'string' ? message.projectName : undefined,
@@ -680,10 +729,15 @@ async function createMessage(input) {
     id: randomUUID(),
     agentName: input.agentName,
     cliState: input.cliState,
+    companionId: COMPANION_PROFILE.id,
+    companionName: COMPANION_PROFILE.name,
     contextSource: resolvedProject.contextSource,
     createdAt: now,
     cwd: resolvedProject.cwd ?? input.cwd,
     details: input.details,
+    eventType: isValidCompanionEventType(input.eventType)
+      ? input.eventType
+      : getDefaultEventType(input.cliState),
     projectColor: resolvedProject.projectColor,
     projectId: resolvedProject.projectId,
     projectName: resolvedProject.projectName,
@@ -726,6 +780,12 @@ server.registerTool(
         .describe(
           'Optional technical details. Keep this factual and short; the UI shows it below the main message.'
         ),
+      eventType: z
+        .enum(COMPANION_EVENT_TYPES)
+        .optional()
+        .describe(
+          'Semantic event type for this update: started, finished, blocked, failed, needs_input, or note.'
+        ),
       projectColor: z
         .string()
         .optional()
@@ -754,7 +814,7 @@ server.registerTool(
         .string()
         .min(1)
         .describe(
-          'The exact text Ghou will say to the user. Write naturally, like a companion who understood the work. Do not write a log summary or mention MCP/tool calls.'
+          `The exact text ${COMPANION_NAME} will say to the user. Write naturally, like a companion who understood the work. Follow this voice guidance: ${getCompanionVoiceGuidance()}`
         ),
       title: z
         .string()
@@ -776,10 +836,50 @@ server.registerTool(
         }
       ],
       structuredContent: {
+        companionProfile: COMPANION_PROFILE,
+        companionVoiceGuidance: getCompanionVoiceGuidance(),
         message,
         progress: progressUpdate.progress,
         xpAward: progressUpdate.award,
         state
+      }
+    }
+  }
+)
+
+server.registerTool(
+  'companion_get_profile',
+  {
+    title: 'Get active companion profile',
+    description:
+      'Read the active Pixel Companion personality and reporting contract. Use this after a context reset or when you are unsure how Ghou should speak.',
+    inputSchema: {}
+  },
+  async () => {
+    const voiceGuidance = getCompanionVoiceGuidance()
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `${COMPANION_NAME} profile: ${voiceGuidance}`
+        }
+      ],
+      structuredContent: {
+        companionProfile: COMPANION_PROFILE,
+        companionVoiceGuidance: voiceGuidance,
+        reportWith: {
+          tool: 'companion_report',
+          when: [
+            'meaningful work starts',
+            'meaningful work finishes',
+            'work fails',
+            'the agent is blocked',
+            'the agent needs user input'
+          ],
+          style:
+            'natural user-facing companion speech, matching the user language and style without mentioning MCP/tool calls'
+        }
       }
     }
   }
@@ -852,6 +952,8 @@ server.registerTool(
       ],
       structuredContent: {
         ...state,
+        companionProfile: COMPANION_PROFILE,
+        companionVoiceGuidance: getCompanionVoiceGuidance(),
         messages,
         progress
       }

@@ -4,11 +4,21 @@ export const COMPANION_CHANNELS = {
 } as const
 
 export type CompanionCliState = 'idle' | 'working' | 'done' | 'error' | 'waiting_input'
+export type CompanionEventType =
+  | 'started'
+  | 'finished'
+  | 'blocked'
+  | 'failed'
+  | 'needs_input'
+  | 'note'
 
 export type CompanionBridgeMessage = {
   id: string
   createdAt: string
   cliState: CompanionCliState
+  companionId?: string
+  companionName?: string
+  eventType?: CompanionEventType
   title: string
   summary: string
   agentName?: string
