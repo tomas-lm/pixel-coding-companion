@@ -36,6 +36,7 @@ const eventsPath = path.join(dataDir, 'companion-events.jsonl')
 const progressPath = path.join(dataDir, 'companion-progress.json')
 const workspacesPath = path.join(dataDir, 'workspaces.json')
 const terminalContextRegistryPath = path.join(dataDir, 'terminal-contexts', 'registry.json')
+const externalTerminalRegistryPath = path.join(dataDir, 'external-terminals.json')
 const COMPANION_ID = 'ghou'
 const COMPANION_NAME = 'Ghou'
 const COMPANION_PROFILE = {
@@ -65,6 +66,16 @@ const FINAL_XP_BONUS = {
   error: 4,
   waiting_input: 6
 }
+const EXTERNAL_TERMINAL_COLORS = [
+  '#ff8bd1',
+  '#f97316',
+  '#a3e635',
+  '#22d3ee',
+  '#f43f5e',
+  '#e879f9',
+  '#facc15',
+  '#94a3b8'
+]
 const COMPANION_REPORT_DESCRIPTION = [
   'Send a user-facing message from the active Pixel Companion about what just happened in this CLI session.',
   `Active companion: ${COMPANION_PROFILE.name}, a ${COMPANION_PROFILE.archetype}. Personality: ${COMPANION_PROFILE.personality.tone}. Humor: ${COMPANION_PROFILE.personality.humor}.`,
@@ -131,15 +142,6 @@ function getCompanionVoiceGuidance() {
     'Always match the user language and communication style without assuming a specific locale.',
     'Speak to the user naturally; do not mention MCP, tool calls, schemas, or internal reporting unless the user is debugging Pixel Companion.'
   ].join(' ')
-}
-
-function normalizeKey(value) {
-  return String(value ?? '')
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
 }
 
 function isHexColor(value) {
@@ -412,57 +414,110 @@ function getProjectById(projects, projectId) {
   return projects.find((project) => typeof project.id === 'string' && project.id === projectId)
 }
 
-function getProjectByName(projects, projectName) {
-  const target = normalizeKey(projectName)
-  if (!target) return null
-
-  return (
-    projects.find((project) => normalizeKey(project.name) === target) ??
-    projects.find((project) => {
-      const projectKey = normalizeKey(project.name)
-      return projectKey && (projectKey.includes(target) || target.includes(projectKey))
-    }) ??
-    null
+function hasStrongBoundContext(context) {
+  return Boolean(
+    context.projectId ||
+    context.projectName ||
+    context.projectColor ||
+    context.sessionId ||
+    context.terminalId ||
+    context.terminalName
   )
 }
 
-function getProjectByTerminalSession(projects, terminalConfigs, sessionName) {
-  const target = normalizeKey(sessionName)
-  if (!target) return null
-
-  const terminal =
-    terminalConfigs.find((config) => normalizeKey(config.name) === target) ??
-    terminalConfigs.find((config) => {
-      const terminalKey = normalizeKey(config.name)
-      return terminalKey && (terminalKey.includes(target) || target.includes(terminalKey))
-    })
-
-  return terminal ? getProjectById(projects, terminal.projectId) : null
+async function readExternalTerminalRegistry() {
+  try {
+    const file = await readFile(externalTerminalRegistryPath, 'utf8')
+    const registry = JSON.parse(file)
+    return Array.isArray(registry) ? registry : []
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return []
+    if (error instanceof SyntaxError) return []
+    throw error
+  }
 }
 
-function getProjectByCwd(projects, terminalConfigs, cwd) {
-  if (typeof cwd !== 'string' || !cwd.trim()) return null
+async function writeExternalTerminalRegistry(registry) {
+  await writeJsonAtomic(externalTerminalRegistryPath, registry)
+}
 
-  const normalizedCwd = path.resolve(cwd)
-  const terminal = terminalConfigs
-    .filter((config) => typeof config.cwd === 'string' && config.cwd.trim())
-    .map((config) => ({
-      ...config,
-      normalizedConfigCwd: path.resolve(config.cwd)
-    }))
-    .filter(
-      (config) =>
-        normalizedCwd === config.normalizedConfigCwd ||
-        normalizedCwd.startsWith(`${config.normalizedConfigCwd}${path.sep}`)
-    )
-    .sort((left, right) => right.normalizedConfigCwd.length - left.normalizedConfigCwd.length)[0]
+async function getExternalTerminalKey(input) {
+  const parentPid = await getParentPid(process.pid)
+  const cwd = typeof input.cwd === 'string' && input.cwd.trim() ? path.resolve(input.cwd) : ''
+  const wrappedCli = process.env.PIXEL_COMPANION_WRAPPED_CLI ?? input.agentName ?? 'external'
 
-  return terminal ? getProjectById(projects, terminal.projectId) : null
+  return [wrappedCli, parentPid ?? process.pid, cwd].filter(Boolean).join('|')
+}
+
+function getNextExternalTerminalNumber(registry) {
+  const usedNumbers = registry
+    .map((entry) => {
+      const match =
+        typeof entry.name === 'string'
+          ? entry.name.match(/^(?:Outro terminal|Terminal) (\d+)$/)
+          : null
+      return match ? Number(match[1]) : 0
+    })
+    .filter((value) => Number.isFinite(value) && value > 0)
+
+  return Math.max(0, ...usedNumbers) + 1
+}
+
+function getExternalTerminalColor(number, projects) {
+  const projectColors = new Set(
+    projects
+      .map((project) => (typeof project.color === 'string' ? project.color.toLowerCase() : ''))
+      .filter(Boolean)
+  )
+  const availableColors = EXTERNAL_TERMINAL_COLORS.filter(
+    (color) => !projectColors.has(color.toLowerCase())
+  )
+  const colors = availableColors.length > 0 ? availableColors : EXTERNAL_TERMINAL_COLORS
+
+  return colors[(number - 1) % colors.length]
+}
+
+async function resolveExternalTerminal(input, projects) {
+  const registry = await readExternalTerminalRegistry()
+  const key = await getExternalTerminalKey(input)
+  const now = new Date().toISOString()
+  const existingEntry = registry.find((entry) => entry.key === key)
+  const nextNumber = existingEntry ? existingEntry.number : getNextExternalTerminalNumber(registry)
+  const entry = existingEntry ?? {
+    color: getExternalTerminalColor(nextNumber, projects),
+    createdAt: now,
+    id: `other-terminal-${nextNumber}`,
+    key,
+    name: `Terminal ${nextNumber}`,
+    number: nextNumber
+  }
+  const nextEntry = {
+    ...entry,
+    cwd: input.cwd,
+    name: `Terminal ${nextNumber}`,
+    updatedAt: now
+  }
+  const nextRegistry = existingEntry
+    ? registry.map((candidate) => (candidate.key === key ? nextEntry : candidate))
+    : [...registry, nextEntry]
+
+  await writeExternalTerminalRegistry(nextRegistry)
+
+  return {
+    cwd: input.cwd,
+    contextSource: 'external_terminal',
+    projectColor: nextEntry.color,
+    projectId: nextEntry.id,
+    projectName: nextEntry.name,
+    sessionName: nextEntry.name,
+    terminalId: nextEntry.id,
+    terminalSessionId: nextEntry.id
+  }
 }
 
 async function resolveProject(input) {
   const boundContext = await readBoundContext()
-  if (boundContext.projectId || boundContext.projectName || boundContext.projectColor) {
+  if (hasStrongBoundContext(boundContext)) {
     return {
       cwd: boundContext.cwd ?? input.cwd,
       projectColor: isHexColor(boundContext.projectColor)
@@ -479,21 +534,11 @@ async function resolveProject(input) {
     }
   }
 
-  const { projects, terminalConfigs } = await readWorkspaceConfig()
-  const project =
-    getProjectById(projects, input.projectId) ??
-    getProjectByCwd(projects, terminalConfigs, input.cwd) ??
-    getProjectByTerminalSession(projects, terminalConfigs, input.sessionName) ??
-    getProjectByTerminalSession(projects, terminalConfigs, input.title) ??
-    getProjectByName(projects, input.projectName)
+  const { projects } = await readWorkspaceConfig()
+  const project = getProjectById(projects, input.projectId)
 
   if (!project) {
-    return {
-      cwd: input.cwd,
-      contextSource: 'input',
-      projectColor: isHexColor(input.projectColor) ? input.projectColor : undefined,
-      projectName: input.projectName
-    }
+    return resolveExternalTerminal(input, projects)
   }
 
   return {

@@ -1,4 +1,4 @@
-import type { CSSProperties, PointerEvent } from 'react'
+import { useEffect, useRef, type CSSProperties, type PointerEvent } from 'react'
 import type { CompanionBridgeMessage, CompanionCliState } from '../../../shared/companion'
 import type { CompanionProgress } from '../lib/companionProgress'
 import { CompanionProgressBar } from './CompanionProgressBar'
@@ -24,6 +24,13 @@ function getCompanionStateLabel(state: CompanionCliState): string {
   return state
 }
 
+function getGhouSpriteStage(level: number): 'egg' | 'lvl1' | 'lvl2' | 'lvl3' {
+  if (level >= 50) return 'lvl3'
+  if (level >= 25) return 'lvl2'
+  if (level >= 5) return 'lvl1'
+  return 'egg'
+}
+
 export function CompanionPanel({
   companionName,
   companionState,
@@ -32,6 +39,17 @@ export function CompanionPanel({
   onResizePointerDown,
   progress
 }: CompanionPanelProps): React.JSX.Element {
+  const terminalScreenRef = useRef<HTMLDivElement | null>(null)
+  const latestMessageId = messages.at(-1)?.id
+  const spriteStage = getGhouSpriteStage(progress.level)
+
+  useEffect(() => {
+    const terminalScreen = terminalScreenRef.current
+    if (!terminalScreen) return
+
+    terminalScreen.scrollTop = terminalScreen.scrollHeight
+  }, [latestMessageId])
+
   return (
     <>
       <button
@@ -53,7 +71,7 @@ export function CompanionPanel({
               <strong>{companionName}</strong>
               <small>{getCompanionStateLabel(companionState)}</small>
             </header>
-            <div className="companion-terminal-screen">
+            <div className="companion-terminal-screen" ref={terminalScreenRef}>
               {messages.map((message) => (
                 <article
                   key={message.id}
@@ -76,11 +94,10 @@ export function CompanionPanel({
             </div>
           </div>
 
-          <div className={`pixel-companion pixel-companion--${companionState}`} aria-hidden="true">
-            <span className="pixel-eye pixel-eye--left" />
-            <span className="pixel-eye pixel-eye--right" />
-            <span className="pixel-mouth" />
-          </div>
+          <div
+            className={`pixel-companion pixel-companion--stage-${spriteStage} pixel-companion--${companionState}`}
+            aria-hidden="true"
+          />
           <div className="shadow" />
           <CompanionProgressBar progress={progress} />
         </div>

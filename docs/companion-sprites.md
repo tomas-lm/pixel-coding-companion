@@ -8,6 +8,28 @@ colors.
 This document defines the recommended workflow for generated sprites, tintable parts,
 and palette swapping.
 
+## Current Decision
+
+The first sprite implementation should use fixed official colors. Do not implement
+runtime recoloring or palette swapping yet.
+
+The renderer should initially focus on:
+
+- accepting a provided Ghou sprite asset;
+- showing the sprite crisply with `image-rendering: pixelated`;
+- supporting simple state-based animation frames when assets exist;
+- keeping the code path small enough to replace or expand later.
+
+Palette swapping remains a future option, but it should not block the first animated
+sprite pass.
+
+Ghou currently uses fixed-color 36-frame sprite sheets with level-based evolution:
+
+- `ghou-sprite-egg.png`: level 0 through 4.
+- `ghou-sprite-lvl1.png`: level 5 through 24.
+- `ghou-sprite-lvl2.png`: level 25 through 49.
+- `ghou-sprite-lvl3.png`: level 50 and above.
+
 ## Goals
 
 - Keep companions as fixed product characters, not user-authored profiles.
@@ -198,4 +220,3 @@ identity and progression rules stay fixed in code.
 6. Cache generated tinted sprites.
 7. Add state-based sprites for `idle`, `working`, `done`, `error`, and `waiting_input`.
 8. Add stage selection from companion level.
-
