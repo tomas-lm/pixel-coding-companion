@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type ButtonHTMLAttributes,
   type CSSProperties,
@@ -69,6 +70,7 @@ const DEFAULT_COMPANION_PROGRESS_STATE: CompanionProgressState = createCompanion
   level: 0,
   name: COMPANION_NAME
 })
+const TERMINAL_HOVER_CARD_DELAY_MS = 500
 
 type ProjectForm = {
   id?: string
@@ -83,6 +85,14 @@ type TerminalForm = {
   kind: SessionKind
   cwd: string
   commandsText: string
+}
+
+type TerminalHoverCard = {
+  description: string
+  left: number
+  path: string
+  title: string
+  top: number
 }
 
 type StartWorkspaceSelection = {
@@ -242,8 +252,12 @@ function getProjectSummary(project: Project, configs: TerminalConfig[]): string 
   return `${configuredCount} configured ${suffix} - ${project.description || 'No description'}`
 }
 
+function getTerminalCommandDetail(config: TerminalConfig): string {
+  return config.commands.length > 0 ? config.commands.join(' -> ') : 'interactive shell'
+}
+
 function getTerminalDetail(config: TerminalConfig): string {
-  const command = config.commands.length > 0 ? config.commands.join(' -> ') : 'interactive shell'
+  const command = getTerminalCommandDetail(config)
   return `${command} - ${config.cwd || 'home folder'}`
 }
 
@@ -444,15 +458,25 @@ function App(): React.JSX.Element {
   const [configLoaded, setConfigLoaded] = useState(false)
   const [projectForm, setProjectForm] = useState<ProjectForm | null>(null)
   const [terminalForm, setTerminalForm] = useState<TerminalForm | null>(null)
+  const [terminalHoverCard, setTerminalHoverCard] = useState<TerminalHoverCard | null>(null)
   const [startSelection, setStartSelection] = useState<StartWorkspaceSelection | null>(null)
   const [layout, setLayout] = useState<WorkspaceLayout>(DEFAULT_LAYOUT)
   const [terminalThemeId, setTerminalThemeId] = useState<TerminalThemeId>(DEFAULT_TERMINAL_THEME_ID)
+  const terminalHoverCardTimeoutRef = useRef<number | null>(null)
   const [companionBridgeState, setCompanionBridgeState] = useState<CompanionBridgeState>(
     DEFAULT_COMPANION_BRIDGE_STATE
   )
   const [companionProgress, setCompanionProgress] = useState<CompanionProgressState>(
     DEFAULT_COMPANION_PROGRESS_STATE
   )
+
+  useEffect(() => {
+    return () => {
+      if (terminalHoverCardTimeoutRef.current !== null) {
+        window.clearTimeout(terminalHoverCardTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null
   const activeProjectConfigs = activeProject
@@ -1034,6 +1058,38 @@ function App(): React.JSX.Element {
       ? getProjectSummary(activeProject, terminalConfigs)
       : 'No workspace configured yet.'
 
+  const clearTerminalHoverCard = (): void => {
+    if (terminalHoverCardTimeoutRef.current !== null) {
+      window.clearTimeout(terminalHoverCardTimeoutRef.current)
+      terminalHoverCardTimeoutRef.current = null
+    }
+
+    setTerminalHoverCard(null)
+  }
+
+  const scheduleTerminalHoverCard = (config: TerminalConfig, target: HTMLElement): void => {
+    if (terminalHoverCardTimeoutRef.current !== null) {
+      window.clearTimeout(terminalHoverCardTimeoutRef.current)
+    }
+
+    const rect = target.getBoundingClientRect()
+    const cardWidth = 360
+    const maxLeft = Math.max(12, window.innerWidth - cardWidth - 12)
+    const left = Math.min(Math.max(rect.left, 12), maxLeft)
+    const top = Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 132))
+
+    terminalHoverCardTimeoutRef.current = window.setTimeout(() => {
+      terminalHoverCardTimeoutRef.current = null
+      setTerminalHoverCard({
+        title: config.name,
+        description: getTerminalCommandDetail(config),
+        path: config.cwd || 'home folder',
+        left,
+        top
+      })
+    }, TERMINAL_HOVER_CARD_DELAY_MS)
+  }
+
   return (
     <main className="app-shell" style={activeStyle}>
       <aside className="workspace-rail">
@@ -1124,7 +1180,14 @@ function App(): React.JSX.Element {
               )}
 
               {activeProjectConfigs.map((config) => (
-                <div key={config.id} className="template-row">
+                <div
+                  key={config.id}
+                  className="template-row"
+                  onBlurCapture={clearTerminalHoverCard}
+                  onFocusCapture={(event) => scheduleTerminalHoverCard(config, event.currentTarget)}
+                  onMouseEnter={(event) => scheduleTerminalHoverCard(config, event.currentTarget)}
+                  onMouseLeave={clearTerminalHoverCard}
+                >
                   <button
                     className="template-item"
                     type="button"
@@ -1285,6 +1348,18 @@ function App(): React.JSX.Element {
         onResizePointerDown={(event) => startLayoutResize(event, 'companionWidth')}
         progress={companionProgress}
       />
+
+      {terminalHoverCard && (
+        <div
+          className="terminal-hover-card"
+          role="tooltip"
+          style={{ left: terminalHoverCard.left, top: terminalHoverCard.top }}
+        >
+          <strong>{terminalHoverCard.title}</strong>
+          <span>{terminalHoverCard.description}</span>
+          <small>{terminalHoverCard.path}</small>
+        </div>
+      )}
 
       {startSelection && startProject && (
         <div className="modal-backdrop">
