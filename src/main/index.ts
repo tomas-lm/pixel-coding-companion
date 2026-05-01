@@ -696,7 +696,7 @@ function createWindow(): void {
     height: 760,
     show: false,
     autoHideMenuBar: false,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
@@ -739,6 +739,9 @@ function createWindow(): void {
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId(APP_ID)
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(icon)
+  }
   void writeTerminalContextRegistry([])
 
   // Default open or close DevTools by F12 in development
