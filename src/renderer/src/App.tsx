@@ -96,6 +96,8 @@ type IconOnlyButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-l
   children: ReactNode
   label: string
 }
+type AddButtonProps = Omit<IconOnlyButtonProps, 'children'>
+type RowActionButtonProps = Omit<IconOnlyButtonProps, 'className'>
 type RunningSessionPatch = Partial<
   Pick<
     RunningSession,
@@ -110,6 +112,10 @@ type RunningSessionPatch = Partial<
   >
 >
 
+function joinClassNames(...classNames: Array<string | undefined>): string {
+  return classNames.filter(Boolean).join(' ')
+}
+
 function IconOnlyButton({
   children,
   label,
@@ -121,6 +127,22 @@ function IconOnlyButton({
     <button {...buttonProps} type={type} aria-label={label} title={title}>
       {children}
     </button>
+  )
+}
+
+function AddButton({ className, ...buttonProps }: AddButtonProps): React.JSX.Element {
+  return (
+    <IconOnlyButton {...buttonProps} className={joinClassNames(className, 'add-button')}>
+      +
+    </IconOnlyButton>
+  )
+}
+
+function RowActionButton({ children, ...buttonProps }: RowActionButtonProps): React.JSX.Element {
+  return (
+    <IconOnlyButton {...buttonProps} className="row-action-button">
+      {children}
+    </IconOnlyButton>
   )
 }
 
@@ -1027,9 +1049,11 @@ function App(): React.JSX.Element {
           <section className="rail-section rail-section--projects" aria-label="Projects">
             <div className="rail-header">
               <span>Projects</span>
-              <button className="secondary-button" type="button" onClick={openCreateProject}>
-                Add workspace
-              </button>
+              <AddButton
+                className="secondary-button"
+                label="Add workspace"
+                onClick={openCreateProject}
+              />
             </div>
 
             <div className="project-list">
@@ -1052,14 +1076,12 @@ function App(): React.JSX.Element {
                     <span>{project.name}</span>
                     <small>{getProjectLiveLabel(project.id, runningSessions)}</small>
                   </button>
-                  <button
-                    className="icon-button"
-                    type="button"
-                    title={`Edit ${project.name}`}
+                  <RowActionButton
+                    label={`Edit ${project.name}`}
                     onClick={() => openEditProject(project)}
                   >
-                    Settings
-                  </button>
+                    ...
+                  </RowActionButton>
                 </div>
               ))}
             </div>
@@ -1078,23 +1100,23 @@ function App(): React.JSX.Element {
                 Start {activeProject.name}
               </button>
             ) : (
-              <button className="primary-button" type="button" onClick={openCreateProject}>
-                Add workspace
-              </button>
+              <AddButton
+                className="primary-button"
+                label="Add workspace"
+                onClick={openCreateProject}
+              />
             )}
           </section>
 
           <section className="rail-section rail-section--config" aria-label="Configured terminals">
             <div className="rail-header">
               <span>Configured terminals</span>
-              <IconOnlyButton
-                className="secondary-button add-terminal-button"
+              <AddButton
+                className="secondary-button"
                 label="Add terminal"
                 disabled={!activeProject}
                 onClick={openCreateTerminal}
-              >
-                +
-              </IconOnlyButton>
+              />
             </div>
             <div className="template-list">
               {!activeProject && (
@@ -1114,13 +1136,12 @@ function App(): React.JSX.Element {
                     <strong>{config.name}</strong>
                     <small>{getTerminalDetail(config)}</small>
                   </button>
-                  <IconOnlyButton
-                    className="icon-button"
+                  <RowActionButton
                     label={`Configure ${config.name}`}
                     onClick={() => openEditTerminal(config)}
                   >
                     ...
-                  </IconOnlyButton>
+                  </RowActionButton>
                 </div>
               ))}
             </div>
@@ -1233,17 +1254,17 @@ function App(): React.JSX.Element {
             <div className="empty-terminal">
               <strong>{activeProject?.name ?? 'No workspaces yet'}</strong>
               {!activeProject ? (
-                <button className="primary-button" type="button" onClick={openCreateProject}>
-                  Add workspace
-                </button>
+                <AddButton
+                  className="primary-button"
+                  label="Add workspace"
+                  onClick={openCreateProject}
+                />
               ) : activeProjectConfigs.length === 0 ? (
-                <IconOnlyButton
-                  className="primary-button add-terminal-button"
+                <AddButton
+                  className="primary-button"
                   label="Add terminal"
                   onClick={openCreateTerminal}
-                >
-                  +
-                </IconOnlyButton>
+                />
               ) : (
                 <button className="primary-button" type="button" onClick={openStartWorkspace}>
                   Start workspace
@@ -1382,9 +1403,13 @@ function App(): React.JSX.Element {
           <section className="modal" aria-label="Workspace settings">
             <header className="modal-header">
               <h2>{projectForm.id ? 'Edit workspace' : 'Add workspace'}</h2>
-              <button className="icon-button" type="button" onClick={() => setProjectForm(null)}>
-                Close
-              </button>
+              <IconOnlyButton
+                className="modal-close-button"
+                label="Close workspace settings"
+                onClick={() => setProjectForm(null)}
+              >
+                X
+              </IconOnlyButton>
             </header>
             <label>
               <span>Name</span>
@@ -1421,16 +1446,9 @@ function App(): React.JSX.Element {
                 }
               />
             </label>
-            <footer className="modal-actions">
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => setProjectForm(null)}
-              >
-                Cancel
-              </button>
+            <footer className="modal-actions modal-actions--end">
               <button className="primary-button" type="button" onClick={saveProjectForm}>
-                Save workspace
+                Save
               </button>
             </footer>
           </section>
