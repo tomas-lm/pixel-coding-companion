@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ButtonHTMLAttributes,
+  type CSSProperties,
+  type ReactNode
+} from 'react'
 import type {
   CompanionBridgeMessage,
   CompanionBridgeState,
@@ -85,6 +92,10 @@ type StartWorkspaceSelection = {
 }
 
 type LayoutResizeTarget = keyof WorkspaceLayout
+type IconOnlyButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-label'> & {
+  children: ReactNode
+  label: string
+}
 type RunningSessionPatch = Partial<
   Pick<
     RunningSession,
@@ -98,6 +109,20 @@ type RunningSessionPatch = Partial<
     | 'status'
   >
 >
+
+function IconOnlyButton({
+  children,
+  label,
+  title = label,
+  type = 'button',
+  ...buttonProps
+}: IconOnlyButtonProps): React.JSX.Element {
+  return (
+    <button {...buttonProps} type={type} aria-label={label} title={title}>
+      {children}
+    </button>
+  )
+}
 
 function createId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`
@@ -1062,14 +1087,14 @@ function App(): React.JSX.Element {
           <section className="rail-section rail-section--config" aria-label="Configured terminals">
             <div className="rail-header">
               <span>Configured terminals</span>
-              <button
-                className="secondary-button"
-                type="button"
+              <IconOnlyButton
+                className="secondary-button add-terminal-button"
+                label="Add terminal"
                 disabled={!activeProject}
                 onClick={openCreateTerminal}
               >
-                Add terminal
-              </button>
+                +
+              </IconOnlyButton>
             </div>
             <div className="template-list">
               {!activeProject && (
@@ -1089,14 +1114,13 @@ function App(): React.JSX.Element {
                     <strong>{config.name}</strong>
                     <small>{getTerminalDetail(config)}</small>
                   </button>
-                  <button
+                  <IconOnlyButton
                     className="icon-button"
-                    type="button"
-                    title={`Configure ${config.name}`}
+                    label={`Configure ${config.name}`}
                     onClick={() => openEditTerminal(config)}
                   >
-                    Settings
-                  </button>
+                    ...
+                  </IconOnlyButton>
                 </div>
               ))}
             </div>
@@ -1134,13 +1158,25 @@ function App(): React.JSX.Element {
                     <strong>{session.name}</strong>
                     <small>{getSessionCardDetail(session)}</small>
                   </button>
-                  <button
-                    className="session-stop"
-                    type="button"
-                    onClick={() => stopSession(session.id)}
-                  >
-                    {isLiveSession(session) ? 'Stop' : 'Clear'}
-                  </button>
+                  {isLiveSession(session) ? (
+                    <IconOnlyButton
+                      className="session-stop session-stop--live"
+                      label={`Stop ${session.name}`}
+                      onClick={() => stopSession(session.id)}
+                    >
+                      &#9632;
+                    </IconOnlyButton>
+                  ) : (
+                    <button
+                      className="session-stop"
+                      type="button"
+                      aria-label={`Clear ${session.name}`}
+                      title={`Clear ${session.name}`}
+                      onClick={() => stopSession(session.id)}
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -1201,9 +1237,13 @@ function App(): React.JSX.Element {
                   Add workspace
                 </button>
               ) : activeProjectConfigs.length === 0 ? (
-                <button className="primary-button" type="button" onClick={openCreateTerminal}>
-                  Add terminal
-                </button>
+                <IconOnlyButton
+                  className="primary-button add-terminal-button"
+                  label="Add terminal"
+                  onClick={openCreateTerminal}
+                >
+                  +
+                </IconOnlyButton>
               ) : (
                 <button className="primary-button" type="button" onClick={openStartWorkspace}>
                   Start workspace
