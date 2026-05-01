@@ -1,4 +1,10 @@
-export type CompanionRarity = 'starter' | 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+import type {
+  CompanionAcquisition,
+  CompanionRarity,
+  CompanionStoreDefinition
+} from '../../../shared/companionStore'
+
+export type { CompanionAcquisition, CompanionRarity }
 
 export type CompanionStageId = 'egg' | 'lvl1' | 'lvl2' | 'lvl3'
 
@@ -12,11 +18,7 @@ export type CompanionSpriteStage = {
   width: number
 }
 
-export type CompanionDefinition = {
-  basePrice: number
-  id: string
-  name: string
-  rarity: CompanionRarity
+export type CompanionDefinition = CompanionStoreDefinition & {
   stages: CompanionSpriteStage[]
 }
 
@@ -25,5 +27,6 @@ export type CompanionCardState = {
   level: number
   monsterPoints: number
   owned: boolean
+  selected: boolean
   totalXp: number
 }

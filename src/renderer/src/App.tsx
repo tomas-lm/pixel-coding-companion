@@ -12,6 +12,7 @@ import type {
   CompanionBridgeState,
   CompanionProgressState
 } from '../../shared/companion'
+import type { CompanionStoreState } from '../../shared/companionStore'
 import {
   DEFAULT_TERMINAL_THEME_ID,
   type Project,
@@ -32,6 +33,7 @@ import { CompanionCatalogPanel } from './components/CompanionCatalogPanel'
 import { CompanionPanel } from './components/CompanionPanel'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { TerminalPane } from './components/TerminalPane'
+import { COMPANION_REGISTRY, STARTER_COMPANION_ID } from './companions/companionRegistry'
 import { createCompanionProgressSnapshot } from './lib/companionProgress'
 
 const COMPANION_NAME = 'Ghou'
@@ -185,6 +187,34 @@ function normalizeLayout(layout?: Partial<WorkspaceLayout>): WorkspaceLayout {
 
 function normalizeTerminalThemeId(themeId?: unknown): TerminalThemeId {
   return isTerminalThemeId(themeId) ? themeId : DEFAULT_TERMINAL_THEME_ID
+}
+
+function getActiveCompanionProgress(
+  progress: CompanionProgressState,
+  storeState: CompanionStoreState | null
+): CompanionProgressState {
+  const activeCompanionId = storeState?.activeCompanionId ?? STARTER_COMPANION_ID
+  const activeCompanion =
+    COMPANION_REGISTRY.find((companion) => companion.id === activeCompanionId) ??
+    COMPANION_REGISTRY[0]
+
+  if (activeCompanion.id === STARTER_COMPANION_ID) {
+    return {
+      ...progress,
+      name: activeCompanion.name
+    }
+  }
+
+  const activeCompanionState = storeState?.companions[activeCompanion.id]
+
+  return createCompanionProgressSnapshot({
+    currentXp: activeCompanionState?.currentXp ?? 0,
+    level: activeCompanionState?.level ?? 0,
+    monsterPoints: progress.monsterPoints,
+    name: activeCompanion.name,
+    totalXp: activeCompanionState?.totalXp ?? 0,
+    updatedAt: activeCompanionState?.updatedAt
+  })
 }
 
 function createEmptyTerminalForm(): TerminalForm {
@@ -459,6 +489,7 @@ function App(): React.JSX.Element {
   const [companionProgress, setCompanionProgress] = useState<CompanionProgressState>(
     DEFAULT_COMPANION_PROGRESS_STATE
   )
+  const [companionStoreState, setCompanionStoreState] = useState<CompanionStoreState | null>(null)
 
   useEffect(() => {
     return () => {
@@ -525,6 +556,8 @@ function App(): React.JSX.Element {
       label: 'Companion selector'
     }
   ]
+  const activeCompanionProgress = getActiveCompanionProgress(companionProgress, companionStoreState)
+  const activeCompanionName = activeCompanionProgress.name
 
   useEffect(() => {
     let mounted = true
@@ -595,13 +628,15 @@ function App(): React.JSX.Element {
     const loadBridgeState = (): void => {
       void Promise.all([
         window.api.companion.loadBridgeState(),
-        window.api.companion.loadProgress()
+        window.api.companion.loadProgress(),
+        window.api.companion.loadStoreState()
       ])
-        .then(([bridgeState, progress]) => {
+        .then(([bridgeState, progress, storeState]) => {
           if (!mounted) return
 
           setCompanionBridgeState(bridgeState)
           setCompanionProgress(progress)
+          setCompanionStoreState(storeState)
         })
         .catch((error: unknown) => {
           console.error('Failed to load companion state', error)
@@ -1345,18 +1380,23 @@ function App(): React.JSX.Element {
           </div>
         </section>
       ) : (
-        <CompanionCatalogPanel progress={companionProgress} />
+        <CompanionCatalogPanel
+          progress={companionProgress}
+          storeState={companionStoreState}
+          onProgressUpdate={setCompanionProgress}
+          onStoreStateUpdate={setCompanionStoreState}
+        />
       )}
 
       <CompanionPanel
-        companionName={COMPANION_NAME}
+        companionName={activeCompanionName}
         companionState={companionTerminalState}
         getMessageColor={(message) =>
           getCompanionMessageColor(message, projects, terminalConfigs, activeProjectColor)
         }
         messages={companionTerminalMessages}
         onResizePointerDown={(event) => startLayoutResize(event, 'companionWidth')}
-        progress={companionProgress}
+        progress={activeCompanionProgress}
       />
 
       {terminalHoverCard && (

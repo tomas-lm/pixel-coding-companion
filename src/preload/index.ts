@@ -30,7 +30,10 @@ const api: CompanionApi = {
     loadBridgeState: (): Promise<CompanionBridgeState> =>
       ipcRenderer.invoke(COMPANION_CHANNELS.loadBridgeState),
     loadProgress: (): Promise<CompanionProgressState> =>
-      ipcRenderer.invoke(COMPANION_CHANNELS.loadProgress)
+      ipcRenderer.invoke(COMPANION_CHANNELS.loadProgress),
+    loadStoreState: () => ipcRenderer.invoke(COMPANION_CHANNELS.loadStoreState),
+    openBox: (request) => ipcRenderer.invoke(COMPANION_CHANNELS.openBox, request),
+    selectCompanion: (request) => ipcRenderer.invoke(COMPANION_CHANNELS.selectCompanion, request)
   },
   system: {
     openTarget: (request: OpenTargetRequest): Promise<OpenTargetResult> =>

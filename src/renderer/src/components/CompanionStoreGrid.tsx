@@ -2,13 +2,17 @@ import type { CompanionCardState, CompanionDefinition } from '../companions/comp
 import { CompanionStoreCard } from './CompanionStoreCard'
 
 type CompanionStoreGridProps = {
+  activeCompanionId: string
   companions: CompanionDefinition[]
   getCompanionState: (companion: CompanionDefinition) => CompanionCardState
+  onSelectCompanion: (companion: CompanionDefinition) => void
 }
 
 export function CompanionStoreGrid({
+  activeCompanionId,
   companions,
-  getCompanionState
+  getCompanionState,
+  onSelectCompanion
 }: CompanionStoreGridProps): React.JSX.Element {
   return (
     <div className="companion-store-grid">
@@ -16,7 +20,11 @@ export function CompanionStoreGrid({
         <CompanionStoreCard
           key={companion.id}
           companion={companion}
-          state={getCompanionState(companion)}
+          state={{
+            ...getCompanionState(companion),
+            selected: companion.id === activeCompanionId
+          }}
+          onSelect={onSelectCompanion}
         />
       ))}
     </div>

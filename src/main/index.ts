@@ -21,6 +21,23 @@ import {
   type CompanionBridgeState,
   type CompanionProgressState
 } from '../shared/companion'
+import {
+  COMPANION_BOX_DEFINITIONS,
+  COMPANION_STORE_DEFINITIONS,
+  STARTER_COMPANION_ID,
+  getDuplicateXpForRarity,
+  getMonsterPointsForReachedLevel,
+  type CompanionBoxDefinition,
+  type CompanionBoxOpenRequest,
+  type CompanionBoxOpenResult,
+  type CompanionBoxOpening,
+  type CompanionCollectionEntry,
+  type CompanionRarity,
+  type CompanionSelectRequest,
+  type CompanionSelectResult,
+  type CompanionStoreDefinition,
+  type CompanionStoreState
+} from '../shared/companionStore'
 import { SYSTEM_CHANNELS, type OpenTargetRequest, type OpenTargetResult } from '../shared/system'
 import {
   TERMINAL_CHANNELS,
@@ -75,6 +92,7 @@ const PIXEL_CODEX_START_COMMAND_PATTERN =
 const COMPANION_MAX_LEVEL = 100
 const COMPANION_BASE_NEXT_LEVEL_XP = 120
 const COMPANION_LEVEL_XP_GROWTH = 1.13
+const MAX_RECENT_BOX_OPENINGS = 12
 const terminals = new Map<TerminalSessionId, ManagedTerminal>()
 let selectedTerminalThemeId: TerminalThemeId = DEFAULT_TERMINAL_THEME_ID
 let terminalContextRegistryQueue: Promise<void> = Promise.resolve()
@@ -149,6 +167,10 @@ function getCompanionBridgeStatePath(): string {
 
 function getCompanionProgressPath(): string {
   return join(app.getPath('userData'), 'companion-progress.json')
+}
+
+function getCompanionStoreStatePath(): string {
+  return join(app.getPath('userData'), 'companion-store.json')
 }
 
 function getTerminalCompanionContextPath(sessionId: TerminalSessionId): string {
@@ -280,6 +302,30 @@ function createDefaultCompanionProgressState(): CompanionProgressState {
   }
 }
 
+function createDefaultCompanionCollectionEntry(
+  definition: CompanionStoreDefinition
+): CompanionCollectionEntry {
+  return {
+    currentXp: 0,
+    level: 0,
+    owned: definition.id === STARTER_COMPANION_ID,
+    totalXp: 0
+  }
+}
+
+function createDefaultCompanionStoreState(): CompanionStoreState {
+  return {
+    activeCompanionId: STARTER_COMPANION_ID,
+    companions: Object.fromEntries(
+      COMPANION_STORE_DEFINITIONS.map((definition) => [
+        definition.id,
+        createDefaultCompanionCollectionEntry(definition)
+      ])
+    ),
+    recentOpenings: []
+  }
+}
+
 function normalizeCompanionBridgeState(value: unknown): CompanionBridgeState {
   if (!value || typeof value !== 'object') return createDefaultCompanionBridgeState()
 
@@ -339,6 +385,279 @@ function normalizeCompanionProgressState(value: unknown): CompanionProgressState
     updatedAt: typeof state.updatedAt === 'string' ? state.updatedAt : undefined,
     xpForNextLevel
   }
+}
+
+function normalizeCompanionCollectionEntry(
+  value: unknown,
+  definition: CompanionStoreDefinition
+): CompanionCollectionEntry {
+  if (!value || typeof value !== 'object') return createDefaultCompanionCollectionEntry(definition)
+
+  const state = value as Partial<CompanionCollectionEntry>
+  const level =
+    typeof state.level === 'number' && Number.isFinite(state.level)
+      ? Math.min(Math.max(Math.floor(state.level), 0), COMPANION_MAX_LEVEL)
+      : 0
+  const xpForNextLevel = getXpRequiredForLevel(level)
+  const currentXp =
+    typeof state.currentXp === 'number' && Number.isFinite(state.currentXp)
+      ? Math.min(Math.max(Math.floor(state.currentXp), 0), xpForNextLevel)
+      : 0
+  const owned =
+    definition.id === STARTER_COMPANION_ID ||
+    (typeof state.owned === 'boolean' ? state.owned : false)
+
+  return {
+    currentXp,
+    level,
+    owned,
+    totalXp:
+      typeof state.totalXp === 'number' && Number.isFinite(state.totalXp)
+        ? Math.max(0, Math.floor(state.totalXp))
+        : currentXp,
+    unlockedAt: typeof state.unlockedAt === 'string' ? state.unlockedAt : undefined,
+    updatedAt: typeof state.updatedAt === 'string' ? state.updatedAt : undefined
+  }
+}
+
+function isCompanionRarity(value: unknown): value is CompanionRarity {
+  return (
+    value === 'starter' ||
+    value === 'common' ||
+    value === 'uncommon' ||
+    value === 'rare' ||
+    value === 'ultra_rare' ||
+    value === 'legendary' ||
+    value === 'special'
+  )
+}
+
+function normalizeCompanionBoxOpening(value: unknown): CompanionBoxOpening | null {
+  if (!value || typeof value !== 'object') return null
+
+  const opening = value as Partial<CompanionBoxOpening>
+  if (
+    typeof opening.id !== 'string' ||
+    typeof opening.boxId !== 'string' ||
+    typeof opening.companionId !== 'string' ||
+    typeof opening.companionName !== 'string' ||
+    typeof opening.createdAt !== 'string' ||
+    typeof opening.isDuplicate !== 'boolean' ||
+    !isCompanionRarity(opening.rarity)
+  ) {
+    return null
+  }
+
+  return {
+    boxId: opening.boxId,
+    companionId: opening.companionId,
+    companionName: opening.companionName,
+    createdAt: opening.createdAt,
+    duplicateXp:
+      typeof opening.duplicateXp === 'number' && Number.isFinite(opening.duplicateXp)
+        ? Math.max(0, Math.floor(opening.duplicateXp))
+        : 0,
+    id: opening.id,
+    isDuplicate: opening.isDuplicate,
+    rarity: opening.rarity
+  }
+}
+
+function normalizeCompanionStoreState(value: unknown): CompanionStoreState {
+  if (!value || typeof value !== 'object') return createDefaultCompanionStoreState()
+
+  const state = value as Partial<CompanionStoreState>
+  const sourceCompanions =
+    state.companions && typeof state.companions === 'object' ? state.companions : {}
+  const companions = Object.fromEntries(
+    COMPANION_STORE_DEFINITIONS.map((definition) => [
+      definition.id,
+      normalizeCompanionCollectionEntry(
+        (sourceCompanions as Record<string, unknown>)[definition.id],
+        definition
+      )
+    ])
+  )
+  const requestedActiveId =
+    typeof state.activeCompanionId === 'string' ? state.activeCompanionId : STARTER_COMPANION_ID
+  const activeCompanionId = companions[requestedActiveId]?.owned
+    ? requestedActiveId
+    : STARTER_COMPANION_ID
+  const recentOpenings = Array.isArray(state.recentOpenings)
+    ? state.recentOpenings
+        .map(normalizeCompanionBoxOpening)
+        .filter((opening): opening is CompanionBoxOpening => Boolean(opening))
+        .slice(-MAX_RECENT_BOX_OPENINGS)
+    : []
+
+  return {
+    activeCompanionId,
+    companions,
+    recentOpenings,
+    updatedAt: typeof state.updatedAt === 'string' ? state.updatedAt : undefined
+  }
+}
+
+async function writeJsonFile(path: string, value: unknown): Promise<void> {
+  await mkdir(app.getPath('userData'), { recursive: true })
+  const tempPath = `${path}.${process.pid}.${Date.now()}.tmp`
+
+  await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
+  await rename(tempPath, path)
+}
+
+async function readCompanionProgressState(): Promise<CompanionProgressState> {
+  try {
+    const file = await readFile(getCompanionProgressPath(), 'utf8')
+    return normalizeCompanionProgressState(JSON.parse(file))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return createDefaultCompanionProgressState()
+    }
+
+    throw error
+  }
+}
+
+async function writeCompanionProgressState(progress: CompanionProgressState): Promise<void> {
+  await writeJsonFile(getCompanionProgressPath(), progress)
+}
+
+async function readCompanionStoreState(): Promise<CompanionStoreState> {
+  try {
+    const file = await readFile(getCompanionStoreStatePath(), 'utf8')
+    return normalizeCompanionStoreState(JSON.parse(file))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return createDefaultCompanionStoreState()
+    }
+
+    throw error
+  }
+}
+
+async function writeCompanionStoreState(state: CompanionStoreState): Promise<void> {
+  await writeJsonFile(getCompanionStoreStatePath(), state)
+}
+
+function addXpToProgressState(
+  progress: CompanionProgressState,
+  xp: number,
+  updatedAt: string
+): CompanionProgressState {
+  const safeXp = Math.max(0, Math.floor(xp))
+  let nextLevel = progress.level
+  let nextCurrentXp = progress.currentXp + safeXp
+  let nextXpForLevel = getXpRequiredForLevel(nextLevel)
+  let monsterPointsEarned = 0
+
+  while (nextLevel < COMPANION_MAX_LEVEL && nextCurrentXp >= nextXpForLevel) {
+    nextCurrentXp -= nextXpForLevel
+    nextLevel += 1
+    monsterPointsEarned += getMonsterPointsForReachedLevel(nextLevel)
+    nextXpForLevel = getXpRequiredForLevel(nextLevel)
+  }
+
+  if (nextLevel >= COMPANION_MAX_LEVEL) {
+    nextCurrentXp = 0
+  }
+
+  return {
+    ...progress,
+    currentXp: nextCurrentXp,
+    level: nextLevel,
+    monsterPoints: progress.monsterPoints + monsterPointsEarned,
+    progressRatio:
+      nextLevel >= COMPANION_MAX_LEVEL || nextXpForLevel <= 0 ? 1 : nextCurrentXp / nextXpForLevel,
+    totalXp: progress.totalXp + safeXp,
+    updatedAt,
+    xpForNextLevel: nextXpForLevel
+  }
+}
+
+function addXpToCollectionEntry(
+  entry: CompanionCollectionEntry,
+  xp: number,
+  updatedAt: string
+): { entry: CompanionCollectionEntry; monsterPointsEarned: number } {
+  const safeXp = Math.max(0, Math.floor(xp))
+  let nextLevel = entry.level
+  let nextCurrentXp = entry.currentXp + safeXp
+  let nextXpForLevel = getXpRequiredForLevel(nextLevel)
+  let monsterPointsEarned = 0
+
+  while (nextLevel < COMPANION_MAX_LEVEL && nextCurrentXp >= nextXpForLevel) {
+    nextCurrentXp -= nextXpForLevel
+    nextLevel += 1
+    monsterPointsEarned += getMonsterPointsForReachedLevel(nextLevel)
+    nextXpForLevel = getXpRequiredForLevel(nextLevel)
+  }
+
+  if (nextLevel >= COMPANION_MAX_LEVEL) {
+    nextCurrentXp = 0
+  }
+
+  return {
+    entry: {
+      ...entry,
+      currentXp: nextCurrentXp,
+      level: nextLevel,
+      totalXp: entry.totalXp + safeXp,
+      updatedAt
+    },
+    monsterPointsEarned
+  }
+}
+
+function syncStarterCollectionEntry(
+  state: CompanionStoreState,
+  progress: CompanionProgressState,
+  updatedAt?: string
+): CompanionStoreState {
+  const currentEntry =
+    state.companions[STARTER_COMPANION_ID] ??
+    createDefaultCompanionCollectionEntry(COMPANION_STORE_DEFINITIONS[0])
+
+  return {
+    ...state,
+    companions: {
+      ...state.companions,
+      [STARTER_COMPANION_ID]: {
+        ...currentEntry,
+        currentXp: progress.currentXp,
+        level: progress.level,
+        owned: true,
+        totalXp: progress.totalXp,
+        updatedAt: updatedAt ?? currentEntry.updatedAt
+      }
+    },
+    updatedAt: updatedAt ?? state.updatedAt
+  }
+}
+
+function rollBoxRarity(box: CompanionBoxDefinition): CompanionRarity {
+  const validOdds = box.odds.filter((entry) => entry.weight > 0)
+  const totalWeight = validOdds.reduce((sum, entry) => sum + entry.weight, 0)
+  let cursor = Math.random() * totalWeight
+
+  for (const entry of validOdds) {
+    cursor -= entry.weight
+    if (cursor <= 0) return entry.rarity
+  }
+
+  return validOdds[validOdds.length - 1]?.rarity ?? 'common'
+}
+
+function rollBoxCompanion(box: CompanionBoxDefinition): CompanionStoreDefinition {
+  const rarity = rollBoxRarity(box)
+  const availableCompanions = COMPANION_STORE_DEFINITIONS.filter(
+    (definition) => definition.acquisition !== 'gifted'
+  )
+  const candidates = availableCompanions.filter((definition) => definition.rarity === rarity)
+  const rollableCompanions = candidates.length > 0 ? candidates : availableCompanions
+  const index = Math.floor(Math.random() * rollableCompanions.length)
+
+  return rollableCompanions[index]
 }
 
 function stopTerminal(id: TerminalSessionId): void {
@@ -608,17 +927,142 @@ function registerCompanionIpc(): void {
   })
 
   ipcMain.handle(COMPANION_CHANNELS.loadProgress, async (): Promise<CompanionProgressState> => {
-    try {
-      const file = await readFile(getCompanionProgressPath(), 'utf8')
-      return normalizeCompanionProgressState(JSON.parse(file))
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return createDefaultCompanionProgressState()
+    return readCompanionProgressState()
+  })
+
+  ipcMain.handle(COMPANION_CHANNELS.loadStoreState, async (): Promise<CompanionStoreState> => {
+    const [progress, storeState] = await Promise.all([
+      readCompanionProgressState(),
+      readCompanionStoreState()
+    ])
+
+    return syncStarterCollectionEntry(storeState, progress)
+  })
+
+  ipcMain.handle(
+    COMPANION_CHANNELS.openBox,
+    async (_, request: CompanionBoxOpenRequest): Promise<CompanionBoxOpenResult> => {
+      const box = COMPANION_BOX_DEFINITIONS.find((candidate) => candidate.id === request.boxId)
+      if (!box) {
+        throw new Error('Companion box not found.')
       }
 
-      throw error
+      let progress = await readCompanionProgressState()
+      let storeState = syncStarterCollectionEntry(await readCompanionStoreState(), progress)
+
+      if (progress.monsterPoints < box.price) {
+        throw new Error('Not enough MP to open this box.')
+      }
+
+      const now = new Date().toISOString()
+      const companion = rollBoxCompanion(box)
+      const currentEntry =
+        storeState.companions[companion.id] ?? createDefaultCompanionCollectionEntry(companion)
+      const isDuplicate = currentEntry.owned
+      const duplicateXp = isDuplicate ? getDuplicateXpForRarity(companion.rarity) : 0
+
+      progress = {
+        ...progress,
+        monsterPoints: progress.monsterPoints - box.price,
+        updatedAt: now
+      }
+
+      let nextEntry: CompanionCollectionEntry = {
+        ...currentEntry,
+        owned: true,
+        unlockedAt: currentEntry.unlockedAt ?? now,
+        updatedAt: now
+      }
+
+      if (isDuplicate && duplicateXp > 0) {
+        if (companion.id === STARTER_COMPANION_ID) {
+          progress = addXpToProgressState(progress, duplicateXp, now)
+          nextEntry = {
+            ...nextEntry,
+            currentXp: progress.currentXp,
+            level: progress.level,
+            totalXp: progress.totalXp,
+            updatedAt: now
+          }
+        } else {
+          const xpResult = addXpToCollectionEntry(nextEntry, duplicateXp, now)
+
+          nextEntry = xpResult.entry
+          progress = {
+            ...progress,
+            monsterPoints: progress.monsterPoints + xpResult.monsterPointsEarned,
+            updatedAt: now
+          }
+        }
+      }
+
+      const opening: CompanionBoxOpening = {
+        boxId: box.id,
+        companionId: companion.id,
+        companionName: companion.name,
+        createdAt: now,
+        duplicateXp,
+        id: `opening-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        isDuplicate,
+        rarity: companion.rarity
+      }
+
+      storeState = {
+        ...storeState,
+        companions: {
+          ...storeState.companions,
+          [companion.id]: nextEntry
+        },
+        recentOpenings: [...storeState.recentOpenings, opening].slice(-MAX_RECENT_BOX_OPENINGS),
+        updatedAt: now
+      }
+
+      if (companion.id === STARTER_COMPANION_ID) {
+        storeState = syncStarterCollectionEntry(storeState, progress, now)
+      }
+
+      await Promise.all([
+        writeCompanionProgressState(progress),
+        writeCompanionStoreState(storeState)
+      ])
+
+      return {
+        opening,
+        progress,
+        storeState
+      }
     }
-  })
+  )
+
+  ipcMain.handle(
+    COMPANION_CHANNELS.selectCompanion,
+    async (_, request: CompanionSelectRequest): Promise<CompanionSelectResult> => {
+      const companion = COMPANION_STORE_DEFINITIONS.find(
+        (definition) => definition.id === request.companionId
+      )
+      if (!companion) {
+        throw new Error('Companion not found.')
+      }
+
+      const progress = await readCompanionProgressState()
+      let storeState = syncStarterCollectionEntry(await readCompanionStoreState(), progress)
+      const companionState = storeState.companions[companion.id]
+
+      if (!companionState?.owned) {
+        throw new Error('Companion is locked.')
+      }
+
+      storeState = {
+        ...storeState,
+        activeCompanionId: companion.id,
+        updatedAt: new Date().toISOString()
+      }
+
+      await writeCompanionStoreState(storeState)
+
+      return { storeState }
+    }
+  )
 }
 
 function registerSystemIpc(): void {

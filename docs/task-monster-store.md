@@ -22,6 +22,10 @@ and UI structure needed for multiple collectible companions later.
 - If the user owns a monster and it is still an egg, the grid card shows the egg.
 - If the user owns a monster and it has hatched, the grid card shows the first frame of
   the highest unlocked stage.
+- Clicking an owned monster makes it the active companion.
+- The active companion card shows a glowing border and selected tick.
+- The right-side companion panel uses the active companion name in the terminal header,
+  message author, and XP bar.
 - Hovering an owned hatched monster animates it.
 - Hovering an owned egg can animate the egg if the egg sprite supports animation.
 - Monsters the user does not own appear dimmed/locked.
@@ -65,19 +69,66 @@ Examples:
 This formula is intentionally backloaded so high-level companions feel special without
 making early store unlocks impossible.
 
+## Egg Box Flow
+
+The store should use boxes as the primary MP sink instead of direct companion purchases.
+
+The first implementation ships with three rollable boxes:
+
+| Box               |       Price | Drop Table                                                                       |
+| ----------------- | ----------: | -------------------------------------------------------------------------------- |
+| Basic Egg Box     |  `10000 MP` | Starter 28%, Common 42%, Uncommon 22%, Rare 7%, Ultra rare 0.9%, Legendary 0.1%  |
+| Rare Egg Box      |  `50000 MP` | Starter 10%, Common 32%, Uncommon 38%, Rare 16%, Ultra rare 3.5%, Legendary 0.5% |
+| Legendary Egg Box | `200000 MP` | Common 10%, Uncommon 36%, Rare 34%, Ultra rare 16%, Legendary 4%                 |
+
+Opening a box is handled by the Electron main process so MP debit, companion unlock,
+duplicate XP, and JSON persistence happen as one operation.
+
+The store page has two scrollable sections:
+
+- `Companion Store`: the companion collection grid.
+- `Companion Boxes`: larger square cards for rollable boxes. The card body shows only
+  the box name, price, and open state; detailed odds appear on hover.
+- Opening a box shows a full-screen roll overlay with colored companion cards moving
+  from right to left. The reel stops on the rolled companion, then shows a `You got`
+  result modal for either a new unlock or duplicate XP.
+
+Rules:
+
+- Gifted/Special companions do not appear in paid boxes.
+- Rare, Ultra rare, and Legendary companions are not directly purchasable and should
+  show `Only obtainable through a box`.
+- If the rolled companion is new, it becomes owned at level 0.
+- If the rolled companion is already owned, the duplicate gives XP to that companion.
+- Duplicate XP is fixed by rarity for now:
+  - Starter: `100 XP`.
+  - Common: `150 XP`.
+  - Uncommon: `350 XP`.
+  - Rare: `1200 XP`.
+  - Ultra rare: `4000 XP`.
+  - Legendary: `15000 XP`.
+- If duplicate XP causes level-ups, the same MP reward formula applies per level crossed.
+- The latest box openings are persisted so the UI can show the most recent drop.
+
+Future balancing ideas:
+
+- Add pity/fragments if the rare chase feels too random.
+- Add more box tiers later instead of making every monster directly buyable.
+- Keep the server/account anti-farm layer for a later milestone.
+
 ## Rarity And Pricing
 
 Each monster has a fixed rarity in code. Users cannot edit rarity.
 
 Initial rarity proposal:
 
-| Rarity | Store Multiplier | Intended Meaning |
-| --- | ---: | --- |
-| Common | 1x | Easy first unlocks |
-| Uncommon | 3x | Mild commitment |
-| Rare | 8x | Noticeable investment |
-| Epic | 20x | Long-term goal |
-| Legendary | 60x | Prestige companion |
+| Rarity    | Store Multiplier | Intended Meaning      |
+| --------- | ---------------: | --------------------- |
+| Common    |               1x | Easy first unlocks    |
+| Uncommon  |               3x | Mild commitment       |
+| Rare      |               8x | Noticeable investment |
+| Epic      |              20x | Long-term goal        |
+| Legendary |              60x | Prestige companion    |
 
 Each monster declares a base price. Final price:
 

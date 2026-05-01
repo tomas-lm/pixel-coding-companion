@@ -2,9 +2,10 @@ import ghouEggSpriteUrl from '../assets/companions/ghou/ghou-sprite-egg.png'
 import ghouLvl1SpriteUrl from '../assets/companions/ghou/ghou-sprite-lvl1.png'
 import ghouLvl2SpriteUrl from '../assets/companions/ghou/ghou-sprite-lvl2.png'
 import ghouLvl3SpriteUrl from '../assets/companions/ghou/ghou-sprite-lvl3.png'
+import { COMPANION_STORE_DEFINITIONS, STARTER_COMPANION_ID } from '../../../shared/companionStore'
 import type { CompanionDefinition, CompanionSpriteStage } from './companionTypes'
 
-export const STARTER_COMPANION_ID = 'ghou'
+export { STARTER_COMPANION_ID }
 
 export const GHOU_STAGES: CompanionSpriteStage[] = [
   {
@@ -45,22 +46,12 @@ export const GHOU_STAGES: CompanionSpriteStage[] = [
   }
 ]
 
-export const COMPANION_REGISTRY: CompanionDefinition[] = [
-  {
-    basePrice: 0,
-    id: STARTER_COMPANION_ID,
-    name: 'Ghou',
-    rarity: 'starter',
+export const COMPANION_REGISTRY: CompanionDefinition[] = COMPANION_STORE_DEFINITIONS.map(
+  (companion) => ({
+    ...companion,
     stages: GHOU_STAGES
-  },
-  {
-    basePrice: 10000,
-    id: 'raya',
-    name: 'Raya',
-    rarity: 'common',
-    stages: GHOU_STAGES
-  }
-]
+  })
+)
 
 export function getCompanionStageForLevel(
   companion: CompanionDefinition,

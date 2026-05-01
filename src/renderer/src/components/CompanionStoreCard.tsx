@@ -1,7 +1,10 @@
+import type { CSSProperties } from 'react'
 import {
   formatCompanionRarity,
   formatMonsterPoints,
-  getCompanionPrice
+  getCompanionRarityColor,
+  getCompanionPrice,
+  isBoxOnlyRarity
 } from '../companions/companionEconomy'
 import { getCompanionStageForLevel } from '../companions/companionRegistry'
 import type { CompanionCardState, CompanionDefinition } from '../companions/companionTypes'
@@ -9,20 +12,55 @@ import { CompanionAvatar } from './CompanionAvatar'
 
 type CompanionStoreCardProps = {
   companion: CompanionDefinition
+  onSelect: (companion: CompanionDefinition) => void
   state: CompanionCardState
 }
 
 export function CompanionStoreCard({
   companion,
+  onSelect,
   state
 }: CompanionStoreCardProps): React.JSX.Element {
   const stage = getCompanionStageForLevel(companion, state.level)
   const price = getCompanionPrice(companion.basePrice, companion.rarity)
+  const priceLabel = (() => {
+    if (companion.acquisition === 'gifted') return 'Gifted only'
+    if (companion.acquisition === 'box_only' || isBoxOnlyRarity(companion.rarity)) {
+      return 'Only obtainable through a box'
+    }
+
+    return `${formatMonsterPoints(price)} MP`
+  })()
+  const rarityColor = getCompanionRarityColor(companion.rarity)
   const rarityLabel = formatCompanionRarity(companion.rarity)
+  const cardClassName = [
+    'companion-store-card',
+    state.owned ? undefined : 'companion-store-card--locked',
+    state.selected ? 'companion-store-card--selected' : undefined
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const selectCompanion = (): void => {
+    if (state.owned) {
+      onSelect(companion)
+    }
+  }
 
   return (
     <article
-      className={`companion-store-card${state.owned ? '' : ' companion-store-card--locked'}`}
+      className={cardClassName}
+      aria-pressed={state.owned ? state.selected : undefined}
+      role={state.owned ? 'button' : undefined}
+      style={{ '--companion-rarity-color': rarityColor } as CSSProperties}
+      tabIndex={state.owned ? 0 : undefined}
+      onClick={selectCompanion}
+      onKeyDown={(event) => {
+        if (!state.owned || (event.key !== 'Enter' && event.key !== ' ')) return
+
+        event.preventDefault()
+        selectCompanion()
+      }}
     >
       <div className="companion-store-card-art">
         <CompanionAvatar
@@ -39,6 +77,13 @@ export function CompanionStoreCard({
             </svg>
           </span>
         )}
+        {state.selected && (
+          <span className="companion-store-selected" aria-label="Selected">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M5 12.5l4.2 4.2 9.8-10" />
+            </svg>
+          </span>
+        )}
       </div>
 
       <div className="companion-store-card-meta">
@@ -50,9 +95,9 @@ export function CompanionStoreCard({
         <strong>{companion.name}</strong>
         <span>{rarityLabel}</span>
         {state.owned ? (
-          <small>Lvl {state.level}</small>
+          <small>{state.selected ? 'Selected' : `Lvl ${state.level}`}</small>
         ) : (
-          <small>{formatMonsterPoints(price)} MP</small>
+          <small>{priceLabel}</small>
         )}
       </div>
     </article>
