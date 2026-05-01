@@ -696,7 +696,7 @@ function registerAppMenu(mainWindow: BrowserWindow): void {
     ...(process.platform === 'darwin'
       ? [
           {
-            label: app.name,
+            label: APP_NAME,
             submenu: [
               { role: 'about' },
               { type: 'separator' },
@@ -769,6 +769,11 @@ function createWindow(): void {
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId(APP_ID)
+  app.setAboutPanelOptions({
+    applicationName: APP_NAME,
+    applicationVersion: app.getVersion(),
+    version: app.getVersion()
+  })
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(icon)
   }

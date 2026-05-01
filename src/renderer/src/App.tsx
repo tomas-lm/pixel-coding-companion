@@ -23,6 +23,11 @@ import {
   type WorkspaceLayout,
   isTerminalThemeId
 } from '../../shared/workspace'
+import {
+  ActivitySidebar,
+  type ActivitySidebarItem,
+  type ActivitySidebarItemId
+} from './components/ActivitySidebar'
 import { CompanionPanel } from './components/CompanionPanel'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { TerminalPane } from './components/TerminalPane'
@@ -34,13 +39,13 @@ const DEFAULT_LAYOUT: WorkspaceLayout = {
   railWidth: 300,
   companionWidth: 320,
   projectsHeight: 178,
-  terminalsHeight: 260
+  terminalsHeight: 340
 }
 const LAYOUT_LIMITS: Record<keyof WorkspaceLayout, { min: number; max: number }> = {
   railWidth: { min: 240, max: 520 },
   companionWidth: { min: 220, max: 520 },
   projectsHeight: { min: 110, max: 360 },
-  terminalsHeight: { min: 130, max: 420 }
+  terminalsHeight: { min: 130, max: 640 }
 }
 
 const KIND_LABELS: Record<SessionKind, string> = {
@@ -445,6 +450,12 @@ function App(): React.JSX.Element {
   const [layout, setLayout] = useState<WorkspaceLayout>(DEFAULT_LAYOUT)
   const [terminalThemeId, setTerminalThemeId] = useState<TerminalThemeId>(DEFAULT_TERMINAL_THEME_ID)
   const terminalHoverCardTimeoutRef = useRef<number | null>(null)
+  const workspaceRailScrollRef = useRef<HTMLDivElement | null>(null)
+  const projectsSectionRef = useRef<HTMLElement | null>(null)
+  const terminalsSectionRef = useRef<HTMLElement | null>(null)
+  const runningSectionRef = useRef<HTMLElement | null>(null)
+  const [activeActivityItemId, setActiveActivityItemId] =
+    useState<ActivitySidebarItemId>('projects')
   const [companionBridgeState, setCompanionBridgeState] = useState<CompanionBridgeState>(
     DEFAULT_COMPANION_BRIDGE_STATE
   )
@@ -505,6 +516,31 @@ function App(): React.JSX.Element {
     (config) => config.kind === 'ai' && config.commands.length > 0
   )
   const selectedStartPixelLabel = selectedStartPixelConfigs.length === 1 ? 'terminal' : 'terminals'
+  const activitySidebarItems: ActivitySidebarItem[] = [
+    {
+      badge: projects.length,
+      icon: 'projects',
+      id: 'projects',
+      label: 'Projects'
+    },
+    {
+      badge: activeProjectConfigs.length,
+      icon: 'terminals',
+      id: 'terminals',
+      label: 'Configured terminals'
+    },
+    {
+      badge: activeProjectSessions.length,
+      icon: 'running',
+      id: 'running',
+      label: 'Running sessions'
+    },
+    {
+      icon: 'companion',
+      id: 'companion',
+      label: COMPANION_NAME
+    }
+  ]
 
   useEffect(() => {
     let mounted = true
@@ -595,6 +631,21 @@ function App(): React.JSX.Element {
       mounted = false
       window.clearInterval(bridgeTimer)
     }
+  }, [])
+
+  const selectActivityItem = useCallback((itemId: ActivitySidebarItemId): void => {
+    setActiveActivityItemId(itemId)
+
+    const sectionByItemId: Partial<Record<ActivitySidebarItemId, HTMLElement | null>> = {
+      projects: projectsSectionRef.current,
+      terminals: terminalsSectionRef.current,
+      running: runningSectionRef.current
+    }
+    const section = sectionByItemId[itemId]
+
+    if (!section || !workspaceRailScrollRef.current) return
+
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
   const updateSession = useCallback((sessionId: string, patch: RunningSessionPatch): void => {
@@ -1073,17 +1124,26 @@ function App(): React.JSX.Element {
 
   return (
     <main className="app-shell" style={activeStyle}>
+      <ActivitySidebar
+        activeItemId={activeActivityItemId}
+        items={activitySidebarItems}
+        onSelect={selectActivityItem}
+      />
+
       <aside className="workspace-rail">
-        <div className="workspace-rail-scroll">
+        <div className="workspace-rail-scroll" ref={workspaceRailScrollRef}>
           <div className="brand-lockup">
-            <span className="brand-mark" aria-hidden="true" />
             <div className="brand-title-row">
               <strong>Pixel Companion</strong>
               <span className="brand-version">v1.0.0</span>
             </div>
           </div>
 
-          <section className="rail-section rail-section--projects" aria-label="Projects">
+          <section
+            className="rail-section rail-section--projects"
+            ref={projectsSectionRef}
+            aria-label="Projects"
+          >
             <div className="rail-header">
               <span>Projects</span>
               <AddButton
@@ -1145,7 +1205,11 @@ function App(): React.JSX.Element {
             )}
           </section>
 
-          <section className="rail-section rail-section--config" aria-label="Configured terminals">
+          <section
+            className="rail-section rail-section--config"
+            ref={terminalsSectionRef}
+            aria-label="Configured terminals"
+          >
             <div className="rail-header">
               <span>Configured terminals</span>
               <AddButton
@@ -1198,7 +1262,11 @@ function App(): React.JSX.Element {
             onPointerDown={(event) => startLayoutResize(event, 'terminalsHeight')}
           />
 
-          <section className="rail-section rail-section--running" aria-label="Running sessions">
+          <section
+            className="rail-section rail-section--running"
+            ref={runningSectionRef}
+            aria-label="Running sessions"
+          >
             <div className="rail-header">
               <span>Running</span>
               <small>{activeProjectSessions.length}</small>

@@ -34,13 +34,16 @@ button {
 
 .app-shell {
   --active-project-color: #4ea1ff;
+  --activity-bar-width: 52px;
   --rail-width: 300px;
   --companion-width: 320px;
   --projects-height: 178px;
   --terminals-height: 260px;
+  --resize-divider-size: 4px;
   display: grid;
   grid-template-columns:
-    minmax(240px, min(var(--rail-width), 32vw)) 16px minmax(320px, 1fr) 16px
+    var(--activity-bar-width) minmax(240px, min(var(--rail-width), 32vw))
+    var(--resize-divider-size) minmax(320px, 1fr) var(--resize-divider-size)
     minmax(220px, min(var(--companion-width), 28vw));
   gap: 0;
   width: 100vw;
@@ -48,6 +51,101 @@ button {
   min-height: 0;
   overflow: hidden;
   padding: 0;
+}
+
+.activity-sidebar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: var(--activity-bar-width);
+  min-width: var(--activity-bar-width);
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 0;
+  background:
+    linear-gradient(180deg, rgba(20, 22, 27, 0.96), rgba(13, 15, 19, 0.98)),
+    color-mix(in srgb, var(--active-project-color) 6%, transparent);
+}
+
+.activity-sidebar-group {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 0;
+}
+
+.activity-sidebar-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--activity-bar-width);
+  height: 48px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--ev-c-text-2) 76%, transparent);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.activity-sidebar-item::before {
+  content: '';
+  position: absolute;
+  inset: 8px auto 8px 0;
+  width: 2px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.activity-sidebar-item:hover,
+.activity-sidebar-item:focus-visible,
+.activity-sidebar-item--active {
+  color: color-mix(in srgb, var(--active-project-color) 72%, white);
+}
+
+.activity-sidebar-item:hover,
+.activity-sidebar-item:focus-visible {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.activity-sidebar-item--active {
+  background: color-mix(in srgb, var(--active-project-color) 14%, transparent);
+}
+
+.activity-sidebar-item--active::before,
+.activity-sidebar-item:focus-visible::before {
+  background: var(--active-project-color);
+}
+
+.activity-sidebar-item svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.activity-sidebar-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.36);
+  border-radius: 999px;
+  padding: 0 4px;
+  background: var(--active-project-color);
+  color: #071014;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
 }
 
 .workspace-rail,
@@ -69,7 +167,7 @@ button {
 .workspace-rail-scroll {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0;
   height: 100%;
   max-height: 100%;
   overflow: auto;
@@ -112,7 +210,8 @@ button {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 12px;
+  gap: 0;
+  margin-bottom: 10px;
 }
 
 .brand-title-row {
@@ -125,7 +224,14 @@ button {
 .brand-title-row strong {
   min-width: 0;
   overflow: hidden;
+  color: color-mix(in srgb, var(--active-project-color) 76%, white);
+  font-family: 'Menlo', 'Lucida Console', monospace;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.1;
   text-overflow: ellipsis;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -152,23 +258,13 @@ button {
   color: var(--ev-c-text-2);
 }
 
-.brand-mark {
-  display: inline-block;
-  width: 34px;
-  height: 34px;
-  background:
-    linear-gradient(90deg, transparent 25%, #f7d56f 25% 75%, transparent 75%),
-    linear-gradient(#4fd1c5 0 0);
-  image-rendering: pixelated;
-}
-
 .brand-version {
   flex: 0 0 auto;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid color-mix(in srgb, var(--active-project-color) 34%, rgba(255, 255, 255, 0.08));
   border-radius: 999px;
   padding: 2px 7px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--ev-c-text-2);
+  background: color-mix(in srgb, var(--active-project-color) 12%, rgba(255, 255, 255, 0.05));
+  color: color-mix(in srgb, var(--active-project-color) 62%, var(--ev-c-text-2));
   font-size: 11px;
   font-weight: 700;
   line-height: 1.2;
@@ -191,7 +287,7 @@ button {
 
 .rail-section--actions {
   flex: 0 0 auto;
-  padding-top: 2px;
+  padding: 8px 0;
 }
 
 .rail-header {
@@ -230,12 +326,13 @@ button {
 
 .rail-section--config {
   flex: 0 0 auto;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto minmax(0, var(--terminals-height));
   gap: 8px;
   min-height: 0;
 }
 
 .rail-section--config .template-list {
+  height: var(--terminals-height);
   max-height: var(--terminals-height);
   overflow: auto;
   padding-right: 2px;
@@ -251,54 +348,51 @@ button {
   position: relative;
   border: 0;
   padding: 0;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.08);
   cursor: grab;
+  transition: background 120ms ease;
 }
 
 .resize-handle::before {
   content: '';
   position: absolute;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  transition:
-    background 120ms ease,
-    transform 120ms ease;
+  inset: 0;
+  background: transparent;
+  transition: background 120ms ease;
 }
 
 .resize-handle:hover::before,
 .resize-handle:focus-visible::before {
-  background: color-mix(in srgb, var(--active-project-color) 62%, rgba(255, 255, 255, 0.14));
+  background: color-mix(in srgb, var(--active-project-color) 72%, rgba(255, 255, 255, 0.14));
 }
 
 .resize-handle--column {
-  min-width: 16px;
+  min-width: var(--resize-divider-size);
   cursor: col-resize;
 }
 
 .resize-handle--column::before {
-  inset: 18px 7px;
-  width: 2px;
+  width: 100%;
 }
 
 .resize-handle--column:hover::before,
 .resize-handle--column:focus-visible::before {
-  transform: scaleX(1.8);
+  transform: none;
 }
 
 .resize-handle--row {
-  flex: 0 0 10px;
-  min-height: 10px;
+  flex: 0 0 var(--resize-divider-size);
+  min-height: var(--resize-divider-size);
   cursor: row-resize;
 }
 
 .resize-handle--row::before {
-  inset: 4px 24px;
-  height: 2px;
+  height: 100%;
 }
 
 .resize-handle--row:hover::before,
 .resize-handle--row:focus-visible::before {
-  transform: scaleY(1.8);
+  transform: none;
 }
 
 .primary-button {
@@ -1966,11 +2060,19 @@ button {
   }
 
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: var(--activity-bar-width) minmax(0, 1fr);
     gap: 16px;
     height: auto;
     min-height: 100vh;
     overflow: visible;
+  }
+
+  .activity-sidebar {
+    position: sticky;
+    top: 0;
+    grid-row: 1 / span 3;
+    height: 100vh;
+    max-height: 100vh;
   }
 
   .resize-handle {
@@ -1980,6 +2082,7 @@ button {
   .workspace-rail,
   .session-panel,
   .companion-panel {
+    grid-column: 2;
     overflow: hidden;
   }
 
