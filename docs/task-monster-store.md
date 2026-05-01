@@ -73,13 +73,16 @@ making early store unlocks impossible.
 
 The store should use boxes as the primary MP sink instead of direct companion purchases.
 
-The first implementation ships with three rollable boxes:
+The first implementation ships with six rollable boxes:
 
-| Box               |       Price | Drop Table                                                                       |
-| ----------------- | ----------: | -------------------------------------------------------------------------------- |
-| Basic Egg Box     |  `10000 MP` | Starter 28%, Common 42%, Uncommon 22%, Rare 7%, Ultra rare 0.9%, Legendary 0.1%  |
-| Rare Egg Box      |  `50000 MP` | Starter 10%, Common 32%, Uncommon 38%, Rare 16%, Ultra rare 3.5%, Legendary 0.5% |
-| Legendary Egg Box | `200000 MP` | Common 10%, Uncommon 36%, Rare 34%, Ultra rare 16%, Legendary 4%                 |
+| Box               |       Price | Drop Table                                                            |
+| ----------------- | ----------: | --------------------------------------------------------------------- |
+| Daily Box         |      `Free` | Common 94%, Uncommon 5%, Rare 0.8%, Ultra rare 0.19%, Legendary 0.01% |
+| Basic Egg Box     |  `10000 MP` | Common 60%, Uncommon 30%, Rare 8.5%, Ultra rare 1.3%, Legendary 0.2%  |
+| Uncommon Box      |  `25000 MP` | Common 40%, Uncommon 50%, Rare 8%, Ultra rare 1.8%, Legendary 0.2%    |
+| Rare Egg Box      |  `50000 MP` | Common 35%, Uncommon 42%, Rare 18%, Ultra rare 4.4%, Legendary 0.6%   |
+| Ultra Rare Box    | `125000 MP` | Common 5%, Uncommon 25%, Rare 35%, Ultra rare 32%, Legendary 3%       |
+| Legendary Egg Box | `200000 MP` | Common 10%, Uncommon 36%, Rare 34%, Ultra rare 16%, Legendary 4%      |
 
 Opening a box is handled by the Electron main process so MP debit, companion unlock,
 duplicate XP, and JSON persistence happen as one operation.
@@ -96,8 +99,11 @@ The store page has two scrollable sections:
 Rules:
 
 - Gifted/Special companions do not appear in paid boxes.
+- Starter companions do not appear in paid boxes; they are directly purchasable only.
 - Rare, Ultra rare, and Legendary companions are not directly purchasable and should
-  show `Only obtainable through a box`.
+  show `Box only`.
+- The Daily Box can be claimed once per local calendar day and has intentionally bad
+  odds so it is an engagement incentive, not the main acquisition path.
 - If the rolled companion is new, it becomes owned at level 0.
 - If the rolled companion is already owned, the duplicate gives XP to that companion.
 - Duplicate XP is fixed by rarity for now:
@@ -115,6 +121,25 @@ Future balancing ideas:
 - Add pity/fragments if the rare chase feels too random.
 - Add more box tiers later instead of making every monster directly buyable.
 - Keep the server/account anti-farm layer for a later milestone.
+
+## Daily Access Metrics
+
+Initial daily access metrics are local-only in `companion-store.json`.
+
+The app records a daily access when the Companion Store state is loaded for a new local
+calendar date. Polling does not create duplicate records for the same day.
+
+Tracked fields:
+
+- `lastVisitDate`: most recent local `YYYY-MM-DD` date where the app loaded store state.
+- `currentStreak`: consecutive daily visits ending at `lastVisitDate`.
+- `longestStreak`: highest streak reached on this machine.
+- `totalVisitDays`: count of unique local days seen.
+- `recentVisitDates`: capped recent date list for future charts.
+- `boxClaims`: per-box claim date, used to lock the Daily Box after it is claimed.
+
+Future server/account metrics can reuse the same shape, but should be signed/server
+validated before being used for prestige progression.
 
 ## Rarity And Pricing
 

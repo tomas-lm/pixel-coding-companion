@@ -36,9 +36,37 @@ function createReelItem(
   }
 }
 
+function getGreatestCommonDivisor(left: number, right: number): number {
+  let currentLeft = Math.abs(left)
+  let currentRight = Math.abs(right)
+
+  while (currentRight > 0) {
+    const nextRight = currentLeft % currentRight
+    currentLeft = currentRight
+    currentRight = nextRight
+  }
+
+  return currentLeft
+}
+
+function getReelStep(companionCount: number, seed: number): number {
+  const candidates = [3, 5, 7, 11, 13, 17]
+  const rotatedCandidates = candidates
+    .slice(seed % candidates.length)
+    .concat(candidates.slice(0, seed % candidates.length))
+
+  return (
+    rotatedCandidates.find(
+      (candidate) =>
+        candidate % companionCount !== 0 &&
+        getGreatestCommonDivisor(candidate, companionCount) === 1
+    ) ?? 1
+  )
+}
+
 function createReelItems(result: CompanionBoxOpenResult): ReelItem[] {
   const rollableCompanions = COMPANION_REGISTRY.filter(
-    (companion) => companion.acquisition !== 'gifted'
+    (companion) => companion.acquisition !== 'gifted' && companion.rarity !== 'starter'
   )
   const resultCompanion =
     COMPANION_REGISTRY.find((companion) => companion.id === result.opening.companionId) ??
@@ -51,14 +79,17 @@ function createReelItems(result: CompanionBoxOpenResult): ReelItem[] {
   const seed = Array.from(result.opening.id).reduce((sum, character) => {
     return sum + character.charCodeAt(0)
   }, 0)
+  const reelStep = getReelStep(rollableCompanions.length, seed)
+  const getCompanionAt = (position: number): CompanionDefinition => {
+    return rollableCompanions[(seed + position * reelStep) % rollableCompanions.length]
+  }
   const leadingItems = Array.from({ length: REEL_RESULT_INDEX }, (_, index) => {
-    const companion = rollableCompanions[(seed + index * 5) % rollableCompanions.length]
+    const companion = getCompanionAt(index)
 
     return createReelItem(companion, `${companion.id}-before-${index}`)
   })
   const trailingItems = Array.from({ length: REEL_TRAILING_ITEMS }, (_, index) => {
-    const companion =
-      rollableCompanions[(seed + REEL_RESULT_INDEX * 5 + index * 7) % rollableCompanions.length]
+    const companion = getCompanionAt(REEL_RESULT_INDEX + index + 1)
 
     return createReelItem(companion, `${companion.id}-after-${index}`)
   })

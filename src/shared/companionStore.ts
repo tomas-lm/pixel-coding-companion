@@ -32,6 +32,7 @@ export type CompanionBoxRarityOdds = {
 }
 
 export type CompanionBoxDefinition = {
+  claimCadence?: 'daily'
   id: string
   name: string
   odds: CompanionBoxRarityOdds[]
@@ -52,8 +53,18 @@ export type CompanionBoxOpening = {
 export type CompanionStoreState = {
   activeCompanionId: string
   companions: Record<string, CompanionCollectionEntry>
+  dailyAccess: CompanionDailyAccessState
   recentOpenings: CompanionBoxOpening[]
   updatedAt?: string
+}
+
+export type CompanionDailyAccessState = {
+  boxClaims: Record<string, string>
+  currentStreak: number
+  lastVisitDate?: string
+  longestStreak: number
+  recentVisitDates: string[]
+  totalVisitDays: number
 }
 
 export type CompanionBoxOpenRequest = {
@@ -137,30 +148,65 @@ export const COMPANION_STORE_DEFINITIONS: CompanionStoreDefinition[] = [
 
 export const COMPANION_BOX_DEFINITIONS: CompanionBoxDefinition[] = [
   {
+    claimCadence: 'daily',
+    id: 'daily_egg_box',
+    name: 'Daily Box',
+    odds: [
+      { rarity: 'common', weight: 94 },
+      { rarity: 'uncommon', weight: 5 },
+      { rarity: 'rare', weight: 0.8 },
+      { rarity: 'ultra_rare', weight: 0.19 },
+      { rarity: 'legendary', weight: 0.01 }
+    ],
+    price: 0
+  },
+  {
     id: 'basic_egg_box',
     name: 'Basic Egg Box',
     odds: [
-      { rarity: 'starter', weight: 28 },
-      { rarity: 'common', weight: 42 },
-      { rarity: 'uncommon', weight: 22 },
-      { rarity: 'rare', weight: 7 },
-      { rarity: 'ultra_rare', weight: 0.9 },
-      { rarity: 'legendary', weight: 0.1 }
+      { rarity: 'common', weight: 60 },
+      { rarity: 'uncommon', weight: 30 },
+      { rarity: 'rare', weight: 8.5 },
+      { rarity: 'ultra_rare', weight: 1.3 },
+      { rarity: 'legendary', weight: 0.2 }
     ],
     price: 10000
+  },
+  {
+    id: 'uncommon_egg_box',
+    name: 'Uncommon Box',
+    odds: [
+      { rarity: 'common', weight: 40 },
+      { rarity: 'uncommon', weight: 50 },
+      { rarity: 'rare', weight: 8 },
+      { rarity: 'ultra_rare', weight: 1.8 },
+      { rarity: 'legendary', weight: 0.2 }
+    ],
+    price: 25000
   },
   {
     id: 'rare_egg_box',
     name: 'Rare Egg Box',
     odds: [
-      { rarity: 'starter', weight: 10 },
-      { rarity: 'common', weight: 32 },
-      { rarity: 'uncommon', weight: 38 },
-      { rarity: 'rare', weight: 16 },
-      { rarity: 'ultra_rare', weight: 3.5 },
-      { rarity: 'legendary', weight: 0.5 }
+      { rarity: 'common', weight: 35 },
+      { rarity: 'uncommon', weight: 42 },
+      { rarity: 'rare', weight: 18 },
+      { rarity: 'ultra_rare', weight: 4.4 },
+      { rarity: 'legendary', weight: 0.6 }
     ],
     price: 50000
+  },
+  {
+    id: 'ultra_rare_egg_box',
+    name: 'Ultra Rare Box',
+    odds: [
+      { rarity: 'common', weight: 5 },
+      { rarity: 'uncommon', weight: 25 },
+      { rarity: 'rare', weight: 35 },
+      { rarity: 'ultra_rare', weight: 32 },
+      { rarity: 'legendary', weight: 3 }
+    ],
+    price: 125000
   },
   {
     id: 'legendary_egg_box',
@@ -220,6 +266,14 @@ export function getMonsterPointsForReachedLevel(level: number): number {
 
 export function getCompanionPrice(basePrice: number, rarity: CompanionRarity): number {
   return Math.max(0, Math.floor(basePrice * RARITY_PRICE_MULTIPLIERS[rarity]))
+}
+
+export function getLocalDateKey(date = new Date()): string {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
 
 export function getCompanionRarityColor(rarity: CompanionRarity): string {

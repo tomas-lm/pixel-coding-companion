@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import {
   COMPANION_BOX_DEFINITIONS,
+  getLocalDateKey,
+  type CompanionBoxDefinition,
   type CompanionBoxOpenResult,
   type CompanionStoreState
 } from '../../../shared/companionStore'
@@ -33,6 +35,7 @@ export function CompanionStorePage({
   const [rollResult, setRollResult] = useState<CompanionBoxOpenResult | null>(null)
   const [storeError, setStoreError] = useState<string | null>(null)
   const activeCompanionId = storeState?.activeCompanionId ?? STARTER_COMPANION_ID
+  const today = getLocalDateKey()
 
   const openBox = (boxId: string): void => {
     setOpeningBoxId(boxId)
@@ -82,6 +85,16 @@ export function CompanionStorePage({
     }
   }
 
+  const getBoxAvailability = (
+    box: CompanionBoxDefinition
+  ): { isAvailable: boolean; unavailableLabel?: string } => {
+    if (box.claimCadence !== 'daily') return { isAvailable: true }
+
+    return storeState?.dailyAccess.boxClaims[box.id] === today
+      ? { isAvailable: false, unavailableLabel: 'Claimed' }
+      : { isAvailable: true }
+  }
+
   return (
     <section className="companion-store-page" aria-label="Monster store">
       <header className="companion-store-header">
@@ -105,6 +118,11 @@ export function CompanionStorePage({
         <section className="companion-store-section" aria-labelledby="companion-boxes-title">
           <div className="companion-store-section-header">
             <h2 id="companion-boxes-title">Companion Boxes</h2>
+            {storeState?.dailyAccess && (
+              <span className="companion-daily-meter">
+                Daily streak {storeState.dailyAccess.currentStreak}
+              </span>
+            )}
           </div>
           {storeError && (
             <p className="companion-store-error" role="alert">
@@ -114,6 +132,7 @@ export function CompanionStorePage({
           <CompanionBoxShelf
             boxes={COMPANION_BOX_DEFINITIONS}
             disabled={openingBoxId !== null || rollResult !== null}
+            getBoxAvailability={getBoxAvailability}
             openingBoxId={openingBoxId}
             monsterPoints={progress.monsterPoints}
             onOpenBox={openBox}

@@ -26,12 +26,14 @@ import {
   COMPANION_STORE_DEFINITIONS,
   STARTER_COMPANION_ID,
   getDuplicateXpForRarity,
+  getLocalDateKey,
   getMonsterPointsForReachedLevel,
   type CompanionBoxDefinition,
   type CompanionBoxOpenRequest,
   type CompanionBoxOpenResult,
   type CompanionBoxOpening,
   type CompanionCollectionEntry,
+  type CompanionDailyAccessState,
   type CompanionRarity,
   type CompanionSelectRequest,
   type CompanionSelectResult,
@@ -93,6 +95,7 @@ const COMPANION_MAX_LEVEL = 100
 const COMPANION_BASE_NEXT_LEVEL_XP = 120
 const COMPANION_LEVEL_XP_GROWTH = 1.13
 const MAX_RECENT_BOX_OPENINGS = 12
+const MAX_RECENT_DAILY_VISIT_DATES = 60
 const terminals = new Map<TerminalSessionId, ManagedTerminal>()
 let selectedTerminalThemeId: TerminalThemeId = DEFAULT_TERMINAL_THEME_ID
 let terminalContextRegistryQueue: Promise<void> = Promise.resolve()
@@ -322,7 +325,18 @@ function createDefaultCompanionStoreState(): CompanionStoreState {
         createDefaultCompanionCollectionEntry(definition)
       ])
     ),
+    dailyAccess: createDefaultCompanionDailyAccessState(),
     recentOpenings: []
+  }
+}
+
+function createDefaultCompanionDailyAccessState(): CompanionDailyAccessState {
+  return {
+    boxClaims: {},
+    currentStreak: 0,
+    longestStreak: 0,
+    recentVisitDates: [],
+    totalVisitDays: 0
   }
 }
 
@@ -463,6 +477,49 @@ function normalizeCompanionBoxOpening(value: unknown): CompanionBoxOpening | nul
   }
 }
 
+function isDateKey(value: unknown): value is string {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+function normalizeCompanionDailyAccessState(value: unknown): CompanionDailyAccessState {
+  if (!value || typeof value !== 'object') return createDefaultCompanionDailyAccessState()
+
+  const state = value as Partial<CompanionDailyAccessState>
+  const sourceBoxClaims =
+    state.boxClaims && typeof state.boxClaims === 'object' ? state.boxClaims : {}
+  const boxClaims = Object.fromEntries(
+    Object.entries(sourceBoxClaims as Record<string, unknown>).filter(
+      (entry): entry is [string, string] => typeof entry[0] === 'string' && isDateKey(entry[1])
+    )
+  )
+  const recentVisitDates = Array.isArray(state.recentVisitDates)
+    ? Array.from(new Set(state.recentVisitDates.filter(isDateKey))).slice(
+        -MAX_RECENT_DAILY_VISIT_DATES
+      )
+    : []
+  const totalVisitDays =
+    typeof state.totalVisitDays === 'number' && Number.isFinite(state.totalVisitDays)
+      ? Math.max(0, Math.floor(state.totalVisitDays))
+      : recentVisitDates.length
+  const currentStreak =
+    typeof state.currentStreak === 'number' && Number.isFinite(state.currentStreak)
+      ? Math.max(0, Math.floor(state.currentStreak))
+      : 0
+  const longestStreak =
+    typeof state.longestStreak === 'number' && Number.isFinite(state.longestStreak)
+      ? Math.max(currentStreak, Math.floor(state.longestStreak))
+      : currentStreak
+
+  return {
+    boxClaims,
+    currentStreak,
+    lastVisitDate: isDateKey(state.lastVisitDate) ? state.lastVisitDate : undefined,
+    longestStreak,
+    recentVisitDates,
+    totalVisitDays
+  }
+}
+
 function normalizeCompanionStoreState(value: unknown): CompanionStoreState {
   if (!value || typeof value !== 'object') return createDefaultCompanionStoreState()
 
@@ -493,6 +550,7 @@ function normalizeCompanionStoreState(value: unknown): CompanionStoreState {
   return {
     activeCompanionId,
     companions,
+    dailyAccess: normalizeCompanionDailyAccessState(state.dailyAccess),
     recentOpenings,
     updatedAt: typeof state.updatedAt === 'string' ? state.updatedAt : undefined
   }
@@ -635,6 +693,46 @@ function syncStarterCollectionEntry(
   }
 }
 
+function getPreviousDateKey(dateKey: string): string | null {
+  const date = new Date(`${dateKey}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return null
+
+  date.setDate(date.getDate() - 1)
+  return getLocalDateKey(date)
+}
+
+function recordDailyAccess(
+  state: CompanionStoreState,
+  accessDate = getLocalDateKey()
+): { state: CompanionStoreState; changed: boolean } {
+  if (state.dailyAccess.lastVisitDate === accessDate) {
+    return { state, changed: false }
+  }
+
+  const previousDate = getPreviousDateKey(accessDate)
+  const continuesStreak = previousDate !== null && state.dailyAccess.lastVisitDate === previousDate
+  const currentStreak = continuesStreak ? state.dailyAccess.currentStreak + 1 : 1
+  const recentVisitDates = Array.from(
+    new Set([...state.dailyAccess.recentVisitDates, accessDate])
+  ).slice(-MAX_RECENT_DAILY_VISIT_DATES)
+
+  return {
+    changed: true,
+    state: {
+      ...state,
+      dailyAccess: {
+        ...state.dailyAccess,
+        currentStreak,
+        lastVisitDate: accessDate,
+        longestStreak: Math.max(state.dailyAccess.longestStreak, currentStreak),
+        recentVisitDates,
+        totalVisitDays: Math.max(state.dailyAccess.totalVisitDays + 1, recentVisitDates.length)
+      },
+      updatedAt: new Date().toISOString()
+    }
+  }
+}
+
 function rollBoxRarity(box: CompanionBoxDefinition): CompanionRarity {
   const validOdds = box.odds.filter((entry) => entry.weight > 0)
   const totalWeight = validOdds.reduce((sum, entry) => sum + entry.weight, 0)
@@ -651,7 +749,7 @@ function rollBoxRarity(box: CompanionBoxDefinition): CompanionRarity {
 function rollBoxCompanion(box: CompanionBoxDefinition): CompanionStoreDefinition {
   const rarity = rollBoxRarity(box)
   const availableCompanions = COMPANION_STORE_DEFINITIONS.filter(
-    (definition) => definition.acquisition !== 'gifted'
+    (definition) => definition.acquisition !== 'gifted' && definition.rarity !== 'starter'
   )
   const candidates = availableCompanions.filter((definition) => definition.rarity === rarity)
   const rollableCompanions = candidates.length > 0 ? candidates : availableCompanions
@@ -935,8 +1033,13 @@ function registerCompanionIpc(): void {
       readCompanionProgressState(),
       readCompanionStoreState()
     ])
+    const accessResult = recordDailyAccess(syncStarterCollectionEntry(storeState, progress))
 
-    return syncStarterCollectionEntry(storeState, progress)
+    if (accessResult.changed) {
+      await writeCompanionStoreState(accessResult.state)
+    }
+
+    return accessResult.state
   })
 
   ipcMain.handle(
@@ -949,9 +1052,16 @@ function registerCompanionIpc(): void {
 
       let progress = await readCompanionProgressState()
       let storeState = syncStarterCollectionEntry(await readCompanionStoreState(), progress)
+      const accessResult = recordDailyAccess(storeState)
+      storeState = accessResult.state
+      const today = getLocalDateKey()
 
       if (progress.monsterPoints < box.price) {
         throw new Error('Not enough MP to open this box.')
+      }
+
+      if (box.claimCadence === 'daily' && storeState.dailyAccess.boxClaims[box.id] === today) {
+        throw new Error('Daily box already claimed today.')
       }
 
       const now = new Date().toISOString()
@@ -1013,6 +1123,16 @@ function registerCompanionIpc(): void {
           ...storeState.companions,
           [companion.id]: nextEntry
         },
+        dailyAccess:
+          box.claimCadence === 'daily'
+            ? {
+                ...storeState.dailyAccess,
+                boxClaims: {
+                  ...storeState.dailyAccess.boxClaims,
+                  [box.id]: today
+                }
+              }
+            : storeState.dailyAccess,
         recentOpenings: [...storeState.recentOpenings, opening].slice(-MAX_RECENT_BOX_OPENINGS),
         updatedAt: now
       }

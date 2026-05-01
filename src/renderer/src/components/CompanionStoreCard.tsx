@@ -26,7 +26,7 @@ export function CompanionStoreCard({
   const priceLabel = (() => {
     if (companion.acquisition === 'gifted') return 'Gifted only'
     if (companion.acquisition === 'box_only' || isBoxOnlyRarity(companion.rarity)) {
-      return 'Only obtainable through a box'
+      return 'Box only'
     }
 
     return `${formatMonsterPoints(price)} MP`

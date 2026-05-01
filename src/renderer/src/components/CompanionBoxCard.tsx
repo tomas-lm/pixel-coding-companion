@@ -4,9 +4,11 @@ import { formatCompanionRarity, formatMonsterPoints } from '../companions/compan
 type CompanionBoxCardProps = {
   box: CompanionBoxDefinition
   disabled: boolean
+  isAvailable?: boolean
   isOpening: boolean
   monsterPoints: number
   onOpen: (boxId: string) => void
+  unavailableLabel?: string
 }
 
 function getOddsLabel(box: CompanionBoxDefinition): string {
@@ -16,7 +18,11 @@ function getOddsLabel(box: CompanionBoxDefinition): string {
     .map((entry) => {
       const percentage = totalWeight > 0 ? (entry.weight / totalWeight) * 100 : 0
       const formattedPercentage =
-        percentage < 1 ? percentage.toFixed(1) : Math.round(percentage).toString()
+        percentage < 0.1
+          ? percentage.toFixed(2)
+          : percentage < 1
+            ? percentage.toFixed(1)
+            : Math.round(percentage).toString()
 
       return `${formatCompanionRarity(entry.rarity)} ${formattedPercentage}%`
     })
@@ -26,18 +32,27 @@ function getOddsLabel(box: CompanionBoxDefinition): string {
 export function CompanionBoxCard({
   box,
   disabled,
+  isAvailable = true,
   isOpening,
   monsterPoints,
-  onOpen
+  onOpen,
+  unavailableLabel = 'Unavailable'
 }: CompanionBoxCardProps): React.JSX.Element {
-  const canOpen = monsterPoints >= box.price && !disabled
+  const hasEnoughMp = monsterPoints >= box.price
+  const canOpen = hasEnoughMp && !disabled && isAvailable
   const buttonLabel = isOpening
     ? 'Opening'
     : canOpen
-      ? 'Open box'
-      : disabled
-        ? 'Waiting'
-        : 'Need MP'
+      ? box.claimCadence === 'daily'
+        ? 'Claim daily'
+        : 'Open box'
+      : !isAvailable
+        ? unavailableLabel
+        : disabled
+          ? 'Waiting'
+          : 'Need MP'
+  const priceLabel =
+    box.claimCadence === 'daily' ? 'Free daily' : `${formatMonsterPoints(box.price)} MP`
 
   return (
     <article className="companion-box-card">
@@ -47,7 +62,7 @@ export function CompanionBoxCard({
 
       <div className="companion-box-card-copy">
         <strong>{box.name}</strong>
-        <small>{formatMonsterPoints(box.price)} MP</small>
+        <small>{priceLabel}</small>
       </div>
 
       <button
