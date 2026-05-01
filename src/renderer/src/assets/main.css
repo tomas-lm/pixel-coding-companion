@@ -150,6 +150,7 @@ button {
 
 .workspace-rail,
 .session-panel,
+.companion-catalog-panel,
 .companion-panel {
   min-width: 0;
   min-height: 0;
@@ -739,6 +740,231 @@ button {
   min-width: 0;
   min-height: 0;
   padding: 18px;
+}
+
+.companion-catalog-panel {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  background: #111318;
+}
+
+.companion-store-page {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px;
+  background: #111318;
+}
+
+.companion-store-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.companion-store-header h1 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--active-project-color) 72%, white);
+  font-family: 'Menlo', 'Lucida Console', monospace;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.monster-points-balance {
+  flex: 0 0 auto;
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--active-project-color) 36%, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.035);
+  font-family: 'Menlo', 'Lucida Console', monospace;
+}
+
+.monster-points-balance span {
+  color: color-mix(in srgb, var(--active-project-color) 70%, white);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.monster-points-balance strong {
+  color: var(--ev-c-text-1);
+  font-size: 13px;
+}
+
+.companion-store-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.companion-store-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  height: 196px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--active-project-color) 24%, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    #16191f;
+}
+
+.companion-store-card--locked {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.companion-store-card-art {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  place-items: center;
+  padding: 12px;
+}
+
+.companion-avatar {
+  width: var(--companion-avatar-width);
+  height: var(--companion-avatar-height);
+  max-width: 100%;
+  max-height: 124px;
+  background-image: var(--companion-avatar-image);
+  background-position: 0% 0%;
+  background-repeat: no-repeat;
+  background-size: var(--companion-avatar-background-size);
+  image-rendering: pixelated;
+  transform-origin: center bottom;
+}
+
+.companion-avatar--dimmed {
+  filter: grayscale(0.85);
+  opacity: 0.34;
+}
+
+.companion-store-card--locked:hover .companion-avatar--dimmed,
+.companion-store-card--locked:focus-within .companion-avatar--dimmed {
+  filter: none;
+  opacity: 0.88;
+}
+
+.companion-store-card:not(.companion-store-card--locked):hover .companion-avatar {
+  animation: ghou-idle-sprite 2.4s linear infinite;
+}
+
+.companion-store-lock {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.58);
+  color: color-mix(in srgb, var(--active-project-color) 58%, white);
+}
+
+.companion-store-lock svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+}
+
+.companion-store-card-meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 12px 12px;
+  font-family: 'Menlo', 'Lucida Console', monospace;
+}
+
+.companion-store-card-meta strong,
+.companion-store-card-meta span,
+.companion-store-card-hover strong,
+.companion-store-card-hover span,
+.companion-store-card-hover small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.companion-store-card-meta strong {
+  color: var(--ev-c-text-1);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.companion-store-card-meta span {
+  color: color-mix(in srgb, var(--active-project-color) 58%, var(--ev-c-text-2));
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.companion-store-card-hover {
+  position: absolute;
+  inset: auto 8px 8px;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.82);
+  font-family: 'Menlo', 'Lucida Console', monospace;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.companion-store-card:hover .companion-store-card-hover,
+.companion-store-card:focus-within .companion-store-card-hover {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.companion-store-card-hover strong {
+  color: var(--ev-c-text-1);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.companion-store-card-hover span,
+.companion-store-card-hover small {
+  color: color-mix(in srgb, var(--active-project-color) 62%, var(--ev-c-text-2));
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .session-header {
@@ -2081,6 +2307,7 @@ button {
 
   .workspace-rail,
   .session-panel,
+  .companion-catalog-panel,
   .companion-panel {
     grid-column: 2;
     overflow: hidden;
@@ -2097,7 +2324,8 @@ button {
     overflow: auto;
   }
 
-  .session-panel {
+  .session-panel,
+  .companion-catalog-panel {
     min-height: 560px;
   }
 

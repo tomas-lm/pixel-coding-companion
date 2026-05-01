@@ -10,6 +10,7 @@ export type CompanionProgress = CompanionProgressState
 export type CompanionProgressInput = {
   currentXp?: number
   level?: number
+  monsterPoints?: number
   name?: string
   totalXp?: number
   updatedAt?: string
@@ -40,6 +41,7 @@ export function createCompanionProgressSnapshot(
     currentXp,
     level,
     maxLevel: MAX_COMPANION_LEVEL,
+    monsterPoints: Math.max(0, Math.floor(input.monsterPoints ?? 0)),
     name: input.name?.trim() || 'Ghou',
     progressRatio: xpForNextLevel > 0 ? currentXp / xpForNextLevel : 1,
     totalXp: Math.max(0, Math.floor(input.totalXp ?? currentXp)),

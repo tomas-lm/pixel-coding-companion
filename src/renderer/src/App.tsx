@@ -28,6 +28,7 @@ import {
   type ActivitySidebarItem,
   type ActivitySidebarItemId
 } from './components/ActivitySidebar'
+import { CompanionCatalogPanel } from './components/CompanionCatalogPanel'
 import { CompanionPanel } from './components/CompanionPanel'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { TerminalPane } from './components/TerminalPane'
@@ -450,12 +451,8 @@ function App(): React.JSX.Element {
   const [layout, setLayout] = useState<WorkspaceLayout>(DEFAULT_LAYOUT)
   const [terminalThemeId, setTerminalThemeId] = useState<TerminalThemeId>(DEFAULT_TERMINAL_THEME_ID)
   const terminalHoverCardTimeoutRef = useRef<number | null>(null)
-  const workspaceRailScrollRef = useRef<HTMLDivElement | null>(null)
-  const projectsSectionRef = useRef<HTMLElement | null>(null)
-  const terminalsSectionRef = useRef<HTMLElement | null>(null)
-  const runningSectionRef = useRef<HTMLElement | null>(null)
   const [activeActivityItemId, setActiveActivityItemId] =
-    useState<ActivitySidebarItemId>('projects')
+    useState<ActivitySidebarItemId>('terminal')
   const [companionBridgeState, setCompanionBridgeState] = useState<CompanionBridgeState>(
     DEFAULT_COMPANION_BRIDGE_STATE
   )
@@ -518,27 +515,14 @@ function App(): React.JSX.Element {
   const selectedStartPixelLabel = selectedStartPixelConfigs.length === 1 ? 'terminal' : 'terminals'
   const activitySidebarItems: ActivitySidebarItem[] = [
     {
-      badge: projects.length,
-      icon: 'projects',
-      id: 'projects',
-      label: 'Projects'
-    },
-    {
-      badge: activeProjectConfigs.length,
-      icon: 'terminals',
-      id: 'terminals',
-      label: 'Configured terminals'
-    },
-    {
-      badge: activeProjectSessions.length,
-      icon: 'running',
-      id: 'running',
-      label: 'Running sessions'
+      icon: 'terminal',
+      id: 'terminal',
+      label: 'Terminal workspace'
     },
     {
       icon: 'companion',
-      id: 'companion',
-      label: COMPANION_NAME
+      id: 'companions',
+      label: 'Companion selector'
     }
   ]
 
@@ -631,21 +615,6 @@ function App(): React.JSX.Element {
       mounted = false
       window.clearInterval(bridgeTimer)
     }
-  }, [])
-
-  const selectActivityItem = useCallback((itemId: ActivitySidebarItemId): void => {
-    setActiveActivityItemId(itemId)
-
-    const sectionByItemId: Partial<Record<ActivitySidebarItemId, HTMLElement | null>> = {
-      projects: projectsSectionRef.current,
-      terminals: terminalsSectionRef.current,
-      running: runningSectionRef.current
-    }
-    const section = sectionByItemId[itemId]
-
-    if (!section || !workspaceRailScrollRef.current) return
-
-    section.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
   const updateSession = useCallback((sessionId: string, patch: RunningSessionPatch): void => {
@@ -1127,11 +1096,11 @@ function App(): React.JSX.Element {
       <ActivitySidebar
         activeItemId={activeActivityItemId}
         items={activitySidebarItems}
-        onSelect={selectActivityItem}
+        onSelect={setActiveActivityItemId}
       />
 
       <aside className="workspace-rail">
-        <div className="workspace-rail-scroll" ref={workspaceRailScrollRef}>
+        <div className="workspace-rail-scroll">
           <div className="brand-lockup">
             <div className="brand-title-row">
               <strong>Pixel Companion</strong>
@@ -1139,11 +1108,7 @@ function App(): React.JSX.Element {
             </div>
           </div>
 
-          <section
-            className="rail-section rail-section--projects"
-            ref={projectsSectionRef}
-            aria-label="Projects"
-          >
+          <section className="rail-section rail-section--projects" aria-label="Projects">
             <div className="rail-header">
               <span>Projects</span>
               <AddButton
@@ -1205,11 +1170,7 @@ function App(): React.JSX.Element {
             )}
           </section>
 
-          <section
-            className="rail-section rail-section--config"
-            ref={terminalsSectionRef}
-            aria-label="Configured terminals"
-          >
+          <section className="rail-section rail-section--config" aria-label="Configured terminals">
             <div className="rail-header">
               <span>Configured terminals</span>
               <AddButton
@@ -1262,11 +1223,7 @@ function App(): React.JSX.Element {
             onPointerDown={(event) => startLayoutResize(event, 'terminalsHeight')}
           />
 
-          <section
-            className="rail-section rail-section--running"
-            ref={runningSectionRef}
-            aria-label="Running sessions"
-          >
+          <section className="rail-section rail-section--running" aria-label="Running sessions">
             <div className="rail-header">
               <span>Running</span>
               <small>{activeProjectSessions.length}</small>
@@ -1324,68 +1281,72 @@ function App(): React.JSX.Element {
         onPointerDown={(event) => startLayoutResize(event, 'railWidth')}
       />
 
-      <section className="session-panel" aria-label="Session preview">
-        <header className="session-header">
-          <div>
-            <span className="eyebrow">{activeProject?.name ?? 'Pixel Companion'}</span>
-            <h1>{terminalTitle}</h1>
-            <p>{sessionSummary}</p>
-          </div>
-          <div className="session-header-actions">
-            <span className={`kind-badge kind-badge--${activeSessionKind}`}>
-              {KIND_LABELS[activeSessionKind]}
-            </span>
-            <span className={`status-pill status-pill--${terminalStatusKey}`}>
-              {terminalStatus}
-            </span>
-          </div>
-        </header>
-
-        <div className="session-body">
-          <div className="terminal-stack">
-            {runningSessions.map((session) => (
-              <div
-                key={session.id}
-                className={`terminal-pane-instance${
-                  session.id === selectedSessionId ? ' terminal-pane-instance--active' : ''
-                }`}
-              >
-                <TerminalPane
-                  session={session}
-                  isActive={session.id === selectedSessionId}
-                  terminalThemeId={terminalThemeId}
-                  onSessionActivity={updateSessionActivity}
-                  onSessionExit={markSessionExited}
-                  onSessionStartError={markSessionStartError}
-                  onSessionStarted={markSessionStarted}
-                />
-              </div>
-            ))}
-          </div>
-          {!activeSession && (
-            <div className="empty-terminal">
-              <strong>{activeProject?.name ?? 'No workspaces yet'}</strong>
-              {!activeProject ? (
-                <AddButton
-                  className="primary-button"
-                  label="Add workspace"
-                  onClick={openCreateProject}
-                />
-              ) : activeProjectConfigs.length === 0 ? (
-                <AddButton
-                  className="primary-button"
-                  label="Add terminal"
-                  onClick={openCreateTerminal}
-                />
-              ) : (
-                <button className="primary-button" type="button" onClick={openStartWorkspace}>
-                  Start workspace
-                </button>
-              )}
+      {activeActivityItemId === 'terminal' ? (
+        <section className="session-panel" aria-label="Session preview">
+          <header className="session-header">
+            <div>
+              <span className="eyebrow">{activeProject?.name ?? 'Pixel Companion'}</span>
+              <h1>{terminalTitle}</h1>
+              <p>{sessionSummary}</p>
             </div>
-          )}
-        </div>
-      </section>
+            <div className="session-header-actions">
+              <span className={`kind-badge kind-badge--${activeSessionKind}`}>
+                {KIND_LABELS[activeSessionKind]}
+              </span>
+              <span className={`status-pill status-pill--${terminalStatusKey}`}>
+                {terminalStatus}
+              </span>
+            </div>
+          </header>
+
+          <div className="session-body">
+            <div className="terminal-stack">
+              {runningSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className={`terminal-pane-instance${
+                    session.id === selectedSessionId ? ' terminal-pane-instance--active' : ''
+                  }`}
+                >
+                  <TerminalPane
+                    session={session}
+                    isActive={session.id === selectedSessionId}
+                    terminalThemeId={terminalThemeId}
+                    onSessionActivity={updateSessionActivity}
+                    onSessionExit={markSessionExited}
+                    onSessionStartError={markSessionStartError}
+                    onSessionStarted={markSessionStarted}
+                  />
+                </div>
+              ))}
+            </div>
+            {!activeSession && (
+              <div className="empty-terminal">
+                <strong>{activeProject?.name ?? 'No workspaces yet'}</strong>
+                {!activeProject ? (
+                  <AddButton
+                    className="primary-button"
+                    label="Add workspace"
+                    onClick={openCreateProject}
+                  />
+                ) : activeProjectConfigs.length === 0 ? (
+                  <AddButton
+                    className="primary-button"
+                    label="Add terminal"
+                    onClick={openCreateTerminal}
+                  />
+                ) : (
+                  <button className="primary-button" type="button" onClick={openStartWorkspace}>
+                    Start workspace
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      ) : (
+        <CompanionCatalogPanel progress={companionProgress} />
+      )}
 
       <CompanionPanel
         companionName={COMPANION_NAME}

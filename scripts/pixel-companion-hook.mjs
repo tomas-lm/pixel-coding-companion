@@ -81,6 +81,18 @@ function getXpRequiredForLevel(level) {
   return Math.floor(BASE_NEXT_LEVEL_XP * Math.pow(LEVEL_XP_GROWTH, safeLevel))
 }
 
+function getMonsterPointsForReachedLevel(level) {
+  const safeLevel = Math.max(0, Math.floor(level))
+
+  if (safeLevel <= 0) return 0
+  if (safeLevel <= 2) return 500
+
+  const progress = (safeLevel - 2) / 98
+  const rawReward = 500 + 499500 * Math.pow(progress, 2.2)
+
+  return Math.round(rawReward / 50) * 50
+}
+
 function createDefaultState() {
   return {
     currentState: 'idle',
@@ -96,6 +108,7 @@ function createDefaultProgress() {
     currentXp: 0,
     level: 0,
     maxLevel: MAX_COMPANION_LEVEL,
+    monsterPoints: 0,
     name: COMPANION_NAME,
     progressRatio: 0,
     recentAwards: [],
@@ -344,6 +357,10 @@ function normalizeProgress(progress) {
     currentXp,
     level,
     maxLevel: MAX_COMPANION_LEVEL,
+    monsterPoints:
+      typeof progress.monsterPoints === 'number' && Number.isFinite(progress.monsterPoints)
+        ? Math.max(0, Math.floor(progress.monsterPoints))
+        : 0,
     name:
       typeof progress.name === 'string' && progress.name.trim()
         ? progress.name.trim()
@@ -632,10 +649,12 @@ function addXp(progress, xp) {
   let nextLevel = progress.level
   let nextCurrentXp = progress.currentXp + xp
   let nextXpForLevel = getXpRequiredForLevel(nextLevel)
+  let monsterPointsEarned = 0
 
   while (nextLevel < MAX_COMPANION_LEVEL && nextCurrentXp >= nextXpForLevel) {
     nextCurrentXp -= nextXpForLevel
     nextLevel += 1
+    monsterPointsEarned += getMonsterPointsForReachedLevel(nextLevel)
     nextXpForLevel = getXpRequiredForLevel(nextLevel)
   }
 
@@ -647,6 +666,7 @@ function addXp(progress, xp) {
     ...progress,
     currentXp: nextCurrentXp,
     level: nextLevel,
+    monsterPoints: progress.monsterPoints + monsterPointsEarned,
     progressRatio:
       nextLevel >= MAX_COMPANION_LEVEL || nextXpForLevel <= 0 ? 1 : nextCurrentXp / nextXpForLevel,
     totalXp: progress.totalXp + xp,

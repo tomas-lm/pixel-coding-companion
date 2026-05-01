@@ -44,6 +44,7 @@ export type CompanionProgressState = {
   currentXp: number
   level: number
   maxLevel: number
+  monsterPoints: number
   name: string
   progressRatio: number
   totalXp: number

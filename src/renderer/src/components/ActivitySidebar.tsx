@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 
-export type ActivitySidebarItemId = 'projects' | 'terminals' | 'running' | 'companion'
+export type ActivitySidebarItemId = 'terminal' | 'companions'
 
-type ActivityIconName = 'companion' | 'projects' | 'running' | 'terminals'
+type ActivityIconName = 'companion' | 'terminal'
 
 export type ActivitySidebarItem = {
   badge?: number | string
@@ -19,26 +19,12 @@ type ActivitySidebarProps = {
 
 function ActivityIcon({ name }: { name: ActivityIconName }): ReactNode {
   switch (name) {
-    case 'projects':
-      return (
-        <svg aria-hidden="true" viewBox="0 0 24 24">
-          <path d="M3.5 6.5h6l2 2h9v10h-17z" />
-          <path d="M3.5 6.5v-1.5h6.5l2 2h8.5v1.5" />
-        </svg>
-      )
-    case 'terminals':
+    case 'terminal':
       return (
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path d="M4 5h16v14h-16z" />
           <path d="M7 9l3 3-3 3" />
           <path d="M12 16h5" />
-        </svg>
-      )
-    case 'running':
-      return (
-        <svg aria-hidden="true" viewBox="0 0 24 24">
-          <path d="M8 5l11 7-11 7z" />
-          <path d="M4 5v14" />
         </svg>
       )
     case 'companion':

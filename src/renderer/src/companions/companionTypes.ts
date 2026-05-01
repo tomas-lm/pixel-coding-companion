@@ -1,0 +1,29 @@
+export type CompanionRarity = 'starter' | 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+
+export type CompanionStageId = 'egg' | 'lvl1' | 'lvl2' | 'lvl3'
+
+export type CompanionSpriteStage = {
+  frameColumns: number
+  frameRows: number
+  height: number
+  id: CompanionStageId
+  minLevel: number
+  spriteUrl: string
+  width: number
+}
+
+export type CompanionDefinition = {
+  basePrice: number
+  id: string
+  name: string
+  rarity: CompanionRarity
+  stages: CompanionSpriteStage[]
+}
+
+export type CompanionCardState = {
+  currentXp: number
+  level: number
+  monsterPoints: number
+  owned: boolean
+  totalXp: number
+}

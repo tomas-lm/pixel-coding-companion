@@ -272,6 +272,7 @@ function createDefaultCompanionProgressState(): CompanionProgressState {
     currentXp: 0,
     level: 0,
     maxLevel: COMPANION_MAX_LEVEL,
+    monsterPoints: 0,
     name: 'Ghou',
     progressRatio: 0,
     totalXp: 0,
@@ -325,6 +326,10 @@ function normalizeCompanionProgressState(value: unknown): CompanionProgressState
     currentXp,
     level,
     maxLevel: COMPANION_MAX_LEVEL,
+    monsterPoints:
+      typeof state.monsterPoints === 'number' && Number.isFinite(state.monsterPoints)
+        ? Math.max(0, Math.floor(state.monsterPoints))
+        : 0,
     name: typeof state.name === 'string' && state.name.trim() ? state.name.trim() : 'Ghou',
     progressRatio: xpForNextLevel > 0 ? currentXp / xpForNextLevel : 1,
     totalXp:
