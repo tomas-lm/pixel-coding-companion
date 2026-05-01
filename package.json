@@ -11,6 +11,9 @@
     "type": "git",
     "url": "https://github.com/tomas-lm/pixel-coding-companion.git"
   },
+  "bin": {
+    "pixel": "./scripts/pixel.mjs"
+  },
   "bugs": {
     "url": "https://github.com/tomas-lm/pixel-coding-companion/issues"
   },

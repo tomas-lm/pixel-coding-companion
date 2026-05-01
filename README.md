@@ -64,7 +64,7 @@ On macOS, that is usually:
 4. Set each terminal folder and command.
 5. Mark AI agent terminals as `AI`.
 6. Click `Start Project`.
-7. Keep `Auto-launch Ghou instruction` enabled for selected AI terminals.
+7. Keep `Start with Pixel` enabled for selected Codex terminals.
 
 Example project layout:
 
@@ -77,6 +77,41 @@ ProjectX
 
 Each project owns its configured terminals, even if multiple projects reuse the same
 folder. This keeps `/dev` assistant terminals separate across projects.
+
+## Pixel Codex Launcher
+
+For Codex terminals, set the configured terminal command to `codex` or any normal
+Codex command such as:
+
+```bash
+codex --yolo
+```
+
+When `Start with Pixel` is enabled, Pixel Companion automatically launches that as:
+
+```bash
+pixel codex --yolo
+```
+
+Inside the app, Pixel resolves this to the local launcher script. For manual shell usage
+from this repo, expose the `pixel` command with:
+
+```bash
+pnpm link
+pixel codex
+```
+
+`pixel codex` installs and refreshes the Codex hook configuration before launching
+Codex:
+
+- enables `codex_hooks = true` in `~/.codex/config.toml`;
+- writes Pixel Companion hooks to `~/.codex/hooks.json`;
+- injects Ghou's companion contract on Codex startup, resume, and `/clear`;
+- records prompt start/finish events so Ghou can receive XP even when the MCP report is
+  missed.
+
+The hooks are a fallback and lifecycle layer. The MCP bridge below is still what gives
+Ghou the best natural-language updates.
 
 ## Codex MCP Setup
 
@@ -122,14 +157,14 @@ bridge like this:
   `companion_report was called`.
 - Do not mention MCP or tool calls unless the user is debugging Pixel Companion itself.
 
-The app's `Auto-launch Ghou instruction` option sends this contract into selected AI
-terminals when they start. For Codex, Pixel Companion waits for the CLI to become ready
-before sending the instruction.
+The app's `Start with Pixel` option no longer pastes this contract as a prompt. For
+Codex, it launches through `pixel codex`, then Codex hooks provide the contract as
+startup context and restore it after `/clear`.
 
 ## Manual Startup Instruction
 
-If your agent does not receive the auto-launch instruction yet, paste this at the start
-of the agent session:
+If you are using another CLI that is not wrapped by Pixel yet, paste this at the start of
+the agent session:
 
 ```text
 [Pixel Companion setup] This is a startup instruction, not a user task. You are running inside a Pixel Companion terminal. The active companion is Ghou: a calm, observant pixel ghost with lightly playful humor and concise, useful speech. Use the pixel-companion MCP companion_report tool when meaningful work starts, finishes, fails, or needs user input. If context is reset or cleared, use companion_get_profile to recover the active companion personality and reporting contract. Write Ghou messages as natural user-facing speech, matching the user language and style without assuming a specific locale. Do not mention MCP/tool calls unless the user is debugging Pixel Companion itself.
@@ -148,6 +183,7 @@ pnpm build:mac
 
 - [Roadmap](docs/roadmap.md)
 - [Architecture](docs/architecture.md)
+- [Companion Sprite Strategy](docs/companion-sprites.md)
 - [Security](docs/security.md)
 
 ## Security Notes

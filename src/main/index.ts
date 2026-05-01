@@ -69,6 +69,9 @@ const AUTO_LAUNCH_FALLBACK_DELAY_MS = 7000
 const AUTO_LAUNCH_SUBMIT_DELAY_MS = 180
 const ANSI_SEQUENCE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[ -/]*[@-~]`, 'g')
 const CODEX_CLI_READY_PATTERNS = [/Tip: Use \/skills/i, /›\s*$/]
+const CODEX_START_COMMAND_PATTERN = /^codex(?:\s|$)/
+const PIXEL_CODEX_START_COMMAND_PATTERN =
+  /^(?:pixel\s+codex|node\s+.+pixel\.mjs['"]?\s+codex)(?:\s|$)/
 const COMPANION_MAX_LEVEL = 100
 const COMPANION_BASE_NEXT_LEVEL_XP = 120
 const COMPANION_LEVEL_XP_GROWTH = 1.13
@@ -110,6 +113,30 @@ function getPtyEnv(extraEnv: Record<string, string> = {}): Record<string, string
 
   delete nextEnv.NO_COLOR
   return nextEnv
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`
+}
+
+function getPixelCliCommand(): string {
+  const candidates = [
+    join(process.cwd(), 'scripts', 'pixel.mjs'),
+    join(app.getAppPath(), 'scripts', 'pixel.mjs')
+  ]
+  const scriptPath = candidates.find((candidate) => existsSync(candidate))
+
+  return scriptPath ? `node ${shellQuote(scriptPath)}` : 'pixel'
+}
+
+function wrapCommandWithPixel(command: string, startWithPixel?: boolean): string {
+  const trimmedCommand = command.trim()
+
+  if (!startWithPixel) return trimmedCommand
+  if (!CODEX_START_COMMAND_PATTERN.test(trimmedCommand)) return trimmedCommand
+  if (PIXEL_CODEX_START_COMMAND_PATTERN.test(trimmedCommand)) return trimmedCommand
+
+  return `${getPixelCliCommand()} ${trimmedCommand}`
 }
 
 function getWorkspaceConfigPath(): string {
@@ -474,7 +501,10 @@ function registerTerminalIpc(): void {
         }
       })
 
-      const commands = request.commands?.map((command) => command.trim()).filter(Boolean) ?? []
+      const commands =
+        request.commands
+          ?.map((command) => wrapCommandWithPixel(command, request.startWithPixel))
+          .filter(Boolean) ?? []
       if (commands.length > 0) {
         writeStartupCommands(terminal, request.id, commands, {
           writeExitMarker: !request.suppressCommandExitMarker

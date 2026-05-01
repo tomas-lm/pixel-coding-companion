@@ -23,6 +23,7 @@ export type TerminalStartRequest = {
   cwd?: string
   commands?: string[]
   env?: Record<string, string>
+  startWithPixel?: boolean
   suppressCommandExitMarker?: boolean
 }
 

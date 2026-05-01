@@ -96,9 +96,9 @@ type TerminalHoverCard = {
 }
 
 type StartWorkspaceSelection = {
-  autoLaunchInstruction: boolean
   projectId: string
   selectedConfigIds: string[]
+  startWithPixel: boolean
 }
 
 type LayoutResizeTarget = keyof WorkspaceLayout
@@ -190,38 +190,20 @@ function createEmptyTerminalForm(): TerminalForm {
   }
 }
 
-function createAutoLaunchInstruction(config: TerminalConfig, project: Project | null): string {
-  const projectName = project?.name ?? 'this project'
-
-  return [
-    '[Pixel Companion setup]',
-    'This is a startup instruction, not a user task.',
-    `You are running in the Pixel Companion terminal "${config.name}" for "${projectName}".`,
-    'The active companion is Ghou: a calm, observant pixel ghost with lightly playful humor and concise, useful speech.',
-    'Use the pixel-companion MCP companion_report tool when meaningful work starts, finishes, fails, or needs user input.',
-    'If context is reset or cleared, use companion_get_profile to recover the active companion personality and reporting contract.',
-    'Write Ghou messages as natural user-facing speech, matching the user language and style without assuming a specific locale.',
-    'Do not mention MCP/tool calls unless the user is debugging Pixel Companion itself.'
-  ].join(' ')
-}
-
 function createRunningSession(
   config: TerminalConfig,
   project: Project | null,
-  useAutoLaunchInstruction = false
+  useStartWithPixel = false
 ): RunningSession {
   const now = new Date().toISOString()
-  const autoLaunchInstruction =
-    useAutoLaunchInstruction && config.kind === 'ai' && config.commands.length > 0
-      ? createAutoLaunchInstruction(config, project)
-      : undefined
+  const startWithPixel = useStartWithPixel && config.kind === 'ai' && config.commands.length > 0
 
   return {
     id: createId('session'),
     projectId: config.projectId,
     configId: config.id,
     name: config.name,
-    autoLaunchInstruction,
+    startWithPixel,
     projectColor: project?.color ?? PROJECT_COLORS[0],
     projectName: project?.name ?? 'Unknown project',
     kind: config.kind,
@@ -519,11 +501,10 @@ function App(): React.JSX.Element {
       )
     : []
   const shouldShowOnboarding = configLoaded && projects.length === 0
-  const selectedStartAutoLaunchConfigs = selectedStartConfigs.filter(
+  const selectedStartPixelConfigs = selectedStartConfigs.filter(
     (config) => config.kind === 'ai' && config.commands.length > 0
   )
-  const selectedStartAutoLaunchLabel =
-    selectedStartAutoLaunchConfigs.length === 1 ? 'terminal' : 'terminals'
+  const selectedStartPixelLabel = selectedStartPixelConfigs.length === 1 ? 'terminal' : 'terminals'
 
   useEffect(() => {
     let mounted = true
@@ -765,9 +746,9 @@ function App(): React.JSX.Element {
       .map((config) => config.id)
 
     setStartSelection({
-      autoLaunchInstruction: true,
       projectId: activeProject.id,
-      selectedConfigIds
+      selectedConfigIds,
+      startWithPixel: true
     })
   }
 
@@ -811,12 +792,12 @@ function App(): React.JSX.Element {
     })
   }
 
-  const toggleStartAutoLaunchInstruction = (): void => {
+  const toggleStartWithPixel = (): void => {
     setStartSelection((currentSelection) =>
       currentSelection
         ? {
             ...currentSelection,
-            autoLaunchInstruction: !currentSelection.autoLaunchInstruction
+            startWithPixel: !currentSelection.startWithPixel
           }
         : currentSelection
     )
@@ -835,7 +816,7 @@ function App(): React.JSX.Element {
       )
       .map((config) => {
         const project = projects.find((candidate) => candidate.id === config.projectId) ?? null
-        return createRunningSession(config, project, startSelection.autoLaunchInstruction)
+        return createRunningSession(config, project, startSelection.startWithPixel)
       })
     const firstExistingSession = runningSessions.find(
       (session) => session.projectId === startSelection.projectId && isLiveSession(session)
@@ -1402,20 +1383,20 @@ function App(): React.JSX.Element {
               <label className="start-agent-toggle">
                 <input
                   type="checkbox"
-                  checked={startSelection.autoLaunchInstruction}
-                  onChange={toggleStartAutoLaunchInstruction}
+                  checked={startSelection.startWithPixel}
+                  onChange={toggleStartWithPixel}
                 />
                 <span>
-                  <strong>Auto-launch Ghou instruction</strong>
+                  <strong>Start with Pixel</strong>
                   <small>
-                    Sends the companion setup prompt to selected AI terminals after launch.
+                    Launches supported AI terminals through Pixel instead of injecting a prompt.
                   </small>
                 </span>
               </label>
               <p className="start-agent-warning">
-                Keep this on for AI terminals if you want Ghou to receive updates without manually
-                prompting Codex or Claude. It applies to {selectedStartAutoLaunchConfigs.length}
-                selected AI {selectedStartAutoLaunchLabel} with launch commands.
+                Keep this on for Codex terminals if you want Ghou hooks and XP fallback to work. It
+                applies to {selectedStartPixelConfigs.length} selected AI {selectedStartPixelLabel}{' '}
+                with launch commands.
               </p>
             </div>
 

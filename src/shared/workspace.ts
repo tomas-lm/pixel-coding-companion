@@ -49,6 +49,7 @@ export type RunningSession = {
   configId: string
   name: string
   autoLaunchInstruction?: string
+  startWithPixel?: boolean
   projectColor: string
   projectName: string
   kind: SessionKind

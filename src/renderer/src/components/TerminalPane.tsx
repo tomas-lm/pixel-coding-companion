@@ -238,7 +238,10 @@ export function TerminalPane({
           rows: terminal.rows,
           cwd: session.cwd || undefined,
           commands: session.commands,
-          suppressCommandExitMarker: Boolean(session.autoLaunchInstruction),
+          startWithPixel: session.startWithPixel,
+          suppressCommandExitMarker: Boolean(
+            session.autoLaunchInstruction || session.startWithPixel
+          ),
           env: {
             PIXEL_COMPANION_CWD: session.cwd,
             PIXEL_COMPANION_PROJECT_COLOR: session.projectColor,
@@ -291,7 +294,8 @@ export function TerminalPane({
     session.name,
     session.projectColor,
     session.projectId,
-    session.projectName
+    session.projectName,
+    session.startWithPixel
   ])
 
   useEffect(() => {
