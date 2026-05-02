@@ -42,7 +42,9 @@ export function CompanionPanel({
     backgroundSize: `${companionStage.frameColumns * 100}% ${companionStage.frameRows * 100}%`,
     height: `${companionStage.height}px`,
     transform:
-      companionStage.offsetY === undefined ? undefined : `translateY(${companionStage.offsetY}px)`,
+      companionStage.offsetX === undefined && companionStage.offsetY === undefined
+        ? undefined
+        : `translate(${companionStage.offsetX ?? 0}px, ${companionStage.offsetY ?? 0}px)`,
     width: `${companionStage.width}px`
   } as CSSProperties
 

@@ -11,12 +11,15 @@ export type CompanionStageId = 'egg' | 'lvl1' | 'lvl2' | 'lvl3'
 export type CompanionSpriteStage = {
   frameColumns: number
   frameRows: number
+  avatarHeight?: number
   avatarOffsetX?: number
   avatarOffsetY?: number
   avatarScale?: number
+  avatarWidth?: number
   height: number
   id: CompanionStageId
   minLevel: number
+  offsetX?: number
   offsetY?: number
   spriteUrl: string
   width: number
