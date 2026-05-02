@@ -4,6 +4,8 @@ import ghouLvl2SpriteUrl from '../assets/companions/ghou/ghou-sprite-lvl2.png'
 import ghouLvl3SpriteUrl from '../assets/companions/ghou/ghou-sprite-lvl3.png'
 import rayaEggSpriteUrl from '../assets/companions/raya/raya-egg-animated.png'
 import rayaLvl1SpriteUrl from '../assets/companions/raya/raya-lvl1-idle.png'
+import rayaLvl2SpriteUrl from '../assets/companions/raya/raya-lvl2-idle.png'
+import rayaLvl3SpriteUrl from '../assets/companions/raya/raya-lvl3-idle.png'
 import { COMPANION_STORE_DEFINITIONS, STARTER_COMPANION_ID } from '../../../shared/companionStore'
 import type { CompanionDefinition, CompanionSpriteStage } from './companionTypes'
 
@@ -67,7 +69,24 @@ export const RAYA_STAGES: CompanionSpriteStage[] = [
     spriteUrl: rayaLvl1SpriteUrl,
     width: 201
   },
-  ...GHOU_STAGES.slice(2)
+  {
+    frameColumns: 6,
+    frameRows: 6,
+    height: 112,
+    id: 'lvl2',
+    minLevel: 25,
+    spriteUrl: rayaLvl2SpriteUrl,
+    width: 214
+  },
+  {
+    frameColumns: 6,
+    frameRows: 6,
+    height: 118,
+    id: 'lvl3',
+    minLevel: 50,
+    spriteUrl: rayaLvl3SpriteUrl,
+    width: 217
+  }
 ]
 
 export const COMPANION_REGISTRY: CompanionDefinition[] = COMPANION_STORE_DEFINITIONS.map(
