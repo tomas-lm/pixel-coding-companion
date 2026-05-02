@@ -90,7 +90,8 @@
 }
 
 .companion-avatar--animated {
-  animation: ghou-idle-sprite 2.4s linear infinite;
+  animation: ghou-idle-sprite 2.4s steps(1, end) infinite;
+  will-change: background-position;
 }
 
 .companion-store-card--locked:hover .companion-avatar--dimmed,
@@ -100,7 +101,8 @@
 }
 
 .companion-store-card:not(.companion-store-card--locked):hover .companion-avatar {
-  animation: ghou-idle-sprite 2.4s linear infinite;
+  animation: ghou-idle-sprite 2.4s steps(1, end) infinite;
+  will-change: background-position;
 }
 
 .companion-store-lock {

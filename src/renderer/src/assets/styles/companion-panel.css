@@ -118,7 +118,8 @@
   background-repeat: no-repeat;
   background-position: 0% 0%;
   image-rendering: pixelated;
-  animation: ghou-idle-sprite 2.4s linear infinite;
+  animation: ghou-idle-sprite 2.4s steps(1, end) infinite;
+  will-change: background-position;
 }
 
 .pixel-companion--stage-egg {
