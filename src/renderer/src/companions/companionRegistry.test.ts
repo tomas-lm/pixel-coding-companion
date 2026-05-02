@@ -9,7 +9,7 @@ describe('companion registry', () => {
     expect(touk).toMatchObject({
       id: 'touk',
       name: 'Touk',
-      rarity: 'uncommon'
+      rarity: 'ultra_rare'
     })
     expect(touk?.stages).toBe(TOUK_STAGES)
     expect(

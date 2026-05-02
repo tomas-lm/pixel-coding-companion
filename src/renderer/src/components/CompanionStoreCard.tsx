@@ -23,10 +23,12 @@ export function CompanionStoreCard({
 }: CompanionStoreCardProps): React.JSX.Element {
   const stage = getCompanionStageForLevel(companion, state.level)
   const storeStage =
-    stage.id === 'egg' && companion.id !== 'combot'
+    stage.id === 'egg'
       ? {
           ...stage,
-          avatarOffsetX: (stage.avatarOffsetX ?? 0) + 2
+          avatarOffsetX:
+            companion.id === 'combot' ? stage.avatarOffsetX : (stage.avatarOffsetX ?? 0) + 2,
+          avatarScale: companion.id === 'touk' ? (stage.avatarScale ?? 1) * 0.9 : stage.avatarScale
         }
       : stage
   const price = getCompanionPrice(companion.basePrice, companion.rarity)
