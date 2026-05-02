@@ -72,16 +72,16 @@ export function CompanionStorePage({
   }
 
   const getCompanionState = (companion: CompanionDefinition): CompanionCardState => {
-    const isStarter = companion.id === STARTER_COMPANION_ID
+    const isSelectedStarter = companion.id === storeState?.starterCompanionId
     const companionState = storeState?.companions[companion.id]
 
     return {
-      currentXp: isStarter ? progress.currentXp : (companionState?.currentXp ?? 0),
-      level: isStarter ? progress.level : (companionState?.level ?? 0),
+      currentXp: isSelectedStarter ? progress.currentXp : (companionState?.currentXp ?? 0),
+      level: isSelectedStarter ? progress.level : (companionState?.level ?? 0),
       monsterPoints: progress.monsterPoints,
-      owned: isStarter || Boolean(companionState?.owned),
+      owned: Boolean(companionState?.owned),
       selected: companion.id === activeCompanionId,
-      totalXp: isStarter ? progress.totalXp : (companionState?.totalXp ?? 0)
+      totalXp: isSelectedStarter ? progress.totalXp : (companionState?.totalXp ?? 0)
     }
   }
 

@@ -33,7 +33,8 @@ const api: CompanionApi = {
       ipcRenderer.invoke(COMPANION_CHANNELS.loadProgress),
     loadStoreState: () => ipcRenderer.invoke(COMPANION_CHANNELS.loadStoreState),
     openBox: (request) => ipcRenderer.invoke(COMPANION_CHANNELS.openBox, request),
-    selectCompanion: (request) => ipcRenderer.invoke(COMPANION_CHANNELS.selectCompanion, request)
+    selectCompanion: (request) => ipcRenderer.invoke(COMPANION_CHANNELS.selectCompanion, request),
+    selectStarter: (request) => ipcRenderer.invoke(COMPANION_CHANNELS.selectStarter, request)
   },
   system: {
     openTarget: (request: OpenTargetRequest): Promise<OpenTargetResult> =>

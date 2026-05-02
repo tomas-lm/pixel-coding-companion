@@ -24,6 +24,7 @@ export function CompanionStoreCard({
   const stage = getCompanionStageForLevel(companion, state.level)
   const price = getCompanionPrice(companion.basePrice, companion.rarity)
   const priceLabel = (() => {
+    if (companion.acquisition === 'starter') return 'Daily Box only'
     if (companion.acquisition === 'gifted') return 'Gifted only'
     if (companion.acquisition === 'box_only' || isBoxOnlyRarity(companion.rarity)) {
       return 'Box only'

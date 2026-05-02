@@ -1394,6 +1394,10 @@ button {
   opacity: 0.34;
 }
 
+.companion-avatar--animated {
+  animation: ghou-idle-sprite 2.4s linear infinite;
+}
+
 .companion-store-card--locked:hover .companion-avatar--dimmed,
 .companion-store-card--locked:focus-within .companion-avatar--dimmed {
   filter: none;
@@ -2287,6 +2291,165 @@ button {
   min-height: 360px;
 }
 
+.starter-selection-shell {
+  --active-project-color: #4ea1ff;
+  display: grid;
+  width: 100vw;
+  min-height: 100vh;
+  place-items: center;
+  overflow: auto;
+  padding: 24px;
+}
+
+.starter-selection-panel {
+  display: grid;
+  gap: 22px;
+  width: min(1040px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  padding: 22px;
+  background: rgba(23, 25, 29, 0.92);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+}
+
+.starter-selection-header {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.starter-selection-header h1,
+.starter-selection-header p {
+  margin: 0;
+}
+
+.starter-selection-header h1 {
+  color: #fff;
+  font-size: 28px;
+  letter-spacing: 0;
+}
+
+.starter-selection-header p,
+.starter-selection-disclaimer {
+  color: var(--ev-c-text-2);
+}
+
+.starter-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  min-width: 0;
+}
+
+.starter-selection-card {
+  --starter-color: #4ea1ff;
+  position: relative;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 360px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 18px;
+  color: var(--ev-c-text-1);
+  background:
+    radial-gradient(
+      circle at 50% 20%,
+      color-mix(in srgb, var(--starter-color) 18%, transparent),
+      transparent 48%
+    ),
+    rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+  text-align: center;
+}
+
+.starter-selection-card:nth-child(2) {
+  --starter-color: #34d399;
+}
+
+.starter-selection-card:nth-child(3) {
+  --starter-color: #ef5b5b;
+}
+
+.starter-selection-card:hover,
+.starter-selection-card:focus-visible,
+.starter-selection-card--selected {
+  border-color: color-mix(in srgb, var(--starter-color) 62%, rgba(255, 255, 255, 0.12));
+  background:
+    radial-gradient(
+      circle at 50% 20%,
+      color-mix(in srgb, var(--starter-color) 24%, transparent),
+      transparent 52%
+    ),
+    rgba(255, 255, 255, 0.045);
+}
+
+.starter-selection-card--selected {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--starter-color) 54%, transparent);
+}
+
+.starter-selection-card-art {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 174px;
+}
+
+.starter-selection-card-avatar {
+  max-width: 148px;
+  max-height: 166px;
+}
+
+.starter-selection-card strong,
+.starter-selection-card span,
+.starter-selection-card small {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.starter-selection-card strong {
+  color: #fff;
+  font-size: 21px;
+  text-transform: uppercase;
+}
+
+.starter-selection-card span {
+  color: color-mix(in srgb, var(--starter-color) 74%, white);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.starter-selection-card small {
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.starter-selection-disclaimer {
+  margin: 0;
+  text-align: center;
+  font-family: 'Menlo', 'Lucida Console', monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.starter-selection-actions {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.starter-selection-error {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .onboarding-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(240px, max-content);
@@ -2901,6 +3064,7 @@ button {
 
   .onboarding-header,
   .onboarding-content,
+  .starter-selection-grid,
   .setup-field-grid {
     grid-template-columns: 1fr;
   }
@@ -2911,13 +3075,19 @@ button {
 }
 
 @media (max-width: 720px) {
-  .onboarding-shell {
+  .onboarding-shell,
+  .starter-selection-shell {
     padding: 12px;
   }
 
-  .onboarding-panel {
+  .onboarding-panel,
+  .starter-selection-panel {
     min-height: calc(100vh - 24px);
     padding: 16px;
+  }
+
+  .starter-selection-card {
+    min-height: 300px;
   }
 
   .preset-grid {

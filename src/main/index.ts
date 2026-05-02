@@ -25,6 +25,7 @@ import {
   COMPANION_BOX_DEFINITIONS,
   COMPANION_STORE_DEFINITIONS,
   STARTER_COMPANION_ID,
+  STARTER_COMPANION_IDS,
   getDuplicateXpForBoxPrice,
   getLocalDateKey,
   getMonsterPointsForReachedLevel,
@@ -37,6 +38,8 @@ import {
   type CompanionRarity,
   type CompanionSelectRequest,
   type CompanionSelectResult,
+  type CompanionStarterSelectRequest,
+  type CompanionStarterSelectResult,
   type CompanionStoreDefinition,
   type CompanionStoreState
 } from '../shared/companionStore'
@@ -305,13 +308,15 @@ function createDefaultCompanionProgressState(): CompanionProgressState {
   }
 }
 
-function createDefaultCompanionCollectionEntry(
-  definition: CompanionStoreDefinition
-): CompanionCollectionEntry {
+function isStarterCompanionId(companionId: string): boolean {
+  return STARTER_COMPANION_IDS.includes(companionId as (typeof STARTER_COMPANION_IDS)[number])
+}
+
+function createDefaultCompanionCollectionEntry(): CompanionCollectionEntry {
   return {
     currentXp: 0,
     level: 0,
-    owned: definition.id === STARTER_COMPANION_ID,
+    owned: false,
     totalXp: 0
   }
 }
@@ -322,11 +327,12 @@ function createDefaultCompanionStoreState(): CompanionStoreState {
     companions: Object.fromEntries(
       COMPANION_STORE_DEFINITIONS.map((definition) => [
         definition.id,
-        createDefaultCompanionCollectionEntry(definition)
+        createDefaultCompanionCollectionEntry()
       ])
     ),
     dailyAccess: createDefaultCompanionDailyAccessState(),
-    recentOpenings: []
+    recentOpenings: [],
+    starterSelected: false
   }
 }
 
@@ -401,11 +407,8 @@ function normalizeCompanionProgressState(value: unknown): CompanionProgressState
   }
 }
 
-function normalizeCompanionCollectionEntry(
-  value: unknown,
-  definition: CompanionStoreDefinition
-): CompanionCollectionEntry {
-  if (!value || typeof value !== 'object') return createDefaultCompanionCollectionEntry(definition)
+function normalizeCompanionCollectionEntry(value: unknown): CompanionCollectionEntry {
+  if (!value || typeof value !== 'object') return createDefaultCompanionCollectionEntry()
 
   const state = value as Partial<CompanionCollectionEntry>
   const level =
@@ -417,9 +420,7 @@ function normalizeCompanionCollectionEntry(
     typeof state.currentXp === 'number' && Number.isFinite(state.currentXp)
       ? Math.min(Math.max(Math.floor(state.currentXp), 0), xpForNextLevel)
       : 0
-  const owned =
-    definition.id === STARTER_COMPANION_ID ||
-    (typeof state.owned === 'boolean' ? state.owned : false)
+  const owned = typeof state.owned === 'boolean' ? state.owned : false
 
   return {
     currentXp,
@@ -526,20 +527,44 @@ function normalizeCompanionStoreState(value: unknown): CompanionStoreState {
   const state = value as Partial<CompanionStoreState>
   const sourceCompanions =
     state.companions && typeof state.companions === 'object' ? state.companions : {}
-  const companions = Object.fromEntries(
+  let companions = Object.fromEntries(
     COMPANION_STORE_DEFINITIONS.map((definition) => [
       definition.id,
       normalizeCompanionCollectionEntry(
-        (sourceCompanions as Record<string, unknown>)[definition.id],
-        definition
+        (sourceCompanions as Record<string, unknown>)[definition.id]
       )
     ])
   )
+  const legacyStarterCompanionId = STARTER_COMPANION_IDS.find(
+    (companionId) => companions[companionId]?.owned
+  )
+  const requestedStarterCompanionId =
+    typeof state.starterCompanionId === 'string' && isStarterCompanionId(state.starterCompanionId)
+      ? state.starterCompanionId
+      : undefined
+  const starterSelected =
+    typeof state.starterSelected === 'boolean'
+      ? state.starterSelected
+      : Boolean(legacyStarterCompanionId)
+  const starterCompanionId = starterSelected
+    ? (requestedStarterCompanionId ?? legacyStarterCompanionId ?? STARTER_COMPANION_ID)
+    : undefined
+
+  if (starterSelected && starterCompanionId) {
+    companions = {
+      ...companions,
+      [starterCompanionId]: {
+        ...companions[starterCompanionId],
+        owned: true
+      }
+    }
+  }
+
   const requestedActiveId =
     typeof state.activeCompanionId === 'string' ? state.activeCompanionId : STARTER_COMPANION_ID
   const activeCompanionId = companions[requestedActiveId]?.owned
     ? requestedActiveId
-    : STARTER_COMPANION_ID
+    : (starterCompanionId ?? STARTER_COMPANION_ID)
   const recentOpenings = Array.isArray(state.recentOpenings)
     ? state.recentOpenings
         .map(normalizeCompanionBoxOpening)
@@ -552,6 +577,8 @@ function normalizeCompanionStoreState(value: unknown): CompanionStoreState {
     companions,
     dailyAccess: normalizeCompanionDailyAccessState(state.dailyAccess),
     recentOpenings,
+    starterCompanionId,
+    starterSelected,
     updatedAt: typeof state.updatedAt === 'string' ? state.updatedAt : undefined
   }
 }
@@ -667,20 +694,29 @@ function addXpToCollectionEntry(
   }
 }
 
-function syncStarterCollectionEntry(
+function syncSelectedStarterCollectionEntry(
   state: CompanionStoreState,
   progress: CompanionProgressState,
   updatedAt?: string
 ): CompanionStoreState {
+  if (!state.starterSelected || !state.starterCompanionId) return state
+
+  const starterDefinition = COMPANION_STORE_DEFINITIONS.find(
+    (definition) => definition.id === state.starterCompanionId
+  )
+  if (!starterDefinition || !isStarterCompanionId(starterDefinition.id)) return state
+
   const currentEntry =
-    state.companions[STARTER_COMPANION_ID] ??
-    createDefaultCompanionCollectionEntry(COMPANION_STORE_DEFINITIONS[0])
+    state.companions[starterDefinition.id] ?? createDefaultCompanionCollectionEntry()
 
   return {
     ...state,
+    activeCompanionId: state.companions[state.activeCompanionId]?.owned
+      ? state.activeCompanionId
+      : starterDefinition.id,
     companions: {
       ...state.companions,
-      [STARTER_COMPANION_ID]: {
+      [starterDefinition.id]: {
         ...currentEntry,
         currentXp: progress.currentXp,
         level: progress.level,
@@ -746,16 +782,38 @@ function rollBoxRarity(box: CompanionBoxDefinition): CompanionRarity {
   return validOdds[validOdds.length - 1]?.rarity ?? 'common'
 }
 
-function rollBoxCompanion(box: CompanionBoxDefinition): CompanionStoreDefinition {
+function rollCompanionFromCandidates(
+  candidates: CompanionStoreDefinition[]
+): CompanionStoreDefinition {
+  const index = Math.floor(Math.random() * candidates.length)
+
+  return candidates[index]
+}
+
+function rollBoxCompanion(
+  box: CompanionBoxDefinition,
+  storeState: CompanionStoreState
+): CompanionStoreDefinition {
   const rarity = rollBoxRarity(box)
+
+  if (rarity === 'starter' && box.claimCadence === 'daily') {
+    const unownedStarterCompanions = COMPANION_STORE_DEFINITIONS.filter(
+      (definition) =>
+        isStarterCompanionId(definition.id) && !storeState.companions[definition.id]?.owned
+    )
+
+    if (unownedStarterCompanions.length > 0) {
+      return rollCompanionFromCandidates(unownedStarterCompanions)
+    }
+  }
+
   const availableCompanions = COMPANION_STORE_DEFINITIONS.filter(
     (definition) => definition.acquisition !== 'gifted' && definition.rarity !== 'starter'
   )
   const candidates = availableCompanions.filter((definition) => definition.rarity === rarity)
   const rollableCompanions = candidates.length > 0 ? candidates : availableCompanions
-  const index = Math.floor(Math.random() * rollableCompanions.length)
 
-  return rollableCompanions[index]
+  return rollCompanionFromCandidates(rollableCompanions)
 }
 
 function stopTerminal(id: TerminalSessionId): void {
@@ -1033,7 +1091,7 @@ function registerCompanionIpc(): void {
       readCompanionProgressState(),
       readCompanionStoreState()
     ])
-    const accessResult = recordDailyAccess(syncStarterCollectionEntry(storeState, progress))
+    const accessResult = recordDailyAccess(syncSelectedStarterCollectionEntry(storeState, progress))
 
     if (accessResult.changed) {
       await writeCompanionStoreState(accessResult.state)
@@ -1051,7 +1109,7 @@ function registerCompanionIpc(): void {
       }
 
       let progress = await readCompanionProgressState()
-      let storeState = syncStarterCollectionEntry(await readCompanionStoreState(), progress)
+      let storeState = syncSelectedStarterCollectionEntry(await readCompanionStoreState(), progress)
       const accessResult = recordDailyAccess(storeState)
       storeState = accessResult.state
       const today = getLocalDateKey()
@@ -1065,9 +1123,9 @@ function registerCompanionIpc(): void {
       }
 
       const now = new Date().toISOString()
-      const companion = rollBoxCompanion(box)
+      const companion = rollBoxCompanion(box, storeState)
       const currentEntry =
-        storeState.companions[companion.id] ?? createDefaultCompanionCollectionEntry(companion)
+        storeState.companions[companion.id] ?? createDefaultCompanionCollectionEntry()
       const isDuplicate = currentEntry.owned
       const duplicateXp = isDuplicate ? getDuplicateXpForBoxPrice(box.price) : 0
 
@@ -1085,7 +1143,7 @@ function registerCompanionIpc(): void {
       }
 
       if (isDuplicate && duplicateXp > 0) {
-        if (companion.id === STARTER_COMPANION_ID) {
+        if (companion.id === storeState.starterCompanionId) {
           progress = addXpToProgressState(progress, duplicateXp, now)
           nextEntry = {
             ...nextEntry,
@@ -1137,8 +1195,8 @@ function registerCompanionIpc(): void {
         updatedAt: now
       }
 
-      if (companion.id === STARTER_COMPANION_ID) {
-        storeState = syncStarterCollectionEntry(storeState, progress, now)
+      if (companion.id === storeState.starterCompanionId) {
+        storeState = syncSelectedStarterCollectionEntry(storeState, progress, now)
       }
 
       await Promise.all([
@@ -1155,6 +1213,63 @@ function registerCompanionIpc(): void {
   )
 
   ipcMain.handle(
+    COMPANION_CHANNELS.selectStarter,
+    async (_, request: CompanionStarterSelectRequest): Promise<CompanionStarterSelectResult> => {
+      const companion = COMPANION_STORE_DEFINITIONS.find(
+        (definition) => definition.id === request.companionId
+      )
+      if (!companion || !isStarterCompanionId(companion.id)) {
+        throw new Error('Starter companion not found.')
+      }
+
+      let progress = await readCompanionProgressState()
+      const storeState = await readCompanionStoreState()
+      if (storeState.starterSelected) {
+        throw new Error('Starter companion already selected.')
+      }
+
+      const now = new Date().toISOString()
+      progress = {
+        ...progress,
+        name: companion.name,
+        updatedAt: now
+      }
+
+      const currentEntry =
+        storeState.companions[companion.id] ?? createDefaultCompanionCollectionEntry()
+      const nextStoreState: CompanionStoreState = {
+        ...storeState,
+        activeCompanionId: companion.id,
+        companions: {
+          ...storeState.companions,
+          [companion.id]: {
+            ...currentEntry,
+            currentXp: progress.currentXp,
+            level: progress.level,
+            owned: true,
+            totalXp: progress.totalXp,
+            unlockedAt: currentEntry.unlockedAt ?? now,
+            updatedAt: now
+          }
+        },
+        starterCompanionId: companion.id,
+        starterSelected: true,
+        updatedAt: now
+      }
+
+      await Promise.all([
+        writeCompanionProgressState(progress),
+        writeCompanionStoreState(nextStoreState)
+      ])
+
+      return {
+        progress,
+        storeState: nextStoreState
+      }
+    }
+  )
+
+  ipcMain.handle(
     COMPANION_CHANNELS.selectCompanion,
     async (_, request: CompanionSelectRequest): Promise<CompanionSelectResult> => {
       const companion = COMPANION_STORE_DEFINITIONS.find(
@@ -1165,7 +1280,7 @@ function registerCompanionIpc(): void {
       }
 
       const progress = await readCompanionProgressState()
-      let storeState = syncStarterCollectionEntry(await readCompanionStoreState(), progress)
+      let storeState = syncSelectedStarterCollectionEntry(await readCompanionStoreState(), progress)
       const companionState = storeState.companions[companion.id]
 
       if (!companionState?.owned) {

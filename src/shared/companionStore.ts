@@ -12,8 +12,10 @@ export type CompanionAcquisition = 'box_only' | 'gifted' | 'purchasable' | 'star
 export type CompanionStoreDefinition = {
   acquisition: CompanionAcquisition
   basePrice: number
+  description?: string
   id: string
   name: string
+  personalityHint?: string
   rarity: CompanionRarity
 }
 
@@ -55,6 +57,8 @@ export type CompanionStoreState = {
   companions: Record<string, CompanionCollectionEntry>
   dailyAccess: CompanionDailyAccessState
   recentOpenings: CompanionBoxOpening[]
+  starterCompanionId?: string
+  starterSelected: boolean
   updatedAt?: string
 }
 
@@ -85,21 +89,45 @@ export type CompanionSelectResult = {
   storeState: CompanionStoreState
 }
 
+export type CompanionStarterSelectRequest = {
+  companionId: string
+}
+
+export type CompanionStarterSelectResult = {
+  progress: import('./companion').CompanionProgressState
+  storeState: CompanionStoreState
+}
+
 export const STARTER_COMPANION_ID = 'ghou'
+export const STARTER_COMPANION_IDS = ['ghou', 'frogo', 'combot'] as const
+export type StarterCompanionId = (typeof STARTER_COMPANION_IDS)[number]
 
 export const COMPANION_STORE_DEFINITIONS: CompanionStoreDefinition[] = [
   {
     acquisition: 'starter',
     basePrice: 0,
+    description: 'The magic ghost',
     id: STARTER_COMPANION_ID,
     name: 'Ghou',
+    personalityHint: 'Calm, observant, and quietly useful.',
     rarity: 'starter'
   },
   {
-    acquisition: 'purchasable',
-    basePrice: 5000,
+    acquisition: 'starter',
+    basePrice: 0,
+    description: 'The brave frog',
     id: 'frogo',
     name: 'Frogo',
+    personalityHint: 'Bold, upbeat, and ready to hop into messy work.',
+    rarity: 'starter'
+  },
+  {
+    acquisition: 'starter',
+    basePrice: 0,
+    description: 'The conquering robot',
+    id: 'combot',
+    name: 'Combot',
+    personalityHint: 'Precise, ambitious, and built for structured progress.',
     rarity: 'starter'
   },
   {
@@ -152,7 +180,8 @@ export const COMPANION_BOX_DEFINITIONS: CompanionBoxDefinition[] = [
     id: 'daily_egg_box',
     name: 'Daily Box',
     odds: [
-      { rarity: 'common', weight: 94 },
+      { rarity: 'starter', weight: 1 },
+      { rarity: 'common', weight: 93 },
       { rarity: 'uncommon', weight: 5 },
       { rarity: 'rare', weight: 0.8 },
       { rarity: 'ultra_rare', weight: 0.19 },

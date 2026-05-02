@@ -32,10 +32,12 @@ import {
 import { CompanionCatalogPanel } from './components/CompanionCatalogPanel'
 import { CompanionPanel } from './components/CompanionPanel'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
+import { StarterSelectionPage } from './components/StarterSelectionPage'
 import { TerminalPane } from './components/TerminalPane'
 import {
   COMPANION_REGISTRY,
   STARTER_COMPANION_ID,
+  STARTER_COMPANION_IDS,
   getCompanionStageForLevel
 } from './companions/companionRegistry'
 import { createCompanionProgressSnapshot } from './lib/companionProgress'
@@ -202,7 +204,7 @@ function getActiveCompanionProgress(
     COMPANION_REGISTRY.find((companion) => companion.id === activeCompanionId) ??
     COMPANION_REGISTRY[0]
 
-  if (activeCompanion.id === STARTER_COMPANION_ID) {
+  if (activeCompanion.id === storeState?.starterCompanionId) {
     return {
       ...progress,
       name: activeCompanion.name
@@ -494,6 +496,9 @@ function App(): React.JSX.Element {
     DEFAULT_COMPANION_PROGRESS_STATE
   )
   const [companionStoreState, setCompanionStoreState] = useState<CompanionStoreState | null>(null)
+  const [companionStoreLoaded, setCompanionStoreLoaded] = useState(false)
+  const [starterSelectionError, setStarterSelectionError] = useState<string | null>(null)
+  const [isSelectingStarter, setIsSelectingStarter] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -544,6 +549,15 @@ function App(): React.JSX.Element {
       )
     : []
   const shouldShowOnboarding = configLoaded && projects.length === 0
+  const shouldShowStarterSelection =
+    configLoaded &&
+    projects.length > 0 &&
+    companionStoreLoaded &&
+    companionStoreState !== null &&
+    !companionStoreState.starterSelected
+  const starterCompanions = COMPANION_REGISTRY.filter((companion) =>
+    STARTER_COMPANION_IDS.includes(companion.id as (typeof STARTER_COMPANION_IDS)[number])
+  )
   const selectedStartPixelConfigs = selectedStartConfigs.filter(
     (config) => config.kind === 'ai' && config.commands.length > 0
   )
@@ -649,9 +663,11 @@ function App(): React.JSX.Element {
           setCompanionBridgeState(bridgeState)
           setCompanionProgress(progress)
           setCompanionStoreState(storeState)
+          setCompanionStoreLoaded(true)
         })
         .catch((error: unknown) => {
           console.error('Failed to load companion state', error)
+          if (mounted) setCompanionStoreLoaded(true)
         })
     }
 
@@ -1049,6 +1065,24 @@ function App(): React.JSX.Element {
     setActiveSessionId(null)
   }
 
+  const selectStarterCompanion = async (companionId: string): Promise<void> => {
+    setIsSelectingStarter(true)
+    setStarterSelectionError(null)
+
+    try {
+      const result = await window.api.companion.selectStarter({ companionId })
+
+      setCompanionProgress(result.progress)
+      setCompanionStoreState(result.storeState)
+    } catch (error: unknown) {
+      setStarterSelectionError(
+        error instanceof Error ? error.message : 'Could not select starter companion.'
+      )
+    } finally {
+      setIsSelectingStarter(false)
+    }
+  }
+
   if (!configLoaded) {
     return (
       <main className="onboarding-shell">
@@ -1066,6 +1100,31 @@ function App(): React.JSX.Element {
         colors={PROJECT_COLORS}
         onComplete={completeOnboarding}
         onPickFolder={window.api.workspace.pickFolder}
+      />
+    )
+  }
+
+  if (!companionStoreLoaded) {
+    return (
+      <main className="onboarding-shell">
+        <section
+          className="onboarding-panel onboarding-panel--loading"
+          aria-label="Loading companions"
+        >
+          <span className="eyebrow">Pixel Companion</span>
+          <h1>Loading companions</h1>
+        </section>
+      </main>
+    )
+  }
+
+  if (shouldShowStarterSelection) {
+    return (
+      <StarterSelectionPage
+        error={starterSelectionError}
+        isSaving={isSelectingStarter}
+        starters={starterCompanions}
+        onSelectStarter={selectStarterCompanion}
       />
     )
   }

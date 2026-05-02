@@ -3,6 +3,8 @@ import type {
   CompanionBoxOpenResult,
   CompanionSelectRequest,
   CompanionSelectResult,
+  CompanionStarterSelectRequest,
+  CompanionStarterSelectResult,
   CompanionStoreState
 } from './companionStore'
 
@@ -11,7 +13,8 @@ export const COMPANION_CHANNELS = {
   loadProgress: 'companion:load-progress',
   loadStoreState: 'companion:load-store-state',
   openBox: 'companion:open-box',
-  selectCompanion: 'companion:select-companion'
+  selectCompanion: 'companion:select-companion',
+  selectStarter: 'companion:select-starter'
 } as const
 
 export type CompanionCliState = 'idle' | 'working' | 'done' | 'error' | 'waiting_input'
@@ -69,4 +72,5 @@ export type CompanionBridgeApi = {
   loadStoreState: () => Promise<CompanionStoreState>
   openBox: (request: CompanionBoxOpenRequest) => Promise<CompanionBoxOpenResult>
   selectCompanion: (request: CompanionSelectRequest) => Promise<CompanionSelectResult>
+  selectStarter: (request: CompanionStarterSelectRequest) => Promise<CompanionStarterSelectResult>
 }

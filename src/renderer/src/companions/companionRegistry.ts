@@ -1,3 +1,5 @@
+import combotEggSpriteUrl from '../assets/companions/combot/combot-egg.svg'
+import frogoEggSpriteUrl from '../assets/companions/frogo/frogo-egg.svg'
 import ghouEggSpriteUrl from '../assets/companions/ghou/ghou-sprite-egg.png'
 import ghouLvl1SpriteUrl from '../assets/companions/ghou/ghou-sprite-lvl1.png'
 import ghouLvl2SpriteUrl from '../assets/companions/ghou/ghou-sprite-lvl2.png'
@@ -6,10 +8,14 @@ import rayaEggSpriteUrl from '../assets/companions/raya/raya-egg-animated.png'
 import rayaLvl1SpriteUrl from '../assets/companions/raya/raya-lvl1-idle.png'
 import rayaLvl2SpriteUrl from '../assets/companions/raya/raya-lvl2-idle.png'
 import rayaLvl3SpriteUrl from '../assets/companions/raya/raya-lvl3-idle.png'
-import { COMPANION_STORE_DEFINITIONS, STARTER_COMPANION_ID } from '../../../shared/companionStore'
+import {
+  COMPANION_STORE_DEFINITIONS,
+  STARTER_COMPANION_ID,
+  STARTER_COMPANION_IDS
+} from '../../../shared/companionStore'
 import type { CompanionDefinition, CompanionSpriteStage } from './companionTypes'
 
-export { STARTER_COMPANION_ID }
+export { STARTER_COMPANION_ID, STARTER_COMPANION_IDS }
 
 export const GHOU_STAGES: CompanionSpriteStage[] = [
   {
@@ -89,10 +95,42 @@ export const RAYA_STAGES: CompanionSpriteStage[] = [
   }
 ]
 
+export const FROGO_STAGES: CompanionSpriteStage[] = [
+  {
+    frameColumns: 1,
+    frameRows: 1,
+    height: 149,
+    id: 'egg',
+    minLevel: 0,
+    spriteUrl: frogoEggSpriteUrl,
+    width: 116
+  }
+]
+
+export const COMBOT_STAGES: CompanionSpriteStage[] = [
+  {
+    frameColumns: 1,
+    frameRows: 1,
+    height: 149,
+    id: 'egg',
+    minLevel: 0,
+    spriteUrl: combotEggSpriteUrl,
+    width: 116
+  }
+]
+
+function getStagesForCompanion(companionId: string): CompanionSpriteStage[] {
+  if (companionId === 'raya') return RAYA_STAGES
+  if (companionId === 'frogo') return FROGO_STAGES
+  if (companionId === 'combot') return COMBOT_STAGES
+
+  return GHOU_STAGES
+}
+
 export const COMPANION_REGISTRY: CompanionDefinition[] = COMPANION_STORE_DEFINITIONS.map(
   (companion) => ({
     ...companion,
-    stages: companion.id === 'raya' ? RAYA_STAGES : GHOU_STAGES
+    stages: getStagesForCompanion(companion.id)
   })
 )
 
