@@ -17,7 +17,6 @@ type TerminalPaneProps = {
   isActive: boolean
   terminalThemeId: TerminalThemeId
   onSessionActivity: (sessionId: string, output: string) => void
-  onSessionExit: (sessionId: string, exitCode: number, signal?: number) => void
   onSessionStartError: (sessionId: string, errorMessage: string) => void
   onSessionStarted: (sessionId: string, metadata: string) => void
 }
@@ -44,7 +43,6 @@ export function TerminalPane({
   isActive,
   terminalThemeId,
   onSessionActivity,
-  onSessionExit,
   onSessionStartError,
   onSessionStarted
 }: TerminalPaneProps): React.JSX.Element {
@@ -52,6 +50,11 @@ export function TerminalPane({
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const initialTerminalThemeIdRef = useRef(terminalThemeId)
+  const sessionStatusRef = useRef(session.status)
+
+  useEffect(() => {
+    sessionStatusRef.current = session.status
+  }, [session.status])
 
   useEffect(() => {
     if (!isActive) return
@@ -184,24 +187,34 @@ export function TerminalPane({
       window.api.terminal.write({ id: session.id, data })
     })
 
+    let receivedStartResponse = false
+    const queuedTerminalData: string[] = []
     let lastActivityUpdate = 0
 
-    const offData = window.api.terminal.onData((event) => {
-      if (event.id === session.id) {
-        terminal.write(event.data)
+    const writeTerminalData = (data: string): void => {
+      terminal.write(data)
 
-        const now = Date.now()
-        if (event.data.trim() && (now - lastActivityUpdate > 1000 || event.data.includes('\n'))) {
-          lastActivityUpdate = now
-          onSessionActivity(session.id, event.data)
-        }
+      const now = Date.now()
+      if (data.trim() && (now - lastActivityUpdate > 1000 || data.includes('\n'))) {
+        lastActivityUpdate = now
+        onSessionActivity(session.id, data)
       }
+    }
+
+    const offData = window.api.terminal.onData((event) => {
+      if (event.id !== session.id) return
+
+      if (!receivedStartResponse) {
+        queuedTerminalData.push(event.data)
+        return
+      }
+
+      writeTerminalData(event.data)
     })
 
     const offCommandExit = window.api.terminal.onCommandExit((event) => {
       if (event.id !== session.id) return
 
-      onSessionExit(session.id, event.exitCode)
       terminal.writeln('')
       terminal.writeln(
         `[command ${event.exitCode === 0 ? 'completed' : 'failed'} with code ${event.exitCode}]`
@@ -211,7 +224,6 @@ export function TerminalPane({
     const offExit = window.api.terminal.onExit((event) => {
       if (event.id !== session.id) return
 
-      onSessionExit(session.id, event.exitCode, event.signal)
       terminal.writeln('')
       terminal.writeln(`[process exited with code ${event.exitCode}]`)
     })
@@ -255,10 +267,24 @@ export function TerminalPane({
         .then((response) => {
           if (disposed) return
 
-          onSessionStarted(session.id, `${response.shell} - pid ${response.pid}`)
+          if (response.initialBuffer) {
+            terminal.write(response.initialBuffer)
+          }
+
+          receivedStartResponse = true
+          queuedTerminalData.forEach(writeTerminalData)
+          queuedTerminalData.length = 0
+
+          const currentStatus = sessionStatusRef.current
+          if (currentStatus === 'starting' || currentStatus === 'running') {
+            onSessionStarted(session.id, `${response.shell} - pid ${response.pid}`)
+          }
         })
         .catch((error: unknown) => {
           if (disposed) return
+
+          receivedStartResponse = true
+          queuedTerminalData.length = 0
 
           const errorMessage = String(error)
           onSessionStartError(session.id, errorMessage)
@@ -276,14 +302,12 @@ export function TerminalPane({
       offData()
       offCommandExit()
       offExit()
-      void window.api.terminal.stop(session.id)
       terminal.dispose()
       terminalRef.current = null
       fitAddonRef.current = null
     }
   }, [
     onSessionActivity,
-    onSessionExit,
     onSessionStartError,
     onSessionStarted,
     session.autoLaunchInstruction,

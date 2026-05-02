@@ -42,6 +42,8 @@ export type TerminalStartResponse = {
   pid: number
   shell: string
   cwd: string
+  attached: boolean
+  initialBuffer?: string
 }
 
 export type TerminalInputRequest = {

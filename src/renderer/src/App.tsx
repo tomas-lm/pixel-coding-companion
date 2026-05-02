@@ -715,6 +715,20 @@ function App(): React.JSX.Element {
     []
   )
 
+  useEffect(() => {
+    const offCommandExit = window.api.terminal.onCommandExit((event) => {
+      markSessionExited(event.id, event.exitCode)
+    })
+    const offExit = window.api.terminal.onExit((event) => {
+      markSessionExited(event.id, event.exitCode, event.signal)
+    })
+
+    return () => {
+      offCommandExit()
+      offExit()
+    }
+  }, [markSessionExited])
+
   const markSessionStarted = useCallback(
     (sessionId: string, metadata: string): void => {
       updateSession(sessionId, {
@@ -921,9 +935,14 @@ function App(): React.JSX.Element {
   }
 
   const stopSession = (sessionId: string): void => {
+    const sessionToStop = runningSessions.find((session) => session.id === sessionId)
     const nextActiveSession = runningSessions.find(
       (session) => session.id !== sessionId && session.projectId === activeProject?.id
     )
+
+    if (sessionToStop && isLiveSession(sessionToStop)) {
+      void window.api.terminal.stop(sessionId)
+    }
 
     setRunningSessions((currentSessions) =>
       currentSessions.filter((session) => session.id !== sessionId)
@@ -1419,7 +1438,6 @@ function App(): React.JSX.Element {
                     isActive={session.id === selectedSessionId}
                     terminalThemeId={terminalThemeId}
                     onSessionActivity={updateSessionActivity}
-                    onSessionExit={markSessionExited}
                     onSessionStartError={markSessionStartError}
                     onSessionStarted={markSessionStarted}
                   />

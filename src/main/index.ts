@@ -68,8 +68,14 @@ type PtyProcess = ReturnType<typeof pty.spawn>
 type ManagedTerminal = {
   autoLaunchInput?: string
   autoLaunchInputSent: boolean
+  cwd: string
+  outputBuffer: string
   pendingData: string
-  process: PtyProcess
+  pid: number
+  process: PtyProcess | null
+  sessionId: TerminalSessionId
+  shell: string
+  stableKey?: string
 }
 
 type TerminalContextRegistryEntry = TerminalCompanionContext & {
@@ -85,8 +91,7 @@ function readEnvSetting(name: string): string | undefined {
 }
 
 const APP_NAME = readEnvSetting('PIXEL_COMPANION_APP_NAME') ?? 'Pixel Companion'
-const APP_ID =
-  readEnvSetting('PIXEL_COMPANION_APP_ID') ?? 'dev.tomasmuniz.pixel-coding-companion'
+const APP_ID = readEnvSetting('PIXEL_COMPANION_APP_ID') ?? 'dev.tomasmuniz.pixel-coding-companion'
 const APP_USER_DATA_DIR =
   readEnvSetting('PIXEL_COMPANION_USER_DATA_DIR') ?? 'pixel-coding-companion'
 const COMMAND_EXIT_MARKER = '__PIXEL_COMPANION_COMMAND_EXIT__:'
@@ -97,6 +102,7 @@ const COMMAND_EXIT_PATTERN = new RegExp(
 )
 const AUTO_LAUNCH_FALLBACK_DELAY_MS = 7000
 const AUTO_LAUNCH_SUBMIT_DELAY_MS = 180
+const TERMINAL_OUTPUT_BUFFER_MAX_LENGTH = 250_000
 const ANSI_SEQUENCE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[ -/]*[@-~]`, 'g')
 const CODEX_CLI_READY_PATTERNS = [/Tip: Use \/skills/i, /›\s*$/]
 const CODEX_START_COMMAND_PATTERN = /^codex(?:\s|$)/
@@ -830,9 +836,14 @@ function stopTerminal(id: TerminalSessionId): void {
   const managedTerminal = terminals.get(id)
   if (!managedTerminal) return
 
-  terminals.delete(id)
-  void unregisterTerminalContextProcess(id)
-  managedTerminal.process.kill()
+  for (const [terminalId, candidate] of terminals) {
+    if (candidate === managedTerminal) {
+      terminals.delete(terminalId)
+      void unregisterTerminalContextProcess(terminalId)
+    }
+  }
+
+  managedTerminal.process?.kill()
 }
 
 function stopAllTerminals(): void {
@@ -849,6 +860,45 @@ function getMarkerPrefixLength(data: string): number {
   }
 
   return 0
+}
+
+function appendTerminalOutputBuffer(managedTerminal: ManagedTerminal, data: string): void {
+  if (!data) return
+
+  managedTerminal.outputBuffer = `${managedTerminal.outputBuffer}${data}`.slice(
+    -TERMINAL_OUTPUT_BUFFER_MAX_LENGTH
+  )
+}
+
+function getTerminalStableKey(request: TerminalStartRequest): string | undefined {
+  const context = request.companionContext
+  if (!context?.projectId || !context.terminalId) return undefined
+
+  return `${context.projectId}:${context.terminalId}`
+}
+
+function findTerminalForStartRequest(request: TerminalStartRequest): ManagedTerminal | undefined {
+  const existingBySessionId = terminals.get(request.id)
+  if (existingBySessionId) return existingBySessionId
+
+  const stableKey = getTerminalStableKey(request)
+  if (!stableKey) return undefined
+
+  for (const terminal of new Set(terminals.values())) {
+    if (terminal.stableKey === stableKey && terminal.process) {
+      return terminal
+    }
+  }
+
+  return undefined
+}
+
+function broadcastTerminalEvent(channel: string, data: unknown): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.webContents.isDestroyed()) {
+      window.webContents.send(channel, data)
+    }
+  }
 }
 
 function writeStartupCommands(
@@ -924,11 +974,34 @@ function scheduleAutoLaunchInputFallback(
 function registerTerminalIpc(): void {
   ipcMain.handle(
     TERMINAL_CHANNELS.start,
-    async (event, request: TerminalStartRequest): Promise<TerminalStartResponse> => {
-      stopTerminal(request.id)
+    async (_event, request: TerminalStartRequest): Promise<TerminalStartResponse> => {
+      const existingTerminal = findTerminalForStartRequest(request)
+      if (existingTerminal) {
+        existingTerminal.sessionId = request.id
+        terminals.set(request.id, existingTerminal)
+
+        if (existingTerminal.process) {
+          existingTerminal.process.resize(Math.max(request.cols, 2), Math.max(request.rows, 2))
+          await registerTerminalContextProcess(
+            request.id,
+            existingTerminal.pid,
+            request.companionContext
+          )
+        }
+
+        return {
+          id: request.id,
+          pid: existingTerminal.pid,
+          shell: existingTerminal.shell,
+          cwd: existingTerminal.cwd,
+          attached: true,
+          initialBuffer: existingTerminal.outputBuffer || undefined
+        }
+      }
 
       const shellPath = getDefaultShell()
       const cwd = getSafeCwd(request.cwd)
+      const stableKey = getTerminalStableKey(request)
       const contextEnv = await writeTerminalCompanionContext(request.id, request.companionContext)
       const terminal = pty.spawn(shellPath, [], {
         name: 'xterm-256color',
@@ -945,13 +1018,19 @@ function registerTerminalIpc(): void {
       terminals.set(request.id, {
         autoLaunchInput: request.autoLaunchInput?.trim() || undefined,
         autoLaunchInputSent: false,
+        cwd,
+        outputBuffer: '',
         pendingData: '',
-        process: terminal
+        pid: terminal.pid,
+        process: terminal,
+        sessionId: request.id,
+        shell: shellPath,
+        stableKey
       })
 
       terminal.onData((data) => {
         const managedTerminal = terminals.get(request.id)
-        if (!managedTerminal) return
+        if (!managedTerminal || managedTerminal.process !== terminal) return
 
         const combinedData = managedTerminal.pendingData + data
         let visibleData = ''
@@ -961,12 +1040,10 @@ function registerTerminalIpc(): void {
           visibleData += combinedData.slice(lastIndex, match.index)
           lastIndex = match.index + match[0].length
 
-          if (!event.sender.isDestroyed()) {
-            event.sender.send(TERMINAL_CHANNELS.commandExit, {
-              id: request.id,
-              exitCode: Number(match[1])
-            })
-          }
+          broadcastTerminalEvent(TERMINAL_CHANNELS.commandExit, {
+            id: managedTerminal.sessionId,
+            exitCode: Number(match[1])
+          })
         }
 
         visibleData += combinedData.slice(lastIndex)
@@ -977,18 +1054,24 @@ function registerTerminalIpc(): void {
         visibleData = pendingLength > 0 ? visibleData.slice(0, -pendingLength) : visibleData
 
         writeAutoLaunchInputIfCodexReady(terminal, request.id, visibleData)
+        appendTerminalOutputBuffer(managedTerminal, visibleData)
 
-        if (!event.sender.isDestroyed()) {
-          event.sender.send(TERMINAL_CHANNELS.data, { id: request.id, data: visibleData })
-        }
+        broadcastTerminalEvent(TERMINAL_CHANNELS.data, {
+          id: managedTerminal.sessionId,
+          data: visibleData
+        })
       })
 
       terminal.onExit(({ exitCode, signal }) => {
-        terminals.delete(request.id)
-        void unregisterTerminalContextProcess(request.id)
-        if (!event.sender.isDestroyed()) {
-          event.sender.send(TERMINAL_CHANNELS.exit, { id: request.id, exitCode, signal })
+        const managedTerminal = terminals.get(request.id)
+        const sessionId = managedTerminal?.sessionId ?? request.id
+        if (managedTerminal?.process === terminal) {
+          managedTerminal.process = null
+          managedTerminal.pendingData = ''
         }
+
+        void unregisterTerminalContextProcess(request.id)
+        broadcastTerminalEvent(TERMINAL_CHANNELS.exit, { id: sessionId, exitCode, signal })
       })
 
       const commands =
@@ -1009,7 +1092,8 @@ function registerTerminalIpc(): void {
         id: request.id,
         pid: terminal.pid,
         shell: shellPath,
-        cwd
+        cwd,
+        attached: false
       }
     }
   )
@@ -1019,14 +1103,14 @@ function registerTerminalIpc(): void {
   })
 
   ipcMain.on(TERMINAL_CHANNELS.input, (_, request: TerminalInputRequest) => {
-    terminals.get(request.id)?.process.write(request.data)
+    terminals.get(request.id)?.process?.write(request.data)
   })
 
   ipcMain.on(TERMINAL_CHANNELS.resize, (_, request: TerminalResizeRequest) => {
     const managedTerminal = terminals.get(request.id)
     if (!managedTerminal) return
 
-    managedTerminal.process.resize(Math.max(request.cols, 2), Math.max(request.rows, 2))
+    managedTerminal.process?.resize(Math.max(request.cols, 2), Math.max(request.rows, 2))
   })
 }
 
