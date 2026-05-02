@@ -1,0 +1,222 @@
+.companion-store-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+}
+
+.companion-store-card {
+  --companion-rarity-color: #4ea1ff;
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  height: 196px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--companion-rarity-color) 42%, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--companion-rarity-color) 10%, transparent),
+      transparent 44%
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)), #16191f;
+}
+
+.companion-store-card[role='button'] {
+  cursor: pointer;
+}
+
+.companion-store-card[role='button']:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--companion-rarity-color) 72%, white);
+  outline-offset: 3px;
+}
+
+.companion-store-card--locked {
+  border-color: color-mix(in srgb, var(--companion-rarity-color) 22%, rgba(255, 255, 255, 0.08));
+}
+
+.companion-store-card--selected {
+  border-color: color-mix(in srgb, var(--companion-rarity-color) 74%, white);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--companion-rarity-color) 46%, transparent),
+    0 0 26px color-mix(in srgb, var(--companion-rarity-color) 24%, transparent);
+}
+
+.companion-store-card--selected::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 50% 0%,
+    color-mix(in srgb, var(--companion-rarity-color) 20%, transparent),
+    transparent 54%
+  );
+  pointer-events: none;
+}
+
+.companion-store-card-art {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  place-items: center;
+  padding: 12px;
+}
+
+.companion-avatar {
+  width: var(--companion-avatar-width);
+  height: var(--companion-avatar-height);
+  max-width: 100%;
+  max-height: 124px;
+  background-image: var(--companion-avatar-image);
+  background-position: 0% 0%;
+  background-repeat: no-repeat;
+  background-size: var(--companion-avatar-background-size);
+  image-rendering: pixelated;
+  transform: translate(var(--companion-avatar-offset-x, 0), var(--companion-avatar-offset-y, 0))
+    scale(var(--companion-avatar-scale, 1));
+  transform-origin: center bottom;
+}
+
+.companion-avatar--dimmed {
+  filter: grayscale(0.85);
+  opacity: 0.34;
+}
+
+.companion-avatar--animated {
+  animation: ghou-idle-sprite 2.4s linear infinite;
+}
+
+.companion-store-card--locked:hover .companion-avatar--dimmed,
+.companion-store-card--locked:focus-within .companion-avatar--dimmed {
+  filter: none;
+  opacity: 0.88;
+}
+
+.companion-store-card:not(.companion-store-card--locked):hover .companion-avatar {
+  animation: ghou-idle-sprite 2.4s linear infinite;
+}
+
+.companion-store-lock {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid color-mix(in srgb, var(--companion-rarity-color) 34%, rgba(255, 255, 255, 0.1));
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.58);
+  color: color-mix(in srgb, var(--companion-rarity-color) 68%, white);
+}
+
+.companion-store-selected {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--companion-rarity-color) 58%, white);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--companion-rarity-color) 22%, rgba(0, 0, 0, 0.72));
+  color: #fff;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--companion-rarity-color) 34%, transparent);
+}
+
+.companion-store-lock svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+}
+
+.companion-store-selected svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.6;
+}
+
+.companion-store-card-meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 12px 12px;
+  font-family: 'Menlo', 'Lucida Console', monospace;
+}
+
+.companion-store-card-meta strong,
+.companion-store-card-meta span,
+.companion-store-card-hover strong,
+.companion-store-card-hover span,
+.companion-store-card-hover small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.companion-store-card-meta strong {
+  color: var(--ev-c-text-1);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.companion-store-card-meta span {
+  color: color-mix(in srgb, var(--companion-rarity-color) 72%, white);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.companion-store-card-hover {
+  position: absolute;
+  inset: auto 8px 8px;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--companion-rarity-color) 36%, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.82);
+  font-family: 'Menlo', 'Lucida Console', monospace;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.companion-store-card:hover .companion-store-card-hover,
+.companion-store-card:focus-within .companion-store-card-hover {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.companion-store-card-hover strong {
+  color: var(--ev-c-text-1);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.companion-store-card-hover span,
+.companion-store-card-hover small {
+  color: color-mix(in srgb, var(--companion-rarity-color) 70%, white);
+  font-size: 11px;
+  font-weight: 700;
+}

@@ -1,0 +1,248 @@
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 6, 10, 0.62);
+  backdrop-filter: blur(14px);
+  z-index: 20;
+}
+
+.modal {
+  display: grid;
+  gap: 14px;
+  width: min(100%, 420px);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  background: #171b22;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48);
+}
+
+.modal--wide {
+  width: min(100%, 560px);
+}
+
+.modal-header,
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.modal-actions--end {
+  justify-content: flex-end;
+}
+
+.modal h2 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.modal-close-button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0;
+  color: var(--ev-c-text-2);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.modal-close-button:hover,
+.modal-close-button:focus-visible {
+  border-color: rgba(248, 113, 113, 0.34);
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.14);
+}
+
+.modal-subtitle {
+  margin: 4px 0 0;
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+}
+
+.modal label {
+  display: grid;
+  gap: 6px;
+}
+
+.modal input,
+.modal select,
+.modal textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: var(--ev-c-text-1);
+  background: rgba(255, 255, 255, 0.06);
+  font: inherit;
+}
+
+.modal input[type='color'] {
+  width: 64px;
+  height: 36px;
+  padding: 3px;
+}
+
+.modal textarea {
+  resize: vertical;
+  font-family: 'Menlo', 'Lucida Console', monospace;
+  font-size: 13px;
+}
+
+.start-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.start-agent-instruction-panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--active-project-color) 34%, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--active-project-color) 10%, rgba(255, 255, 255, 0.04));
+}
+
+.start-agent-toggle {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.start-agent-toggle input {
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--active-project-color);
+}
+
+.start-agent-toggle span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.start-agent-toggle strong {
+  color: var(--ev-c-text-1);
+  font-size: 13px;
+}
+
+.start-agent-toggle small,
+.start-agent-warning {
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+}
+
+.start-agent-warning {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.start-config-list {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  min-width: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.start-config-item {
+  display: grid;
+  grid-template-columns: 18px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px 8px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  cursor: pointer;
+}
+
+.start-config-item:hover {
+  border-color: color-mix(in srgb, var(--active-project-color) 44%, rgba(255, 255, 255, 0.08));
+}
+
+.start-config-item input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--active-project-color);
+}
+
+.start-config-item strong,
+.start-config-item small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.start-config-item small {
+  grid-column: 3;
+  color: var(--ev-c-text-2);
+}
+
+.start-config-item--disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.start-config-item--disabled:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.start-config-item--disabled input {
+  cursor: not-allowed;
+}
+
+.empty-start-state,
+.selection-count {
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+}
+
+.empty-start-state {
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 14px;
+  text-align: center;
+}
+
+.modal-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.danger-button {
+  width: auto;
+  border-color: rgba(248, 113, 113, 0.24);
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.1);
+  padding: 0 10px;
+}

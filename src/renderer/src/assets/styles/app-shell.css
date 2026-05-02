@@ -1,0 +1,126 @@
+.app-shell {
+  --active-project-color: #4ea1ff;
+  --activity-bar-width: 52px;
+  --rail-width: 300px;
+  --companion-width: 320px;
+  --projects-height: 178px;
+  --terminals-height: 260px;
+  --resize-divider-size: 4px;
+  display: grid;
+  grid-template-columns:
+    var(--activity-bar-width) minmax(240px, min(var(--rail-width), 32vw))
+    var(--resize-divider-size) minmax(320px, 1fr) var(--resize-divider-size)
+    minmax(220px, min(var(--companion-width), 28vw));
+  gap: 0;
+  width: 100vw;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.activity-sidebar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: var(--activity-bar-width);
+  min-width: var(--activity-bar-width);
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 0;
+  background:
+    linear-gradient(180deg, rgba(20, 22, 27, 0.96), rgba(13, 15, 19, 0.98)),
+    color-mix(in srgb, var(--active-project-color) 6%, transparent);
+}
+
+.activity-sidebar-group {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 0;
+}
+
+.activity-sidebar-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--activity-bar-width);
+  height: 48px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--ev-c-text-2) 76%, transparent);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.activity-sidebar-item::before {
+  content: '';
+  position: absolute;
+  inset: 8px auto 8px 0;
+  width: 2px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.activity-sidebar-item:hover,
+.activity-sidebar-item:focus-visible,
+.activity-sidebar-item--active {
+  color: color-mix(in srgb, var(--active-project-color) 72%, white);
+}
+
+.activity-sidebar-item:hover,
+.activity-sidebar-item:focus-visible {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.activity-sidebar-item--active {
+  background: color-mix(in srgb, var(--active-project-color) 14%, transparent);
+}
+
+.activity-sidebar-item--active::before,
+.activity-sidebar-item:focus-visible::before {
+  background: var(--active-project-color);
+}
+
+.activity-sidebar-item svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.activity-sidebar-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.36);
+  border-radius: 999px;
+  padding: 0 4px;
+  background: var(--active-project-color);
+  color: #071014;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+}
+
+.workspace-rail,
+.session-panel,
+.companion-catalog-panel,
+.companion-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(23, 25, 29, 0.88);
+}

@@ -65,3 +65,35 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+body {
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(24, 25, 28, 0.98), rgba(11, 13, 16, 1) 54%),
+    radial-gradient(circle at top right, rgba(127, 231, 220, 0.18), transparent 32%);
+  user-select: none;
+}
+
+body.is-resizing,
+body.is-resizing * {
+  user-select: none;
+}
+
+body.is-resizing--column,
+body.is-resizing--column * {
+  cursor: col-resize;
+}
+
+body.is-resizing--row,
+body.is-resizing--row * {
+  cursor: row-resize;
+}
+
+button {
+  font: inherit;
+}
+
+#root {
+  height: 100vh;
+  min-height: 0;
+}

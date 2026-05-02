@@ -1,0 +1,131 @@
+@media (prefers-reduced-motion: reduce) {
+  .preset-card-inner {
+    transition: none;
+  }
+
+  .preset-card:hover .preset-card-inner,
+  .preset-card:focus-visible .preset-card-inner,
+  .preset-card--selected .preset-card-inner {
+    transform: none;
+  }
+
+  .preset-card-back {
+    display: none;
+  }
+}
+
+@media (max-width: 1280px) {
+  body {
+    overflow: auto;
+  }
+
+  .app-shell {
+    grid-template-columns: var(--activity-bar-width) minmax(0, 1fr);
+    gap: 16px;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .activity-sidebar {
+    position: sticky;
+    top: 0;
+    grid-row: 1 / span 3;
+    height: 100vh;
+    max-height: 100vh;
+  }
+
+  .resize-handle {
+    display: none;
+  }
+
+  .workspace-rail,
+  .session-panel,
+  .companion-catalog-panel,
+  .companion-panel {
+    grid-column: 2;
+    overflow: hidden;
+  }
+
+  .workspace-rail {
+    height: calc(100vh - 32px);
+    max-height: calc(100vh - 32px);
+  }
+
+  .workspace-rail-scroll {
+    height: 100%;
+    max-height: 100%;
+    overflow: auto;
+  }
+
+  .session-panel,
+  .companion-catalog-panel {
+    min-height: 560px;
+  }
+
+  .companion-panel {
+    min-height: 260px;
+  }
+
+  .onboarding-panel {
+    min-height: calc(100vh - 48px);
+  }
+
+  .onboarding-header,
+  .onboarding-content,
+  .starter-selection-grid,
+  .setup-field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-steps {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .onboarding-shell,
+  .starter-selection-shell {
+    padding: 12px;
+  }
+
+  .onboarding-panel,
+  .starter-selection-panel {
+    min-height: calc(100vh - 24px);
+    padding: 16px;
+  }
+
+  .starter-selection-card {
+    min-height: 300px;
+  }
+
+  .preset-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .companion-box-shelf {
+    grid-template-columns: 1fr;
+  }
+
+  .companion-box-card {
+    aspect-ratio: auto;
+    min-height: 220px;
+  }
+
+  .companion-store-section-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .companion-box-opening-overlay {
+    padding: 14px;
+  }
+
+  .companion-box-opening-panel {
+    padding: 14px;
+  }
+
+  .review-list div {
+    grid-template-columns: 1fr;
+  }
+}
