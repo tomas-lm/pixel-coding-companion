@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 
-import { randomUUID } from 'node:crypto'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod/v4'
@@ -9,13 +8,15 @@ import {
   CLI_STATES,
   COMPANION_EVENT_TYPES,
   MAX_MESSAGES,
-  getDefaultEventType,
-  isValidCompanionEventType,
-  readBridgeState,
-  writeBridgeMessage
+  readBridgeState
 } from './companion-bridge-state.mjs'
 import { createCompanionDataPaths, getDefaultDataDir } from './companion-data-dir.mjs'
-import { readWorkspaceConfig, resolveProject } from './companion-project-context.mjs'
+import {
+  createCompanionMessage,
+  createCompanionReply,
+  writeCompanionMessage
+} from './companion-message.mjs'
+import { readWorkspaceConfig } from './companion-project-context.mjs'
 import {
   getCompanionProfile,
   getCompanionReportDescription,
@@ -77,55 +78,21 @@ async function readState() {
 }
 
 async function writeMessage(message) {
-  return writeBridgeMessage({
+  return writeCompanionMessage(message, {
+    companionId: COMPANION_ID,
+    companionName: COMPANION_NAME,
     dataDir,
     eventsPath,
-    message,
-    statePath,
-    stateOptions: {
-      companionId: COMPANION_ID,
-      companionName: COMPANION_NAME
-    }
+    statePath
   })
 }
 
-function createReply(message) {
-  return `${message.companionName ?? COMPANION_NAME} > ${message.summary}`
-}
-
 async function createMessage(input) {
-  const now = new Date().toISOString()
-  const resolvedProject = await resolveProject(input, projectContextOptions)
-  const companionProfile = await readActiveCompanionProfile(dataDir)
-
-  return {
-    id: randomUUID(),
-    agentName: input.agentName,
-    cliState: input.cliState,
-    companionId: companionProfile.id,
-    companionName: companionProfile.name,
-    contextSource: resolvedProject.contextSource,
-    createdAt: now,
-    cwd: resolvedProject.cwd ?? input.cwd,
-    details: input.details,
-    eventType: isValidCompanionEventType(input.eventType)
-      ? input.eventType
-      : getDefaultEventType(input.cliState),
-    projectColor: resolvedProject.projectColor,
-    projectId: resolvedProject.projectId,
-    projectName: resolvedProject.projectName,
-    sessionName: resolvedProject.sessionName ?? input.sessionName,
-    terminalId: resolvedProject.terminalId,
-    terminalSessionId: resolvedProject.terminalSessionId,
-    source: 'mcp',
-    summary: input.summary,
-    title:
-      input.title ??
-      resolvedProject.sessionName ??
-      input.sessionName ??
-      input.agentName ??
-      'CLI update'
-  }
+  return createCompanionMessage(input, {
+    projectContextOptions,
+    readCompanionProfile: () => readActiveCompanionProfile(dataDir),
+    source: 'mcp'
+  })
 }
 
 const server = new McpServer({
@@ -200,7 +167,7 @@ server.registerTool(
     const companionProfile = getCompanionProfile(message.companionId)
     const state = await writeMessage(message)
     const progressUpdate = await updateCompanionProgress(message, xpAwardOptions)
-    const reply = createReply(message)
+    const reply = createCompanionReply(message, COMPANION_NAME)
 
     return {
       content: [

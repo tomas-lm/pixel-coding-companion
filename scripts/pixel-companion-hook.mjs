@@ -1,14 +1,9 @@
 #!/usr/bin/env node
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 
-import { randomUUID } from 'node:crypto'
-import {
-  getDefaultEventType,
-  isValidCompanionEventType,
-  writeBridgeMessage
-} from './companion-bridge-state.mjs'
 import { createCompanionDataPaths, getDefaultDataDir } from './companion-data-dir.mjs'
-import { readBoundContext, resolveProject } from './companion-project-context.mjs'
+import { createCompanionMessage, writeCompanionMessage } from './companion-message.mjs'
+import { readBoundContext } from './companion-project-context.mjs'
 import {
   getCompanionVoiceGuidance as buildCompanionVoiceGuidance,
   readActiveCompanionProfile
@@ -54,54 +49,22 @@ function truncate(value, maxLength) {
 }
 
 async function writeMessage(message) {
-  return writeBridgeMessage({
+  return writeCompanionMessage(message, {
+    companionId: COMPANION_ID,
+    companionName: COMPANION_NAME,
     dataDir,
     eventsPath,
-    message,
     statePath,
-    stateOptions: {
-      companionId: COMPANION_ID,
-      companionName: COMPANION_NAME,
-      swallowSyntax: true
-    }
+    swallowSyntax: true
   })
 }
 
 async function createMessage(input) {
-  const now = new Date().toISOString()
-  const resolvedProject = await resolveProject(input, projectContextOptions)
-
-  return {
-    id: randomUUID(),
-    agentName: input.agentName,
-    cliState: input.cliState,
-    codexSessionId: input.codexSessionId,
-    codexTurnId: input.codexTurnId,
-    companionId: COMPANION_PROFILE.id,
-    companionName: COMPANION_PROFILE.name,
-    contextSource: resolvedProject.contextSource,
-    createdAt: now,
-    cwd: resolvedProject.cwd ?? input.cwd,
-    details: input.details,
-    eventType: isValidCompanionEventType(input.eventType)
-      ? input.eventType
-      : getDefaultEventType(input.cliState),
-    hookEventName: input.hookEventName,
-    projectColor: resolvedProject.projectColor,
-    projectId: resolvedProject.projectId,
-    projectName: resolvedProject.projectName,
-    sessionName: resolvedProject.sessionName ?? input.sessionName,
-    terminalId: resolvedProject.terminalId,
-    terminalSessionId: resolvedProject.terminalSessionId,
-    source: 'app',
-    summary: input.summary,
-    title:
-      input.title ??
-      resolvedProject.sessionName ??
-      input.sessionName ??
-      input.agentName ??
-      'CLI update'
-  }
+  return createCompanionMessage(input, {
+    companionProfile: COMPANION_PROFILE,
+    projectContextOptions,
+    source: 'app'
+  })
 }
 
 function readStdin() {
