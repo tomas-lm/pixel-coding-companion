@@ -25,7 +25,7 @@ import {
   COMPANION_BOX_DEFINITIONS,
   COMPANION_STORE_DEFINITIONS,
   STARTER_COMPANION_ID,
-  getDuplicateXpForRarity,
+  getDuplicateXpForBoxPrice,
   getLocalDateKey,
   getMonsterPointsForReachedLevel,
   type CompanionBoxDefinition,
@@ -1069,7 +1069,7 @@ function registerCompanionIpc(): void {
       const currentEntry =
         storeState.companions[companion.id] ?? createDefaultCompanionCollectionEntry(companion)
       const isDuplicate = currentEntry.owned
-      const duplicateXp = isDuplicate ? getDuplicateXpForRarity(companion.rarity) : 0
+      const duplicateXp = isDuplicate ? getDuplicateXpForBoxPrice(box.price) : 0
 
       progress = {
         ...progress,

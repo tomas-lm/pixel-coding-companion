@@ -1010,7 +1010,7 @@ button {
 
 .companion-box-card-hover {
   position: absolute;
-  inset: auto 8px 8px;
+  inset: 8px 8px auto;
   display: grid;
   gap: 6px;
   min-width: 0;
@@ -1022,7 +1022,7 @@ button {
   font-family: 'Menlo', 'Lucida Console', monospace;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(6px);
+  transform: translateY(-6px);
   transition:
     opacity 120ms ease,
     transform 120ms ease;

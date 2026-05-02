@@ -3,7 +3,7 @@ export {
   formatMonsterPoints,
   getCompanionPrice,
   getCompanionRarityColor,
-  getDuplicateXpForRarity,
+  getDuplicateXpForBoxPrice,
   getMonsterPointsForReachedLevel,
   isBoxOnlyRarity,
   RARITY_COLORS

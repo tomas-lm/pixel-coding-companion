@@ -1,10 +1,12 @@
 import { useEffect, useRef, type CSSProperties, type PointerEvent } from 'react'
 import type { CompanionBridgeMessage, CompanionCliState } from '../../../shared/companion'
+import type { CompanionSpriteStage } from '../companions/companionTypes'
 import type { CompanionProgress } from '../lib/companionProgress'
 import { CompanionProgressBar } from './CompanionProgressBar'
 
 type CompanionPanelProps = {
   companionName: string
+  companionStage: CompanionSpriteStage
   companionState: CompanionCliState
   getMessageColor: (message: CompanionBridgeMessage) => string
   messages: CompanionBridgeMessage[]
@@ -24,15 +26,9 @@ function getCompanionStateLabel(state: CompanionCliState): string {
   return state
 }
 
-function getGhouSpriteStage(level: number): 'egg' | 'lvl1' | 'lvl2' | 'lvl3' {
-  if (level >= 50) return 'lvl3'
-  if (level >= 25) return 'lvl2'
-  if (level >= 5) return 'lvl1'
-  return 'egg'
-}
-
 export function CompanionPanel({
   companionName,
+  companionStage,
   companionState,
   getMessageColor,
   messages,
@@ -41,7 +37,12 @@ export function CompanionPanel({
 }: CompanionPanelProps): React.JSX.Element {
   const terminalScreenRef = useRef<HTMLDivElement | null>(null)
   const latestMessageId = messages.at(-1)?.id
-  const spriteStage = getGhouSpriteStage(progress.level)
+  const companionSpriteStyle = {
+    backgroundImage: `url(${companionStage.spriteUrl})`,
+    backgroundSize: `${companionStage.frameColumns * 100}% ${companionStage.frameRows * 100}%`,
+    height: `${companionStage.height}px`,
+    width: `${companionStage.width}px`
+  } as CSSProperties
 
   useEffect(() => {
     const terminalScreen = terminalScreenRef.current
@@ -95,7 +96,8 @@ export function CompanionPanel({
           </div>
 
           <div
-            className={`pixel-companion pixel-companion--stage-${spriteStage} pixel-companion--${companionState}`}
+            className={`pixel-companion pixel-companion--stage-${companionStage.id} pixel-companion--${companionState}`}
+            style={companionSpriteStyle}
             aria-hidden="true"
           />
           <div className="shadow" />

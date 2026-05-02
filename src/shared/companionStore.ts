@@ -232,15 +232,9 @@ const RARITY_PRICE_MULTIPLIERS: Record<CompanionRarity, number> = {
   special: 0
 }
 
-const DUPLICATE_XP_BY_RARITY: Record<CompanionRarity, number> = {
-  starter: 100,
-  common: 150,
-  uncommon: 350,
-  rare: 1200,
-  ultra_rare: 4000,
-  legendary: 15000,
-  special: 0
-}
+const FREE_BOX_DUPLICATE_XP = 100
+const DUPLICATE_XP_BOX_PRICE_RATE = 0.08
+const DUPLICATE_XP_ROUNDING = 50
 
 export const RARITY_COLORS: Record<CompanionRarity, string> = {
   starter: '#f97316',
@@ -284,8 +278,17 @@ export function isBoxOnlyRarity(rarity: CompanionRarity): boolean {
   return rarity === 'rare' || rarity === 'ultra_rare' || rarity === 'legendary'
 }
 
-export function getDuplicateXpForRarity(rarity: CompanionRarity): number {
-  return DUPLICATE_XP_BY_RARITY[rarity]
+export function getDuplicateXpForBoxPrice(price: number): number {
+  const safePrice = Math.max(0, Math.floor(price))
+
+  if (safePrice <= 0) return FREE_BOX_DUPLICATE_XP
+
+  const rawDuplicateXp = safePrice * DUPLICATE_XP_BOX_PRICE_RATE
+
+  return Math.max(
+    FREE_BOX_DUPLICATE_XP,
+    Math.round(rawDuplicateXp / DUPLICATE_XP_ROUNDING) * DUPLICATE_XP_ROUNDING
+  )
 }
 
 export function formatMonsterPoints(value: number): string {

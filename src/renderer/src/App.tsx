@@ -33,7 +33,11 @@ import { CompanionCatalogPanel } from './components/CompanionCatalogPanel'
 import { CompanionPanel } from './components/CompanionPanel'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { TerminalPane } from './components/TerminalPane'
-import { COMPANION_REGISTRY, STARTER_COMPANION_ID } from './companions/companionRegistry'
+import {
+  COMPANION_REGISTRY,
+  STARTER_COMPANION_ID,
+  getCompanionStageForLevel
+} from './companions/companionRegistry'
 import { createCompanionProgressSnapshot } from './lib/companionProgress'
 
 const COMPANION_NAME = 'Ghou'
@@ -556,8 +560,16 @@ function App(): React.JSX.Element {
       label: 'Companion selector'
     }
   ]
+  const activeCompanionId = companionStoreState?.activeCompanionId ?? STARTER_COMPANION_ID
+  const activeCompanionDefinition =
+    COMPANION_REGISTRY.find((companion) => companion.id === activeCompanionId) ??
+    COMPANION_REGISTRY[0]
   const activeCompanionProgress = getActiveCompanionProgress(companionProgress, companionStoreState)
   const activeCompanionName = activeCompanionProgress.name
+  const activeCompanionStage = getCompanionStageForLevel(
+    activeCompanionDefinition,
+    activeCompanionProgress.level
+  )
 
   useEffect(() => {
     let mounted = true
@@ -1390,6 +1402,7 @@ function App(): React.JSX.Element {
 
       <CompanionPanel
         companionName={activeCompanionName}
+        companionStage={activeCompanionStage}
         companionState={companionTerminalState}
         getMessageColor={(message) =>
           getCompanionMessageColor(message, projects, terminalConfigs, activeProjectColor)
