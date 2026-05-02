@@ -2,6 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { COMPANION_REGISTRY, TOUK_STAGES } from './companionRegistry'
 
 describe('companion registry', () => {
+  it('keeps marketplace companions ordered by rarity tier', () => {
+    expect(
+      COMPANION_REGISTRY.filter((companion) => companion.rarity !== 'starter').map((companion) => ({
+        id: companion.id,
+        rarity: companion.rarity
+      }))
+    ).toEqual([
+      { id: 'raya', rarity: 'common' },
+      { id: 'karpa', rarity: 'uncommon' },
+      { id: 'drago', rarity: 'rare' },
+      { id: 'touk', rarity: 'ultra_rare' },
+      { id: 'phoebe', rarity: 'legendary' },
+      { id: 'corax', rarity: 'special' }
+    ])
+  })
+
   it('registers Touk in place of Buba with ground and flying stage heights', () => {
     const touk = COMPANION_REGISTRY.find((companion) => companion.id === 'touk')
 

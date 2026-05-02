@@ -138,24 +138,24 @@ export const COMPANION_STORE_DEFINITIONS: CompanionStoreDefinition[] = [
     rarity: 'common'
   },
   {
-    acquisition: 'purchasable',
-    basePrice: 15000,
-    id: 'touk',
-    name: 'Touk',
-    rarity: 'ultra_rare'
-  },
-  {
     acquisition: 'box_only',
     basePrice: 12500,
     id: 'karpa',
     name: 'Karpa',
-    rarity: 'rare'
+    rarity: 'uncommon'
   },
   {
     acquisition: 'box_only',
     basePrice: 15000,
     id: 'drago',
     name: 'Drago',
+    rarity: 'rare'
+  },
+  {
+    acquisition: 'purchasable',
+    basePrice: 15000,
+    id: 'touk',
+    name: 'Touk',
     rarity: 'ultra_rare'
   },
   {
