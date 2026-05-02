@@ -1,5 +1,7 @@
 import type { CompanionBoxDefinition } from '../../../shared/companionStore'
+import { getCompanionBoxImage } from '../boxes/companionBoxImages'
 import { formatCompanionRarity, formatMonsterPoints } from '../companions/companionEconomy'
+import { CompanionBoxImage } from './CompanionBoxImage'
 
 type CompanionBoxCardProps = {
   box: CompanionBoxDefinition
@@ -53,11 +55,12 @@ export function CompanionBoxCard({
           : 'Need MP'
   const priceLabel =
     box.claimCadence === 'daily' ? 'Free daily' : `${formatMonsterPoints(box.price)} MP`
+  const boxImage = getCompanionBoxImage(box.id)
 
   return (
     <article className="companion-box-card">
       <div className="companion-box-card-icon" aria-hidden="true">
-        <span />
+        <CompanionBoxImage image={boxImage} name={box.name} />
       </div>
 
       <div className="companion-box-card-copy">

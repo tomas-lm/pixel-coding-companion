@@ -1,4 +1,7 @@
-import combotEggSpriteUrl from '../assets/companions/combot/combot-egg.svg'
+import combotEggSpriteUrl from '../assets/companions/combot/combot-egg-idle.png'
+import combotLvl1SpriteUrl from '../assets/companions/combot/combot-lvl1-idle.png'
+import combotLvl2SpriteUrl from '../assets/companions/combot/combot-lvl2-idle.png'
+import combotLvl3SpriteUrl from '../assets/companions/combot/combot-lvl3-idle.png'
 import frogoEggSpriteUrl from '../assets/companions/frogo/frogo-egg-idle.png'
 import frogoLvl1SpriteUrl from '../assets/companions/frogo/frogo-lvl1-idle.png'
 import frogoLvl2SpriteUrl from '../assets/companions/frogo/frogo-lvl2-idle.png'
@@ -157,13 +160,41 @@ export const FROGO_STAGES: CompanionSpriteStage[] = [
 
 export const COMBOT_STAGES: CompanionSpriteStage[] = [
   {
-    frameColumns: 1,
-    frameRows: 1,
+    avatarOffsetY: 10,
+    frameColumns: 6,
+    frameRows: 6,
     height: 149,
     id: 'egg',
     minLevel: 0,
     spriteUrl: combotEggSpriteUrl,
-    width: 116
+    width: 104
+  },
+  {
+    frameColumns: 6,
+    frameRows: 6,
+    height: 149,
+    id: 'lvl1',
+    minLevel: 5,
+    spriteUrl: combotLvl1SpriteUrl,
+    width: 142
+  },
+  {
+    frameColumns: 6,
+    frameRows: 6,
+    height: 149,
+    id: 'lvl2',
+    minLevel: 25,
+    spriteUrl: combotLvl2SpriteUrl,
+    width: 146
+  },
+  {
+    frameColumns: 6,
+    frameRows: 6,
+    height: 149,
+    id: 'lvl3',
+    minLevel: 50,
+    spriteUrl: combotLvl3SpriteUrl,
+    width: 162
   }
 ]
 

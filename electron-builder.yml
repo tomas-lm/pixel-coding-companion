@@ -12,6 +12,7 @@ files:
 asarUnpack:
   - resources/**
   - node_modules/node-pty/**
+  - scripts/**
 win:
   executableName: pixel-coding-companion
 nsis:

@@ -78,9 +78,17 @@ type TerminalContextRegistryEntry = TerminalCompanionContext & {
   updatedAt: string
 }
 
-const APP_NAME = 'Pixel Companion'
-const APP_ID = 'dev.tomasmuniz.pixel-coding-companion'
-const APP_USER_DATA_DIR = 'pixel-coding-companion'
+function readEnvSetting(name: string): string | undefined {
+  const value = process.env[name]?.trim()
+
+  return value ? value : undefined
+}
+
+const APP_NAME = readEnvSetting('PIXEL_COMPANION_APP_NAME') ?? 'Pixel Companion'
+const APP_ID =
+  readEnvSetting('PIXEL_COMPANION_APP_ID') ?? 'dev.tomasmuniz.pixel-coding-companion'
+const APP_USER_DATA_DIR =
+  readEnvSetting('PIXEL_COMPANION_USER_DATA_DIR') ?? 'pixel-coding-companion'
 const COMMAND_EXIT_MARKER = '__PIXEL_COMPANION_COMMAND_EXIT__:'
 const COMMAND_EXIT_COMMAND = `printf '\\n${COMMAND_EXIT_MARKER}%s\\n' "$?"`
 const COMMAND_EXIT_PATTERN = new RegExp(
@@ -132,6 +140,7 @@ function getPtyEnv(extraEnv: Record<string, string> = {}): Record<string, string
     CLICOLOR: '1',
     CLICOLOR_FORCE: '1',
     FORCE_COLOR: '3',
+    PIXEL_COMPANION_DATA_DIR: app.getPath('userData'),
     TERM_PROGRAM: 'PixelCompanion'
   }
 
@@ -146,6 +155,7 @@ function shellQuote(value: string): string {
 function getPixelCliCommand(): string {
   const candidates = [
     join(process.cwd(), 'scripts', 'pixel.mjs'),
+    join(process.resourcesPath, 'app.asar.unpacked', 'scripts', 'pixel.mjs'),
     join(app.getAppPath(), 'scripts', 'pixel.mjs')
   ]
   const scriptPath = candidates.find((candidate) => existsSync(candidate))

@@ -56,6 +56,29 @@ On macOS, that is usually:
 ~/Library/Application Support/pixel-coding-companion
 ```
 
+### Stable Work Window Plus Dev Window
+
+When developing Pixel Companion while also using it for real project work, keep the
+compiled app as the stable work window and run development with an isolated profile:
+
+```bash
+pnpm build:unpack
+pnpm open:stable
+pnpm dev:isolated
+```
+
+`pnpm open:stable` opens the compiled app from `dist/mac-arm64` and does not stop any
+running development window. `pnpm dev:isolated` starts the dev app as `Pixel Companion
+Dev` with its own data directory:
+
+```text
+~/Library/Application Support/pixel-coding-companion-dev
+```
+
+Use the stable window for company/project terminals and the isolated dev window for
+Pixel Companion development. Avoid broad process kills; stop only the dev terminal
+session when you want the dev app to close.
+
 ## Basic App Setup
 
 1. Start the app with `pnpm dev`.

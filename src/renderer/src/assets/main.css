@@ -938,15 +938,22 @@ button {
   justify-self: center;
   display: grid;
   place-items: center;
-  width: min(104px, 68%);
-  height: min(104px, 68%);
+  width: min(152px, 86%);
+  height: min(132px, 74%);
   aspect-ratio: 1 / 1;
-  border: 1px solid color-mix(in srgb, var(--companion-box-color) 38%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--companion-box-color) 8%, transparent);
 }
 
-.companion-box-card-icon span {
+.companion-box-image {
+  display: block;
+  width: min(142px, 100%);
+  height: auto;
+  max-height: 132px;
+  filter: drop-shadow(0 16px 12px rgba(0, 0, 0, 0.26));
+  image-rendering: pixelated;
+  object-fit: contain;
+}
+
+.companion-box-image--fallback {
   width: 42px;
   height: 54px;
   border: 2px solid var(--companion-box-color);
