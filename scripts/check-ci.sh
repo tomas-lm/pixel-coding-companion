@@ -9,6 +9,9 @@ pnpm lint
 echo "> pnpm typecheck"
 pnpm typecheck
 
+echo "> pnpm test:run"
+pnpm test:run
+
 echo "> pnpm build"
 pnpm build
 

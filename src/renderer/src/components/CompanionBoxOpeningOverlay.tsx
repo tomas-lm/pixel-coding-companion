@@ -32,9 +32,7 @@ function createReelItem(
   const registeredCompanion = COMPANION_REGISTRY.find((candidate) => candidate.id === companion.id)
 
   return {
-    eggStage: registeredCompanion
-      ? getCompanionStageForLevel(registeredCompanion, 0)
-      : undefined,
+    eggStage: registeredCompanion ? getCompanionStageForLevel(registeredCompanion, 0) : undefined,
     id: companion.id,
     name: companion.name,
     rarity: companion.rarity,

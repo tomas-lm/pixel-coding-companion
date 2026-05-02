@@ -3,34 +3,29 @@
 
 import { createHash, randomUUID } from 'node:crypto'
 import { execFile } from 'node:child_process'
-import { appendFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import os from 'node:os'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import {
+  getDefaultEventType,
+  isValidCompanionEventType,
+  writeBridgeMessage
+} from './companion-bridge-state.mjs'
+import { createCompanionDataPaths, getDefaultDataDir } from './companion-data-dir.mjs'
+import { writeJsonAtomic } from './companion-json-store.mjs'
+import {
+  getCompanionVoiceGuidance as buildCompanionVoiceGuidance,
+  readActiveCompanionProfile
+} from './companion-profile.mjs'
+import {
+  applyXpToActiveCompanion,
+  createActiveCompanionProgressSnapshot
+} from './companion-store-progress.mjs'
 
-const MAX_MESSAGES = 80
-const CLI_STATES = ['idle', 'working', 'done', 'error', 'waiting_input']
-const COMPANION_EVENT_TYPES = ['started', 'finished', 'blocked', 'failed', 'needs_input', 'note']
-const COMPANION_ID = 'ghou'
-const COMPANION_NAME = 'Ghou'
-const COMPANION_PROFILE = {
-  id: COMPANION_ID,
-  name: COMPANION_NAME,
-  archetype: 'pixel ghost coding companion',
-  personality: {
-    tone: 'calm, observant, useful, lightly playful',
-    humor: 'subtle and occasional; never at the expense of clarity',
-    responseLength: 'short by default, with details only when useful',
-    technicalStyle: 'practical and specific, avoiding audit-log phrasing',
-    errorStyle: 'clear and steady, focused on what failed and the next useful step',
-    successStyle: 'warm but concise, acknowledging progress without over-celebrating'
-  }
-}
 const MAX_COMPANION_LEVEL = 100
 const BASE_NEXT_LEVEL_XP = 120
 const LEVEL_XP_GROWTH = 1.13
 const ACTIVE_TURN_TIMEOUT_MS = 4 * 60 * 60 * 1000
-const DAILY_XP_CAP = 500
 const MAX_TURN_XP = 36
 const MAX_RECENT_AWARDS = 160
 const DUPLICATE_WINDOW_MS = 15 * 60 * 1000
@@ -52,52 +47,23 @@ const EXTERNAL_TERMINAL_COLORS = [
 ]
 const execFileAsync = promisify(execFile)
 
-function getDefaultDataDir() {
-  if (process.env.PIXEL_COMPANION_DATA_DIR) return process.env.PIXEL_COMPANION_DATA_DIR
-  if (process.platform === 'darwin') {
-    return path.join(os.homedir(), 'Library/Application Support/pixel-coding-companion')
-  }
-  if (process.platform === 'win32') {
-    return path.join(process.env.APPDATA ?? os.homedir(), 'pixel-coding-companion')
-  }
-
-  return path.join(
-    process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config'),
-    'pixel-coding-companion'
-  )
-}
-
 const dataDir = getDefaultDataDir()
-const statePath = path.join(dataDir, 'companion-state.json')
-const eventsPath = path.join(dataDir, 'companion-events.jsonl')
-const progressPath = path.join(dataDir, 'companion-progress.json')
-const workspacesPath = path.join(dataDir, 'workspaces.json')
-const terminalContextRegistryPath = path.join(dataDir, 'terminal-contexts', 'registry.json')
-const externalTerminalRegistryPath = path.join(dataDir, 'external-terminals.json')
+const {
+  eventsPath,
+  externalTerminalRegistryPath,
+  progressPath,
+  statePath,
+  terminalContextRegistryPath,
+  workspacesPath
+} = createCompanionDataPaths(dataDir)
+const COMPANION_PROFILE = await readActiveCompanionProfile(dataDir)
+const COMPANION_ID = COMPANION_PROFILE.id
+const COMPANION_NAME = COMPANION_PROFILE.name
 
 function getXpRequiredForLevel(level) {
   const safeLevel = Math.min(Math.max(Math.floor(level), 0), MAX_COMPANION_LEVEL)
 
   return Math.floor(BASE_NEXT_LEVEL_XP * Math.pow(LEVEL_XP_GROWTH, safeLevel))
-}
-
-function getMonsterPointsForReachedLevel(level) {
-  const safeLevel = Math.max(0, Math.floor(level))
-
-  if (safeLevel <= 0) return 0
-  if (safeLevel <= 2) return 500
-
-  const progress = (safeLevel - 2) / 98
-  const rawReward = 500 + 499500 * Math.pow(progress, 2.2)
-
-  return Math.round(rawReward / 50) * 50
-}
-
-function createDefaultState() {
-  return {
-    currentState: 'idle',
-    messages: []
-  }
 }
 
 function createDefaultProgress() {
@@ -117,34 +83,8 @@ function createDefaultProgress() {
   }
 }
 
-function isValidState(value) {
-  return CLI_STATES.includes(value)
-}
-
-function isValidCompanionEventType(value) {
-  return COMPANION_EVENT_TYPES.includes(value)
-}
-
-function getDefaultEventType(cliState) {
-  if (cliState === 'working') return 'started'
-  if (cliState === 'done') return 'finished'
-  if (cliState === 'error') return 'failed'
-  if (cliState === 'waiting_input') return 'needs_input'
-  return 'note'
-}
-
 function getCompanionVoiceGuidance() {
-  const { personality } = COMPANION_PROFILE
-
-  return [
-    `${COMPANION_PROFILE.name} is a ${COMPANION_PROFILE.archetype}.`,
-    `Tone: ${personality.tone}.`,
-    `Humor: ${personality.humor}.`,
-    `Length: ${personality.responseLength}.`,
-    `Technical style: ${personality.technicalStyle}.`,
-    'Always match the user language and communication style without assuming a specific locale.',
-    'Speak to the user naturally; do not mention MCP, tool calls, schemas, or internal reporting unless the user is debugging Pixel Companion.'
-  ].join(' ')
+  return buildCompanionVoiceGuidance(COMPANION_PROFILE)
 }
 
 function isHexColor(value) {
@@ -247,54 +187,6 @@ async function readBoundContext() {
   }
 }
 
-function normalizeMessage(message) {
-  if (!message || typeof message !== 'object') return null
-  if (typeof message.id !== 'string') return null
-  if (typeof message.createdAt !== 'string') return null
-  if (typeof message.title !== 'string') return null
-  if (typeof message.summary !== 'string') return null
-
-  return {
-    id: message.id,
-    agentName: typeof message.agentName === 'string' ? message.agentName : undefined,
-    cliState: isValidState(message.cliState) ? message.cliState : 'idle',
-    companionId: typeof message.companionId === 'string' ? message.companionId : COMPANION_ID,
-    companionName:
-      typeof message.companionName === 'string' ? message.companionName : COMPANION_NAME,
-    contextSource: typeof message.contextSource === 'string' ? message.contextSource : undefined,
-    createdAt: message.createdAt,
-    cwd: typeof message.cwd === 'string' ? message.cwd : undefined,
-    details: typeof message.details === 'string' ? message.details : undefined,
-    eventType: isValidCompanionEventType(message.eventType)
-      ? message.eventType
-      : getDefaultEventType(message.cliState),
-    projectId: typeof message.projectId === 'string' ? message.projectId : undefined,
-    projectColor: typeof message.projectColor === 'string' ? message.projectColor : undefined,
-    projectName: typeof message.projectName === 'string' ? message.projectName : undefined,
-    sessionName: typeof message.sessionName === 'string' ? message.sessionName : undefined,
-    terminalId: typeof message.terminalId === 'string' ? message.terminalId : undefined,
-    terminalSessionId:
-      typeof message.terminalSessionId === 'string' ? message.terminalSessionId : undefined,
-    source: message.source === 'app' ? 'app' : 'mcp',
-    summary: message.summary,
-    title: message.title
-  }
-}
-
-function normalizeState(state) {
-  if (!state || typeof state !== 'object') return createDefaultState()
-
-  const messages = Array.isArray(state.messages)
-    ? state.messages.map(normalizeMessage).filter(Boolean)
-    : []
-
-  return {
-    currentState: isValidState(state.currentState) ? state.currentState : 'idle',
-    messages: messages.slice(-MAX_MESSAGES),
-    updatedAt: typeof state.updatedAt === 'string' ? state.updatedAt : undefined
-  }
-}
-
 function normalizeActiveTurn(value) {
   if (!value || typeof value !== 'object') return null
   if (typeof value.startedAt !== 'string') return null
@@ -320,6 +212,7 @@ function normalizeAward(value) {
 
   return {
     createdAt: value.createdAt,
+    companionId: typeof value.companionId === 'string' ? value.companionId : undefined,
     messageId: value.messageId,
     reason: typeof value.reason === 'string' ? value.reason : undefined,
     signature: typeof value.signature === 'string' ? value.signature : undefined,
@@ -376,17 +269,6 @@ function normalizeProgress(progress) {
   }
 }
 
-async function readState() {
-  try {
-    const file = await readFile(statePath, 'utf8')
-    return normalizeState(JSON.parse(file))
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return createDefaultState()
-    if (error instanceof SyntaxError) return createDefaultState()
-    throw error
-  }
-}
-
 async function readProgress() {
   try {
     const file = await readFile(progressPath, 'utf8')
@@ -396,14 +278,6 @@ async function readProgress() {
     if (error instanceof SyntaxError) return createDefaultProgress()
     throw error
   }
-}
-
-async function writeJsonAtomic(filePath, value) {
-  await mkdir(path.dirname(filePath), { recursive: true })
-  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
-
-  await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
-  await rename(tempPath, filePath)
 }
 
 async function readWorkspaceConfig() {
@@ -568,19 +442,17 @@ async function resolveProject(input) {
 }
 
 async function writeMessage(message) {
-  await mkdir(dataDir, { recursive: true })
-
-  const currentState = await readState()
-  const nextState = {
-    currentState: message.cliState,
-    messages: [...currentState.messages, message].slice(-MAX_MESSAGES),
-    updatedAt: message.createdAt
-  }
-
-  await writeJsonAtomic(statePath, nextState)
-  await appendFile(eventsPath, `${JSON.stringify(message)}\n`, 'utf8')
-
-  return nextState
+  return writeBridgeMessage({
+    dataDir,
+    eventsPath,
+    message,
+    statePath,
+    stateOptions: {
+      companionId: COMPANION_ID,
+      companionName: COMPANION_NAME,
+      swallowSyntax: true
+    }
+  })
 }
 
 function getTurnKey(message) {
@@ -619,14 +491,6 @@ function pruneActiveTurns(activeTurns, nowMs) {
   )
 }
 
-function getDailyAwardedXp(recentAwards, message) {
-  const day = message.createdAt.slice(0, 10)
-
-  return recentAwards
-    .filter((award) => award.createdAt.slice(0, 10) === day)
-    .reduce((total, award) => total + award.xp, 0)
-}
-
 function isDuplicateAward(recentAwards, turnKey, signature, nowMs) {
   return recentAwards.some((award) => {
     if (award.turnKey !== turnKey || award.signature !== signature) return false
@@ -643,35 +507,6 @@ function hasRecentFinalAward(recentAwards, turnKey, nowMs) {
     const awardMs = Date.parse(award.createdAt)
     return Number.isFinite(awardMs) && nowMs - awardMs <= FALLBACK_FINAL_SUPPRESSION_MS
   })
-}
-
-function addXp(progress, xp) {
-  let nextLevel = progress.level
-  let nextCurrentXp = progress.currentXp + xp
-  let nextXpForLevel = getXpRequiredForLevel(nextLevel)
-  let monsterPointsEarned = 0
-
-  while (nextLevel < MAX_COMPANION_LEVEL && nextCurrentXp >= nextXpForLevel) {
-    nextCurrentXp -= nextXpForLevel
-    nextLevel += 1
-    monsterPointsEarned += getMonsterPointsForReachedLevel(nextLevel)
-    nextXpForLevel = getXpRequiredForLevel(nextLevel)
-  }
-
-  if (nextLevel >= MAX_COMPANION_LEVEL) {
-    nextCurrentXp = 0
-  }
-
-  return {
-    ...progress,
-    currentXp: nextCurrentXp,
-    level: nextLevel,
-    monsterPoints: progress.monsterPoints + monsterPointsEarned,
-    progressRatio:
-      nextLevel >= MAX_COMPANION_LEVEL || nextXpForLevel <= 0 ? 1 : nextCurrentXp / nextXpForLevel,
-    totalXp: progress.totalXp + xp,
-    xpForNextLevel: nextXpForLevel
-  }
 }
 
 function calculateTurnXp({ duplicate, durationMs, hasWorking, message }) {
@@ -725,7 +560,7 @@ async function updateCompanionProgress(message, options = {}) {
 
     return {
       award: null,
-      progress
+      progress: await createActiveCompanionProgressSnapshot(dataDir, progress)
     }
   }
 
@@ -736,21 +571,21 @@ async function updateCompanionProgress(message, options = {}) {
 
     return {
       award: null,
-      progress
+      progress: await createActiveCompanionProgressSnapshot(dataDir, progress)
     }
   }
 
   if (!['done', 'error', 'waiting_input'].includes(message.cliState)) {
     return {
       award: null,
-      progress
+      progress: await createActiveCompanionProgressSnapshot(dataDir, progress)
     }
   }
 
   if (progress.recentAwards.some((award) => award.messageId === message.id)) {
     return {
       award: null,
-      progress
+      progress: await createActiveCompanionProgressSnapshot(dataDir, progress)
     }
   }
 
@@ -766,7 +601,7 @@ async function updateCompanionProgress(message, options = {}) {
 
     return {
       award: null,
-      progress
+      progress: await createActiveCompanionProgressSnapshot(dataDir, progress)
     }
   }
 
@@ -774,25 +609,28 @@ async function updateCompanionProgress(message, options = {}) {
   const hasWorking = Boolean(activeTurn && Number.isFinite(startedAtMs))
   const durationMs = hasWorking ? Math.max(0, safeNowMs - startedAtMs) : 0
   const duplicate = isDuplicateAward(progress.recentAwards, turnKey, signature, safeNowMs)
-  const dailyRemainingXp = Math.max(
-    0,
-    DAILY_XP_CAP - getDailyAwardedXp(progress.recentAwards, message)
-  )
   const calculatedAward = calculateTurnXp({
     duplicate,
     durationMs,
     hasWorking,
     message
   })
+  const xpResult = await applyXpToActiveCompanion(
+    dataDir,
+    progress,
+    calculatedAward.xp,
+    message.createdAt
+  )
   const award = {
     createdAt: message.createdAt,
+    companionId: xpResult.companionId,
     messageId: message.id,
-    reason: dailyRemainingXp <= 0 ? 'daily_cap' : calculatedAward.reason,
+    reason: calculatedAward.reason,
     signature,
     turnKey,
-    xp: Math.min(calculatedAward.xp, dailyRemainingXp)
+    xp: calculatedAward.xp
   }
-  const nextProgress = addXp(progress, award.xp)
+  const nextProgress = xpResult.progress
 
   delete nextProgress.activeTurns[turnKey]
   nextProgress.recentAwards = [...nextProgress.recentAwards, award].slice(-MAX_RECENT_AWARDS)
@@ -802,7 +640,7 @@ async function updateCompanionProgress(message, options = {}) {
 
   return {
     award,
-    progress: nextProgress
+    progress: await createActiveCompanionProgressSnapshot(dataDir, nextProgress)
   }
 }
 
@@ -903,7 +741,7 @@ async function buildSessionStartResponse(hookInput) {
     `Active companion: ${COMPANION_NAME}. ${getCompanionVoiceGuidance()}`,
     'Use the pixel-companion MCP companion_report tool when meaningful work starts, finishes, fails, or needs user input.',
     'If context was reset or cleared, use companion_get_profile to recover the active companion personality and reporting contract.',
-    'Write Ghou messages as natural user-facing speech. Match the user language and communication style.',
+    `Write ${COMPANION_NAME} messages as natural user-facing speech. Match the user language and communication style.`,
     'Do not mention MCP, tool calls, schemas, hooks, or internal reporting unless the user is debugging Pixel Companion.'
   ].join(' ')
 
