@@ -1,4 +1,6 @@
-# Pixel Companion
+<p align="center">
+  <img src="docs/assets/readme-title.png" alt="Pixel Companion" width="720">
+</p>
 
 A local desktop companion for coordinating coding agent sessions across projects.
 
