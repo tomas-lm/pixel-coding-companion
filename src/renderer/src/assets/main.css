@@ -1199,6 +1199,35 @@ button {
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
 }
 
+.companion-box-reel-egg-shell {
+  position: relative;
+  display: grid;
+  width: 92px;
+  height: 74px;
+  place-items: end center;
+}
+
+.companion-box-reel-egg-art {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  display: block;
+  width: var(--reel-egg-width);
+  height: var(--reel-egg-height);
+  background-image: var(--reel-egg-image);
+  background-position: 0% 0%;
+  background-repeat: no-repeat;
+  background-size: var(--reel-egg-background-size);
+  filter: drop-shadow(0 12px 0 rgba(0, 0, 0, 0.2));
+  image-rendering: pixelated;
+  transform: translate(
+      calc(-50% + var(--reel-egg-offset-x, 0px)),
+      var(--reel-egg-offset-y, 0px)
+    )
+    scale(var(--reel-egg-scale, 0.56));
+  transform-origin: center bottom;
+}
+
 .companion-box-reel-egg {
   width: 46px;
   height: 58px;

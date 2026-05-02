@@ -22,6 +22,13 @@ export function CompanionStoreCard({
   state
 }: CompanionStoreCardProps): React.JSX.Element {
   const stage = getCompanionStageForLevel(companion, state.level)
+  const storeStage =
+    stage.id === 'egg' && companion.id !== 'combot'
+      ? {
+          ...stage,
+          avatarOffsetX: (stage.avatarOffsetX ?? 0) + 2
+        }
+      : stage
   const price = getCompanionPrice(companion.basePrice, companion.rarity)
   const priceLabel = (() => {
     if (companion.acquisition === 'starter') return 'Daily Box only'
@@ -67,7 +74,7 @@ export function CompanionStoreCard({
         <CompanionAvatar
           className="companion-store-card-avatar"
           isDimmed={!state.owned}
-          stage={stage}
+          stage={storeStage}
         />
         {!state.owned && (
           <span className="companion-store-lock" aria-label="Locked">

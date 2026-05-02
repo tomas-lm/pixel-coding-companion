@@ -160,10 +160,8 @@ export const FROGO_STAGES: CompanionSpriteStage[] = [
 
 export const COMBOT_STAGES: CompanionSpriteStage[] = [
   {
-    avatarHeight: 104,
     avatarOffsetX: 2,
     avatarOffsetY: 10,
-    avatarWidth: 73,
     frameColumns: 6,
     frameRows: 6,
     height: 149,

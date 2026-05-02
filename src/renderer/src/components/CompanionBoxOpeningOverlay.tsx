@@ -5,8 +5,8 @@ import {
   formatMonsterPoints,
   getCompanionRarityColor
 } from '../companions/companionEconomy'
-import { COMPANION_REGISTRY } from '../companions/companionRegistry'
-import type { CompanionDefinition } from '../companions/companionTypes'
+import { COMPANION_REGISTRY, getCompanionStageForLevel } from '../companions/companionRegistry'
+import type { CompanionDefinition, CompanionSpriteStage } from '../companions/companionTypes'
 
 const REEL_CARD_WIDTH = 148
 const REEL_CARD_GAP = 12
@@ -21,6 +21,7 @@ type CompanionBoxOpeningOverlayProps = {
 }
 
 type ReelItem = Pick<CompanionDefinition, 'id' | 'name' | 'rarity'> & {
+  eggStage?: CompanionSpriteStage
   reelId: string
 }
 
@@ -28,12 +29,29 @@ function createReelItem(
   companion: Pick<CompanionDefinition, 'id' | 'name' | 'rarity'>,
   reelId: string
 ): ReelItem {
+  const registeredCompanion = COMPANION_REGISTRY.find((candidate) => candidate.id === companion.id)
+
   return {
+    eggStage: registeredCompanion
+      ? getCompanionStageForLevel(registeredCompanion, 0)
+      : undefined,
     id: companion.id,
     name: companion.name,
     rarity: companion.rarity,
     reelId
   }
+}
+
+function getReelEggStyle(stage: CompanionSpriteStage): CSSProperties {
+  return {
+    '--reel-egg-background-size': `${stage.frameColumns * 100}% ${stage.frameRows * 100}%`,
+    '--reel-egg-height': `${stage.avatarHeight ?? stage.height}px`,
+    '--reel-egg-image': `url(${stage.spriteUrl})`,
+    '--reel-egg-offset-x': `${stage.avatarOffsetX ?? 0}px`,
+    '--reel-egg-offset-y': `${stage.avatarOffsetY ?? 0}px`,
+    '--reel-egg-scale': (stage.avatarScale ?? 1) * 0.56,
+    '--reel-egg-width': `${stage.avatarWidth ?? stage.width}px`
+  } as CSSProperties
 }
 
 function getGreatestCommonDivisor(left: number, right: number): number {
@@ -170,7 +188,16 @@ export function CompanionBoxOpeningOverlay({
                   } as CSSProperties
                 }
               >
-                <span className="companion-box-reel-egg" />
+                <span className="companion-box-reel-egg-shell">
+                  {item.eggStage ? (
+                    <span
+                      className="companion-box-reel-egg-art"
+                      style={getReelEggStyle(item.eggStage)}
+                    />
+                  ) : (
+                    <span className="companion-box-reel-egg" />
+                  )}
+                </span>
                 <strong>{item.name}</strong>
                 <small>{formatCompanionRarity(item.rarity)}</small>
               </article>
