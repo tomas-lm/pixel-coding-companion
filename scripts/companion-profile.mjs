@@ -4,10 +4,10 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 export const COMPANION_PROFILES = {
-  buba: {
-    archetype: 'uncommon pixel blob coding companion',
-    id: 'buba',
-    name: 'Buba',
+  touk: {
+    archetype: 'uncommon pixel bird coding companion',
+    id: 'touk',
+    name: 'Touk',
     personality: {
       errorStyle: 'simple and practical, focused on the next small correction',
       humor: 'soft and occasional; never distracting',

@@ -140,8 +140,8 @@ export const COMPANION_STORE_DEFINITIONS: CompanionStoreDefinition[] = [
   {
     acquisition: 'purchasable',
     basePrice: 15000,
-    id: 'buba',
-    name: 'Buba',
+    id: 'touk',
+    name: 'Touk',
     rarity: 'uncommon'
   },
   {
