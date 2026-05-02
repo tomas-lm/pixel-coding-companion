@@ -1386,6 +1386,8 @@ button {
   background-repeat: no-repeat;
   background-size: var(--companion-avatar-background-size);
   image-rendering: pixelated;
+  transform: translate(var(--companion-avatar-offset-x, 0), var(--companion-avatar-offset-y, 0))
+    scale(var(--companion-avatar-scale, 1));
   transform-origin: center bottom;
 }
 

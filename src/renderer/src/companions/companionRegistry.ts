@@ -1,5 +1,8 @@
 import combotEggSpriteUrl from '../assets/companions/combot/combot-egg.svg'
-import frogoEggSpriteUrl from '../assets/companions/frogo/frogo-egg.svg'
+import frogoEggSpriteUrl from '../assets/companions/frogo/frogo-egg-idle.png'
+import frogoLvl1SpriteUrl from '../assets/companions/frogo/frogo-lvl1-idle.png'
+import frogoLvl2SpriteUrl from '../assets/companions/frogo/frogo-lvl2-idle.png'
+import frogoLvl3SpriteUrl from '../assets/companions/frogo/frogo-lvl3-idle.png'
 import ghouEggSpriteUrl from '../assets/companions/ghou/ghou-sprite-egg.png'
 import ghouLvl1SpriteUrl from '../assets/companions/ghou/ghou-sprite-lvl1.png'
 import ghouLvl2SpriteUrl from '../assets/companions/ghou/ghou-sprite-lvl2.png'
@@ -19,6 +22,8 @@ export { STARTER_COMPANION_ID, STARTER_COMPANION_IDS }
 
 export const GHOU_STAGES: CompanionSpriteStage[] = [
   {
+    avatarOffsetX: -6,
+    avatarOffsetY: 10,
     frameColumns: 6,
     frameRows: 6,
     height: 149,
@@ -58,6 +63,8 @@ export const GHOU_STAGES: CompanionSpriteStage[] = [
 
 export const RAYA_STAGES: CompanionSpriteStage[] = [
   {
+    avatarOffsetX: -4,
+    avatarOffsetY: 10,
     frameColumns: 6,
     frameRows: 6,
     height: 149,
@@ -97,13 +104,54 @@ export const RAYA_STAGES: CompanionSpriteStage[] = [
 
 export const FROGO_STAGES: CompanionSpriteStage[] = [
   {
-    frameColumns: 1,
-    frameRows: 1,
+    avatarOffsetX: -4,
+    avatarOffsetY: 10,
+    frameColumns: 6,
+    frameRows: 6,
     height: 149,
     id: 'egg',
     minLevel: 0,
     spriteUrl: frogoEggSpriteUrl,
-    width: 116
+    width: 118
+  },
+  {
+    avatarOffsetX: -22,
+    avatarOffsetY: 10,
+    avatarScale: 0.78,
+    frameColumns: 6,
+    frameRows: 6,
+    height: 149,
+    id: 'lvl1',
+    minLevel: 5,
+    offsetY: 40,
+    spriteUrl: frogoLvl1SpriteUrl,
+    width: 165
+  },
+  {
+    avatarOffsetX: -8,
+    avatarOffsetY: 10,
+    avatarScale: 0.82,
+    frameColumns: 6,
+    frameRows: 6,
+    height: 149,
+    id: 'lvl2',
+    minLevel: 25,
+    offsetY: 40,
+    spriteUrl: frogoLvl2SpriteUrl,
+    width: 137
+  },
+  {
+    avatarOffsetX: -9,
+    avatarOffsetY: 10,
+    avatarScale: 0.82,
+    frameColumns: 6,
+    frameRows: 6,
+    height: 149,
+    id: 'lvl3',
+    minLevel: 50,
+    offsetY: 40,
+    spriteUrl: frogoLvl3SpriteUrl,
+    width: 151
   }
 ]
 

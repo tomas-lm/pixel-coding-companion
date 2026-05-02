@@ -41,6 +41,8 @@ export function CompanionPanel({
     backgroundImage: `url(${companionStage.spriteUrl})`,
     backgroundSize: `${companionStage.frameColumns * 100}% ${companionStage.frameRows * 100}%`,
     height: `${companionStage.height}px`,
+    transform:
+      companionStage.offsetY === undefined ? undefined : `translateY(${companionStage.offsetY}px)`,
     width: `${companionStage.width}px`
   } as CSSProperties
 

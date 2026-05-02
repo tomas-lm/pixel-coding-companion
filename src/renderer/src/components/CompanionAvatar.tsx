@@ -31,6 +31,9 @@ export function CompanionAvatar({
           }%`,
           '--companion-avatar-height': `${stage.height}px`,
           '--companion-avatar-image': `url(${stage.spriteUrl})`,
+          '--companion-avatar-offset-x': `${stage.avatarOffsetX ?? 0}px`,
+          '--companion-avatar-offset-y': `${stage.avatarOffsetY ?? 0}px`,
+          '--companion-avatar-scale': stage.avatarScale ?? 1,
           '--companion-avatar-width': `${stage.width}px`,
           '--companion-sprite-columns': stage.frameColumns,
           '--companion-sprite-rows': stage.frameRows
