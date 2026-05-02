@@ -2,10 +2,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 
 import { createHash, randomUUID } from 'node:crypto'
-import { execFile } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
-import path from 'node:path'
-import { promisify } from 'node:util'
 import {
   getDefaultEventType,
   isValidCompanionEventType,
@@ -13,6 +10,7 @@ import {
 } from './companion-bridge-state.mjs'
 import { createCompanionDataPaths, getDefaultDataDir } from './companion-data-dir.mjs'
 import { writeJsonAtomic } from './companion-json-store.mjs'
+import { readBoundContext, resolveProject } from './companion-project-context.mjs'
 import {
   getCompanionVoiceGuidance as buildCompanionVoiceGuidance,
   readActiveCompanionProfile
@@ -35,18 +33,6 @@ const FINAL_XP_BONUS = {
   error: 4,
   waiting_input: 6
 }
-const EXTERNAL_TERMINAL_COLORS = [
-  '#ff8bd1',
-  '#f97316',
-  '#a3e635',
-  '#22d3ee',
-  '#f43f5e',
-  '#e879f9',
-  '#facc15',
-  '#94a3b8'
-]
-const execFileAsync = promisify(execFile)
-
 const dataDir = getDefaultDataDir()
 const {
   eventsPath,
@@ -59,6 +45,11 @@ const {
 const COMPANION_PROFILE = await readActiveCompanionProfile(dataDir)
 const COMPANION_ID = COMPANION_PROFILE.id
 const COMPANION_NAME = COMPANION_PROFILE.name
+const projectContextOptions = {
+  externalTerminalRegistryPath,
+  terminalContextRegistryPath,
+  workspacesPath
+}
 
 function getXpRequiredForLevel(level) {
   const safeLevel = Math.min(Math.max(Math.floor(level), 0), MAX_COMPANION_LEVEL)
@@ -87,10 +78,6 @@ function getCompanionVoiceGuidance() {
   return buildCompanionVoiceGuidance(COMPANION_PROFILE)
 }
 
-function isHexColor(value) {
-  return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
-}
-
 function truncate(value, maxLength) {
   const text = String(value ?? '')
     .replace(/\s+/g, ' ')
@@ -98,93 +85,6 @@ function truncate(value, maxLength) {
   if (text.length <= maxLength) return text
 
   return `${text.slice(0, Math.max(0, maxLength - 1)).trimEnd()}...`
-}
-
-function readEnvContext() {
-  return {
-    contextSource: 'env',
-    cwd: process.env.PIXEL_COMPANION_CWD,
-    projectColor: process.env.PIXEL_COMPANION_PROJECT_COLOR,
-    projectId: process.env.PIXEL_COMPANION_PROJECT_ID,
-    projectName: process.env.PIXEL_COMPANION_PROJECT_NAME,
-    sessionId: process.env.PIXEL_COMPANION_SESSION_ID,
-    terminalId: process.env.PIXEL_COMPANION_TERMINAL_ID,
-    terminalName: process.env.PIXEL_COMPANION_TERMINAL_NAME
-  }
-}
-
-async function readContextFile() {
-  const contextFile = process.env.PIXEL_COMPANION_CONTEXT_FILE
-  if (!contextFile) return {}
-
-  try {
-    const file = await readFile(contextFile, 'utf8')
-    return {
-      contextSource: 'context_file',
-      ...JSON.parse(file)
-    }
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return {}
-    throw error
-  }
-}
-
-async function readTerminalContextRegistry() {
-  try {
-    const file = await readFile(terminalContextRegistryPath, 'utf8')
-    const registry = JSON.parse(file)
-    return Array.isArray(registry) ? registry : []
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return []
-    if (error instanceof SyntaxError) return []
-    throw error
-  }
-}
-
-async function getParentPid(pid) {
-  if (process.platform === 'win32') return null
-
-  try {
-    const { stdout } = await execFileAsync('ps', ['-o', 'ppid=', '-p', String(pid)])
-    const parentPid = Number(stdout.trim())
-    return Number.isFinite(parentPid) && parentPid > 0 ? parentPid : null
-  } catch {
-    return null
-  }
-}
-
-async function getAncestorPids(pid) {
-  const ancestors = new Set()
-  let currentPid = pid
-
-  for (let depth = 0; depth < 40 && currentPid && !ancestors.has(currentPid); depth += 1) {
-    ancestors.add(currentPid)
-    currentPid = await getParentPid(currentPid)
-  }
-
-  return ancestors
-}
-
-async function readProcessTreeContext() {
-  const registry = await readTerminalContextRegistry()
-  if (registry.length === 0) return {}
-
-  const ancestors = await getAncestorPids(process.pid)
-  const context = registry.find((entry) => ancestors.has(entry.shellPid))
-  if (!context) return {}
-
-  return {
-    contextSource: 'process_tree',
-    ...context
-  }
-}
-
-async function readBoundContext() {
-  return {
-    ...readEnvContext(),
-    ...(await readContextFile()),
-    ...(await readProcessTreeContext())
-  }
 }
 
 function normalizeActiveTurn(value) {
@@ -277,167 +177,6 @@ async function readProgress() {
     if (error && error.code === 'ENOENT') return createDefaultProgress()
     if (error instanceof SyntaxError) return createDefaultProgress()
     throw error
-  }
-}
-
-async function readWorkspaceConfig() {
-  try {
-    const file = await readFile(workspacesPath, 'utf8')
-    const config = JSON.parse(file)
-
-    return {
-      projects: Array.isArray(config.projects) ? config.projects : [],
-      terminalConfigs: Array.isArray(config.terminalConfigs) ? config.terminalConfigs : []
-    }
-  } catch (error) {
-    if (error && error.code === 'ENOENT') {
-      return {
-        projects: [],
-        terminalConfigs: []
-      }
-    }
-
-    throw error
-  }
-}
-
-function getProjectById(projects, projectId) {
-  return projects.find((project) => typeof project.id === 'string' && project.id === projectId)
-}
-
-function hasStrongBoundContext(context) {
-  return Boolean(
-    context.projectId ||
-    context.projectName ||
-    context.projectColor ||
-    context.sessionId ||
-    context.terminalId ||
-    context.terminalName
-  )
-}
-
-async function readExternalTerminalRegistry() {
-  try {
-    const file = await readFile(externalTerminalRegistryPath, 'utf8')
-    const registry = JSON.parse(file)
-    return Array.isArray(registry) ? registry : []
-  } catch (error) {
-    if (error && error.code === 'ENOENT') return []
-    if (error instanceof SyntaxError) return []
-    throw error
-  }
-}
-
-async function writeExternalTerminalRegistry(registry) {
-  await writeJsonAtomic(externalTerminalRegistryPath, registry)
-}
-
-async function getExternalTerminalKey(input) {
-  const parentPid = await getParentPid(process.pid)
-  const cwd = typeof input.cwd === 'string' && input.cwd.trim() ? path.resolve(input.cwd) : ''
-  const wrappedCli = process.env.PIXEL_COMPANION_WRAPPED_CLI ?? input.agentName ?? 'external'
-
-  return [wrappedCli, parentPid ?? process.pid, cwd].filter(Boolean).join('|')
-}
-
-function getNextExternalTerminalNumber(registry) {
-  const usedNumbers = registry
-    .map((entry) => {
-      const match =
-        typeof entry.name === 'string'
-          ? entry.name.match(/^(?:Outro terminal|Terminal) (\d+)$/)
-          : null
-      return match ? Number(match[1]) : 0
-    })
-    .filter((value) => Number.isFinite(value) && value > 0)
-
-  return Math.max(0, ...usedNumbers) + 1
-}
-
-function getExternalTerminalColor(number, projects) {
-  const projectColors = new Set(
-    projects
-      .map((project) => (typeof project.color === 'string' ? project.color.toLowerCase() : ''))
-      .filter(Boolean)
-  )
-  const availableColors = EXTERNAL_TERMINAL_COLORS.filter(
-    (color) => !projectColors.has(color.toLowerCase())
-  )
-  const colors = availableColors.length > 0 ? availableColors : EXTERNAL_TERMINAL_COLORS
-
-  return colors[(number - 1) % colors.length]
-}
-
-async function resolveExternalTerminal(input, projects) {
-  const registry = await readExternalTerminalRegistry()
-  const key = await getExternalTerminalKey(input)
-  const now = new Date().toISOString()
-  const existingEntry = registry.find((entry) => entry.key === key)
-  const nextNumber = existingEntry ? existingEntry.number : getNextExternalTerminalNumber(registry)
-  const entry = existingEntry ?? {
-    color: getExternalTerminalColor(nextNumber, projects),
-    createdAt: now,
-    id: `other-terminal-${nextNumber}`,
-    key,
-    name: `Terminal ${nextNumber}`,
-    number: nextNumber
-  }
-  const nextEntry = {
-    ...entry,
-    cwd: input.cwd,
-    name: `Terminal ${nextNumber}`,
-    updatedAt: now
-  }
-  const nextRegistry = existingEntry
-    ? registry.map((candidate) => (candidate.key === key ? nextEntry : candidate))
-    : [...registry, nextEntry]
-
-  await writeExternalTerminalRegistry(nextRegistry)
-
-  return {
-    cwd: input.cwd,
-    contextSource: 'external_terminal',
-    projectColor: nextEntry.color,
-    projectId: nextEntry.id,
-    projectName: nextEntry.name,
-    sessionName: nextEntry.name,
-    terminalId: nextEntry.id,
-    terminalSessionId: nextEntry.id
-  }
-}
-
-async function resolveProject(input) {
-  const boundContext = await readBoundContext()
-  if (hasStrongBoundContext(boundContext)) {
-    return {
-      cwd: boundContext.cwd ?? input.cwd,
-      projectColor: isHexColor(boundContext.projectColor)
-        ? boundContext.projectColor
-        : isHexColor(input.projectColor)
-          ? input.projectColor
-          : undefined,
-      projectId: boundContext.projectId,
-      projectName: boundContext.projectName ?? input.projectName,
-      sessionName: boundContext.terminalName ?? input.sessionName,
-      terminalId: boundContext.terminalId,
-      terminalSessionId: boundContext.sessionId,
-      contextSource: boundContext.contextSource
-    }
-  }
-
-  const { projects } = await readWorkspaceConfig()
-  const project = getProjectById(projects, input.projectId)
-
-  if (!project) {
-    return resolveExternalTerminal(input, projects)
-  }
-
-  return {
-    cwd: input.cwd,
-    contextSource: 'workspace',
-    projectColor: isHexColor(project.color) ? project.color : undefined,
-    projectId: project.id,
-    projectName: project.name
   }
 }
 
@@ -646,7 +385,7 @@ async function updateCompanionProgress(message, options = {}) {
 
 async function createMessage(input) {
   const now = new Date().toISOString()
-  const resolvedProject = await resolveProject(input)
+  const resolvedProject = await resolveProject(input, projectContextOptions)
 
   return {
     id: randomUUID(),
@@ -731,7 +470,7 @@ function isPixelHookEnabled() {
 }
 
 async function buildSessionStartResponse(hookInput) {
-  const context = await readBoundContext()
+  const context = await readBoundContext(projectContextOptions)
   const terminalName = getSessionLabel(context, hookInput)
   const projectName = getProjectLabel(context)
   const additionalContext = [
@@ -755,7 +494,7 @@ async function buildSessionStartResponse(hookInput) {
 }
 
 async function handleUserPromptSubmit(hookInput) {
-  const context = await readBoundContext()
+  const context = await readBoundContext(projectContextOptions)
   const sessionLabel = getSessionLabel(context, hookInput)
   const promptPreview = truncate(hookInput.prompt, 280)
   const message = await createMessage({
@@ -792,7 +531,7 @@ async function handleUserPromptSubmit(hookInput) {
 }
 
 async function handleStop(hookInput) {
-  const context = await readBoundContext()
+  const context = await readBoundContext(projectContextOptions)
   const sessionLabel = getSessionLabel(context, hookInput)
   const assistantMessage = truncate(hookInput.last_assistant_message, 420)
   const summary = assistantMessage
