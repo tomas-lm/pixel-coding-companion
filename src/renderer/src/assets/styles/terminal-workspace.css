@@ -110,6 +110,10 @@
   background: var(--terminal-background);
 }
 
+.terminal-frame--context {
+  grid-template-rows: 34px 28px minmax(0, 1fr);
+}
+
 .terminal-toolbar {
   display: flex;
   height: 34px;
@@ -179,6 +183,94 @@
 
 .terminal-status--error {
   color: var(--terminal-red);
+}
+
+.terminal-context-hud {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 18%) minmax(140px, auto);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 12px;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--terminal-foreground) 8%, var(--terminal-background));
+  color: color-mix(in srgb, var(--terminal-foreground) 72%, var(--terminal-background));
+  background: color-mix(in srgb, var(--terminal-background) 92%, var(--terminal-foreground));
+  font-size: 11px;
+}
+
+.terminal-context-hud__identity,
+.terminal-context-hud__summary {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-context-hud__identity strong,
+.terminal-context-hud__summary strong {
+  color: var(--terminal-cyan);
+  font-weight: 800;
+}
+
+.terminal-context-hud__identity span,
+.terminal-context-hud__summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal-context-hud__summary {
+  justify-content: flex-end;
+}
+
+.terminal-context-hud__meter {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--terminal-foreground) 10%, var(--terminal-background));
+}
+
+.terminal-context-hud__meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--terminal-green);
+  transition: width 160ms ease;
+}
+
+.terminal-context-hud--filling .terminal-context-hud__meter span {
+  background: var(--terminal-yellow);
+}
+
+.terminal-context-hud--filling .terminal-context-hud__summary strong {
+  color: var(--terminal-yellow);
+}
+
+.terminal-context-hud--compact_soon .terminal-context-hud__meter span {
+  background: #f59e0b;
+}
+
+.terminal-context-hud--compact_soon .terminal-context-hud__summary strong {
+  color: #f59e0b;
+}
+
+.terminal-context-hud--danger .terminal-context-hud__meter span {
+  background: var(--terminal-red);
+}
+
+.terminal-context-hud--danger .terminal-context-hud__summary strong {
+  color: var(--terminal-red);
+}
+
+.terminal-context-hud--unknown .terminal-context-hud__meter span {
+  background: color-mix(in srgb, var(--terminal-foreground) 22%, var(--terminal-background));
+}
+
+.terminal-context-hud--unknown .terminal-context-hud__summary strong {
+  color: color-mix(in srgb, var(--terminal-foreground) 48%, var(--terminal-background));
 }
 
 .terminal-surface {

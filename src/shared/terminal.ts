@@ -9,7 +9,8 @@ export const TERMINAL_CHANNELS = {
   resize: 'terminal:resize',
   data: 'terminal:data',
   exit: 'terminal:exit',
-  commandExit: 'terminal:command-exit'
+  commandExit: 'terminal:command-exit',
+  context: 'terminal:context'
 } as const
 
 export type TerminalSessionId = string
@@ -73,6 +74,23 @@ export type TerminalCommandExitEvent = {
   exitCode: number
 }
 
+export type TerminalContextHudStatus = 'unknown' | 'flow' | 'filling' | 'compact_soon' | 'danger'
+
+export type TerminalContextHudSnapshot = {
+  agent: 'codex'
+  contextUsedPercent: number | null
+  model: string | null
+  reasoningEffort: string | null
+  status: TerminalContextHudStatus
+  terminalSessionId: TerminalSessionId
+  updatedAt: string | null
+}
+
+export type TerminalContextEvent = {
+  id: TerminalSessionId
+  snapshot: TerminalContextHudSnapshot | null
+}
+
 export type Unsubscribe = () => void
 
 export type TerminalApi = {
@@ -83,6 +101,7 @@ export type TerminalApi = {
   onData: (callback: (event: TerminalDataEvent) => void) => Unsubscribe
   onExit: (callback: (event: TerminalExitEvent) => void) => Unsubscribe
   onCommandExit: (callback: (event: TerminalCommandExitEvent) => void) => Unsubscribe
+  onContext: (callback: (event: TerminalContextEvent) => void) => Unsubscribe
 }
 
 export type CompanionApi = {
