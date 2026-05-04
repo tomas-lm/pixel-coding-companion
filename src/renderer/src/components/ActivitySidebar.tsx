@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 
-export type ActivitySidebarItemId = 'terminal' | 'companions'
+export type ActivitySidebarItemId = 'terminal' | 'companions' | 'prompts' | 'configs'
 
-type ActivityIconName = 'companion' | 'terminal'
+type ActivityIconName = 'companion' | 'configs' | 'prompts' | 'terminal'
 
 export type ActivitySidebarItem = {
   badge?: number | string
@@ -33,6 +33,22 @@ function ActivityIcon({ name }: { name: ActivityIconName }): ReactNode {
           <path d="M6 19v-9a6 6 0 0 1 12 0v9l-3-2-3 2-3-2z" />
           <path d="M9.2 11.2h.1" />
           <path d="M14.7 11.2h.1" />
+        </svg>
+      )
+    case 'prompts':
+      return (
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M5 4h14v16h-14z" />
+          <path d="M8 8h8" />
+          <path d="M8 12h8" />
+          <path d="M8 16h5" />
+        </svg>
+      )
+    case 'configs':
+      return (
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M9.8 3.2h4.4l.5 2.2c.5.2 1 .5 1.4.8l2.1-.7 2.2 3.8-1.7 1.5c.1.4.1.8.1 1.2s0 .8-.1 1.2l1.7 1.5-2.2 3.8-2.1-.7c-.4.3-.9.6-1.4.8l-.5 2.2h-4.4l-.5-2.2c-.5-.2-1-.5-1.4-.8l-2.1.7-2.2-3.8 1.7-1.5c-.1-.4-.1-.8-.1-1.2s0-.8.1-1.2l-1.7-1.5 2.2-3.8 2.1.7c.4-.3.9-.6 1.4-.8z" />
+          <path d="M9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0z" />
         </svg>
       )
   }

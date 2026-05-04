@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal, type ILink } from '@xterm/xterm'
+import type { TerminalContextEvent } from '../../../shared/terminal'
 import type {
   RunningSession,
   RunningSessionStatus,
@@ -10,6 +11,7 @@ import { getOpenTargetRequestFromHyperlink } from '../lib/terminalHyperlinks'
 import { findTerminalLinks, type TerminalLinkCandidate } from '../lib/terminalLinks'
 import { handleTerminalKeyEvent } from '../lib/terminalKeyboard'
 import { getTerminalTheme, getTerminalThemeStyle } from '../lib/terminalThemes'
+import { TerminalContextHud } from './TerminalContextHud'
 import '@xterm/xterm/css/xterm.css'
 
 type TerminalPaneProps = {
@@ -38,6 +40,18 @@ function stopTerminalMouseEvent(event: MouseEvent): void {
   event.stopImmediatePropagation()
 }
 
+function isCodexSessionCommand(command: string): boolean {
+  return /^(?:codex|pixel\s+codex|node\s+.+pixel\.mjs['"]?\s+codex)(?:\s|$)/.test(command.trim())
+}
+
+function isCodexContextCandidate(session: RunningSession): boolean {
+  return Boolean(
+    session.commands.some(isCodexSessionCommand) ||
+    (session.startWithPixel &&
+      session.commands.some((command) => /^codex(?:\s|$)/.test(command.trim())))
+  )
+}
+
 export function TerminalPane({
   session,
   isActive,
@@ -51,10 +65,21 @@ export function TerminalPane({
   const fitAddonRef = useRef<FitAddon | null>(null)
   const initialTerminalThemeIdRef = useRef(terminalThemeId)
   const sessionStatusRef = useRef(session.status)
+  const [contextEvent, setContextEvent] = useState<TerminalContextEvent | null>(null)
+  const contextSnapshot = contextEvent?.id === session.id ? contextEvent.snapshot : null
+  const showContextHud = Boolean(contextSnapshot) || isCodexContextCandidate(session)
 
   useEffect(() => {
     sessionStatusRef.current = session.status
   }, [session.status])
+
+  useEffect(() => {
+    return window.api.terminal.onContext((event) => {
+      if (event.id !== session.id) return
+
+      setContextEvent(event)
+    })
+  }, [session.id])
 
   useEffect(() => {
     if (!isActive) return
@@ -331,7 +356,7 @@ export function TerminalPane({
 
   return (
     <div
-      className="terminal-frame"
+      className={`terminal-frame${showContextHud ? ' terminal-frame--context' : ''}`}
       style={getTerminalThemeStyle(terminalThemeId)}
       aria-label={`${session.name} terminal`}
     >
@@ -348,6 +373,12 @@ export function TerminalPane({
           </strong>
         </div>
       </div>
+      {showContextHud && (
+        <TerminalContextHud
+          isCodexCandidate={isCodexContextCandidate(session)}
+          snapshot={contextSnapshot}
+        />
+      )}
       <div ref={terminalContainerRef} className="terminal-surface" />
     </div>
   )

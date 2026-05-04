@@ -9,6 +9,7 @@ import {
   TERMINAL_CHANNELS,
   type CompanionApi,
   type TerminalCommandExitEvent,
+  type TerminalContextEvent,
   type TerminalDataEvent,
   type TerminalExitEvent,
   type TerminalInputRequest,
@@ -67,6 +68,12 @@ const api: CompanionApi = {
         callback(event)
       ipcRenderer.on(TERMINAL_CHANNELS.commandExit, listener)
       return () => ipcRenderer.removeListener(TERMINAL_CHANNELS.commandExit, listener)
+    },
+    onContext: (callback: (event: TerminalContextEvent) => void) => {
+      const listener = (_: Electron.IpcRendererEvent, event: TerminalContextEvent): void =>
+        callback(event)
+      ipcRenderer.on(TERMINAL_CHANNELS.context, listener)
+      return () => ipcRenderer.removeListener(TERMINAL_CHANNELS.context, listener)
     }
   },
   workspace: {

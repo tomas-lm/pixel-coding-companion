@@ -116,6 +116,7 @@
 
 .workspace-rail,
 .session-panel,
+.configs-panel,
 .companion-catalog-panel,
 .companion-panel {
   min-width: 0;

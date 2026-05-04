@@ -12,10 +12,12 @@ import { registerTerminalIpc } from './ipc/registerTerminalIpc'
 import { registerViewIpc } from './ipc/registerViewIpc'
 import { registerWorkspaceIpc } from './ipc/registerWorkspaceIpc'
 import { isSafeExternalUrl } from './openTarget'
+import { CodexContextTelemetryService } from './terminal/codexContextTelemetry'
 import { TerminalContextRegistry } from './terminal/terminalContextRegistry'
 import { TerminalManager } from './terminal/terminalManager'
 import { createMainWindow } from './window/createMainWindow'
 import { WorkspaceStore } from './workspace/workspaceStore'
+import { TERMINAL_CHANNELS, type TerminalContextEvent } from '../shared/terminal'
 import { DEFAULT_TERMINAL_THEME_ID, type TerminalThemeId } from '../shared/workspace'
 
 function readEnvSetting(name: string): string | undefined {
@@ -30,8 +32,13 @@ const APP_USER_DATA_DIR =
   readEnvSetting('PIXEL_COMPANION_USER_DATA_DIR') ?? 'pixel-coding-companion'
 let selectedTerminalThemeId: TerminalThemeId = DEFAULT_TERMINAL_THEME_ID
 const terminalContextRegistry = new TerminalContextRegistry(() => app.getPath('userData'))
+const codexContextTelemetry = new CodexContextTelemetryService({
+  broadcastTerminalContext,
+  getCodexSessionsRoot
+})
 const terminalManager = new TerminalManager({
   broadcastTerminalEvent,
+  codexContextTelemetry,
   contextRegistry: terminalContextRegistry,
   getDefaultShell,
   getPixelCliCommandPaths: () => ({
@@ -102,12 +109,20 @@ function getCompanionStoreStatePath(): string {
   return join(app.getPath('userData'), 'companion-store.json')
 }
 
+function getCodexSessionsRoot(): string {
+  return join(app.getPath('home'), '.codex', 'sessions')
+}
+
 function broadcastTerminalEvent(channel: string, data: unknown): void {
   for (const window of BrowserWindow.getAllWindows()) {
     if (!window.webContents.isDestroyed()) {
       window.webContents.send(channel, data)
     }
   }
+}
+
+function broadcastTerminalContext(event: TerminalContextEvent): void {
+  broadcastTerminalEvent(TERMINAL_CHANNELS.context, event)
 }
 
 function registerMainWindowMenu(mainWindow: BrowserWindow): void {

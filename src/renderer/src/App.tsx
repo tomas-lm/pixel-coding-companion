@@ -1,6 +1,12 @@
 import { useCallback, useState, type CSSProperties } from 'react'
 import type { CompanionBridgeMessage } from '../../shared/companion'
-import type { Project, RunningSession, TerminalConfig } from '../../shared/workspace'
+import type {
+  Project,
+  PromptTemplate,
+  RunningSession,
+  TerminalConfig,
+  WorkspaceFeatureSettings
+} from '../../shared/workspace'
 import {
   ActivitySidebar,
   type ActivitySidebarItem,
@@ -8,9 +14,12 @@ import {
 } from './components/ActivitySidebar'
 import { CompanionCatalogPanel } from './components/CompanionCatalogPanel'
 import { CompanionPanel } from './components/CompanionPanel'
+import { ConfigsPanel } from './components/ConfigsPanel'
 import { LoadingScreen } from './components/LoadingScreen'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { ProjectFormModal } from './components/ProjectFormModal'
+import { PromptTemplatePickerModal } from './components/PromptTemplatePickerModal'
+import { PromptTemplatesPanel } from './components/PromptTemplatesPanel'
 import { StarterSelectionPage } from './components/StarterSelectionPage'
 import { StartWorkspaceModal } from './components/StartWorkspaceModal'
 import { TerminalFormModal } from './components/TerminalFormModal'
@@ -23,22 +32,22 @@ import {
   getCompanionStageForLevel
 } from './companions/companionRegistry'
 import { getActiveCompanionProgress, getCompanionMessageColor } from './app/companionSelectors'
+import { primeCompletionSound } from './app/notificationSounds'
+import { getPromptTemplateProjectPath, getPromptTemplateSendStatus } from './app/promptTemplates'
 import type { ProjectForm } from './app/projectForms'
 import { createRunningSession } from './app/runningSessions'
 import {
   commandsFromText,
   commandsToText,
-  getActiveSessionSummary,
   getCompanionMessage,
   getLiveConfigIds,
   getOutputPreview,
-  getProjectSummary,
-  getStatusLabel,
   getTimeMs,
   isLiveSession
 } from './app/sessionDisplay'
 import { createEmptyTerminalForm, type TerminalForm } from './app/terminalForms'
 import { useCompanionBridge } from './hooks/useCompanionBridge'
+import { useCompletionNotificationSound } from './hooks/useCompletionNotificationSound'
 import { useTerminalEvents } from './hooks/useTerminalEvents'
 import { useTerminalHoverCard } from './hooks/useTerminalHoverCard'
 import { useWorkspaceConfig } from './hooks/useWorkspaceConfig'
@@ -81,8 +90,12 @@ function App(): React.JSX.Element {
   const {
     activeProjectId,
     configLoaded,
+    featureSettings,
+    promptTemplates,
     projects,
     setActiveProjectId,
+    setFeatureSettings,
+    setPromptTemplates,
     setProjects,
     setTerminalConfigs,
     terminalConfigs
@@ -106,6 +119,23 @@ function App(): React.JSX.Element {
   } = useCompanionBridge(COMPANION_NAME)
   const [starterSelectionError, setStarterSelectionError] = useState<string | null>(null)
   const [isSelectingStarter, setIsSelectingStarter] = useState(false)
+  const [promptPickerOpen, setPromptPickerOpen] = useState(false)
+
+  useCompletionNotificationSound(
+    companionBridgeState.messages,
+    featureSettings.playSoundsUponFinishing
+  )
+
+  const changeFeatureSettings = useCallback(
+    (nextFeatureSettings: WorkspaceFeatureSettings): void => {
+      if (nextFeatureSettings.playSoundsUponFinishing) {
+        primeCompletionSound()
+      }
+
+      setFeatureSettings(nextFeatureSettings)
+    },
+    [setFeatureSettings]
+  )
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null
   const activeProjectConfigs = activeProject
@@ -171,6 +201,16 @@ function App(): React.JSX.Element {
       icon: 'companion',
       id: 'companions',
       label: 'Companion selector'
+    },
+    {
+      icon: 'prompts',
+      id: 'prompts',
+      label: 'Prompt templates'
+    },
+    {
+      icon: 'configs',
+      id: 'configs',
+      label: 'Configs'
     }
   ]
   const activeCompanionId = companionStoreState?.activeCompanionId ?? STARTER_COMPANION_ID
@@ -518,6 +558,33 @@ function App(): React.JSX.Element {
     )
   }
 
+  const savePromptTemplate = (template: PromptTemplate): void => {
+    setPromptTemplates((currentTemplates) => {
+      if (currentTemplates.some((currentTemplate) => currentTemplate.id === template.id)) {
+        return currentTemplates.map((currentTemplate) =>
+          currentTemplate.id === template.id ? template : currentTemplate
+        )
+      }
+
+      return [...currentTemplates, template]
+    })
+  }
+
+  const deletePromptTemplate = (templateId: string): void => {
+    setPromptTemplates((currentTemplates) =>
+      currentTemplates.filter((template) => template.id !== templateId)
+    )
+  }
+
+  const sendPromptToActiveTerminal = (prompt: string): void => {
+    if (!activeSession || !isLiveSession(activeSession)) return
+
+    window.api.terminal.write({
+      data: `${prompt.trimEnd()}\r`,
+      id: activeSession.id
+    })
+  }
+
   const completeOnboarding = async ({
     project,
     terminalConfig
@@ -530,6 +597,8 @@ function App(): React.JSX.Element {
       terminalConfigs: nextTerminalConfigs,
       activeProjectId: project.id,
       layout,
+      featureSettings,
+      promptTemplates,
       terminalThemeId
     })
 
@@ -612,15 +681,9 @@ function App(): React.JSX.Element {
         : 'idle'
   const terminalTitle =
     activeSession?.name ?? (activeProject ? 'Workspace' : 'No workspace selected')
-  const terminalStatus = activeSession ? getStatusLabel(activeSession.status) : 'Ready'
-  const terminalStatusKey = activeSession?.status ?? 'ready'
-  const activeSessionKind = activeSession?.kind ?? 'shell'
   const selectedSessionId = activeSession?.id ?? null
-  const sessionSummary = activeSession
-    ? getActiveSessionSummary(activeSession)
-    : activeProject
-      ? getProjectSummary(activeProject, terminalConfigs)
-      : 'No workspace configured yet.'
+  const promptSendStatus = getPromptTemplateSendStatus(activeSession)
+  const promptProjectPath = getPromptTemplateProjectPath(activeSession, activeProjectConfigs)
 
   return (
     <main className="app-shell" style={activeStyle}>
@@ -663,20 +726,29 @@ function App(): React.JSX.Element {
           activeProject={activeProject}
           activeProjectConfigs={activeProjectConfigs}
           activeSession={activeSession}
-          activeSessionKind={activeSessionKind}
           runningSessions={runningSessions}
           selectedSessionId={selectedSessionId}
-          sessionSummary={sessionSummary}
-          terminalStatus={terminalStatus}
-          terminalStatusKey={terminalStatusKey}
           terminalThemeId={terminalThemeId}
           terminalTitle={terminalTitle}
           onCreateProject={openCreateProject}
           onCreateTerminal={openCreateTerminal}
+          onOpenPromptPicker={() => setPromptPickerOpen(true)}
           onSessionActivity={updateSessionActivity}
           onSessionStartError={markSessionStartError}
           onSessionStarted={markSessionStarted}
           onStartWorkspace={openStartWorkspace}
+        />
+      ) : activeActivityItemId === 'prompts' ? (
+        <PromptTemplatesPanel
+          activeProject={activeProject}
+          templates={promptTemplates}
+          onDeleteTemplate={deletePromptTemplate}
+          onSaveTemplate={savePromptTemplate}
+        />
+      ) : activeActivityItemId === 'configs' ? (
+        <ConfigsPanel
+          featureSettings={featureSettings}
+          onChangeFeatureSettings={changeFeatureSettings}
         />
       ) : (
         <CompanionCatalogPanel
@@ -726,6 +798,21 @@ function App(): React.JSX.Element {
           onStartSelected={startSelectedWorkspaceConfigs}
           onToggleConfig={toggleStartConfig}
           onToggleStartWithPixel={toggleStartWithPixel}
+        />
+      )}
+
+      {promptPickerOpen && (
+        <PromptTemplatePickerModal
+          activeProject={activeProject}
+          canSend={promptSendStatus.canSend}
+          renderContext={{
+            projectName: activeProject?.name ?? '',
+            projectPath: promptProjectPath
+          }}
+          sendStatusMessage={promptSendStatus.message}
+          templates={promptTemplates}
+          onClose={() => setPromptPickerOpen(false)}
+          onSendPrompt={sendPromptToActiveTerminal}
         />
       )}
 

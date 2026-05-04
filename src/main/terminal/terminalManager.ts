@@ -16,6 +16,7 @@ import {
   getMarkerPrefixLength,
   isCodexCliReady
 } from './terminalOutput'
+import { shouldTrackCodexContext, type CodexContextTelemetryService } from './codexContextTelemetry'
 
 type PtyProcess = ReturnType<typeof pty.spawn>
 
@@ -34,6 +35,7 @@ type ManagedTerminal = {
 
 export type TerminalManagerDependencies = {
   broadcastTerminalEvent: (channel: string, data: unknown) => void
+  codexContextTelemetry: CodexContextTelemetryService
   contextRegistry: TerminalContextRegistry
   getDefaultShell: () => string
   getPixelCliCommandPaths: () => PixelCliCommandPaths
@@ -77,6 +79,7 @@ export class TerminalManager {
     const shellPath = this.dependencies.getDefaultShell()
     const cwd = this.dependencies.getSafeCwd(request.cwd)
     const stableKey = this.getTerminalStableKey(request)
+    const startedAtMs = Date.now()
     const contextEnv = await this.dependencies.contextRegistry.writeCompanionContext(
       request.id,
       request.companionContext
@@ -96,6 +99,13 @@ export class TerminalManager {
       terminal.pid,
       request.companionContext
     )
+    if (shouldTrackCodexContext(request)) {
+      this.dependencies.codexContextTelemetry.trackTerminal({
+        cwd,
+        sessionId: request.id,
+        startedAtMs
+      })
+    }
 
     this.terminals.set(request.id, {
       autoLaunchInput: request.autoLaunchInput?.trim() || undefined,
@@ -155,6 +165,7 @@ export class TerminalManager {
         managedTerminal.pendingData = ''
       }
 
+      this.dependencies.codexContextTelemetry.stopTerminal(sessionId)
       void this.dependencies.contextRegistry.unregisterProcess(request.id)
       this.dependencies.broadcastTerminalEvent(TERMINAL_CHANNELS.exit, {
         id: sessionId,
@@ -200,6 +211,7 @@ export class TerminalManager {
       if (candidate === managedTerminal) {
         this.terminals.delete(terminalId)
         void this.dependencies.contextRegistry.unregisterProcess(terminalId)
+        this.dependencies.codexContextTelemetry.stopTerminal(terminalId)
       }
     }
 
@@ -210,6 +222,7 @@ export class TerminalManager {
     for (const id of this.terminals.keys()) {
       this.stop(id)
     }
+    this.dependencies.codexContextTelemetry.stopAll()
   }
 
   writeInput(request: TerminalInputRequest): void {

@@ -41,6 +41,23 @@ export type TerminalConfig = {
   commands: string[]
 }
 
+export type PromptTemplateScope = 'global' | 'project'
+
+export type PromptTemplate = {
+  id: string
+  name: string
+  description?: string
+  body: string
+  scope: PromptTemplateScope
+  projectId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type WorkspaceFeatureSettings = {
+  playSoundsUponFinishing: boolean
+}
+
 export type RunningSessionStatus = 'starting' | 'running' | 'done' | 'error'
 
 export type RunningSession = {
@@ -71,6 +88,8 @@ export type WorkspaceConfig = {
   terminalConfigs: TerminalConfig[]
   activeProjectId?: string
   layout?: WorkspaceLayout
+  featureSettings?: WorkspaceFeatureSettings
+  promptTemplates?: PromptTemplate[]
   terminalThemeId?: TerminalThemeId
 }
 
