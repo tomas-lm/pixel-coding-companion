@@ -17,12 +17,12 @@
 
 :is(.workspace-rail-scroll, .project-list, .template-list, .session-list) {
   scrollbar-width: thin;
-  scrollbar-color: rgba(235, 235, 245, 0.24) transparent;
+  scrollbar-color: var(--app-scrollbar-thumb) transparent;
 }
 
 :is(.workspace-rail-scroll, .project-list, .template-list, .session-list)::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: var(--app-scrollbar-size);
+  height: var(--app-scrollbar-size);
 }
 
 :is(.workspace-rail-scroll, .project-list, .template-list, .session-list)::-webkit-scrollbar-track {
@@ -32,7 +32,7 @@
 :is(.workspace-rail-scroll, .project-list, .template-list, .session-list)::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: rgba(235, 235, 245, 0.24);
+  background: var(--app-scrollbar-thumb);
   background-clip: content-box;
 }
 
@@ -42,7 +42,7 @@
     .template-list,
     .session-list
   )::-webkit-scrollbar-thumb:hover {
-  background: rgba(235, 235, 245, 0.36);
+  background: var(--app-scrollbar-thumb-hover);
   background-clip: content-box;
 }
 

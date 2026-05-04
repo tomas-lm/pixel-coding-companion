@@ -93,7 +93,11 @@ export function CompanionPanel({
                     )}
                   </div>
                   <p>{message.summary}</p>
-                  {message.details && <pre>{message.details}</pre>}
+                  {message.details && (
+                    <pre tabIndex={0} aria-label="Full message details">
+                      {message.details}
+                    </pre>
+                  )}
                 </article>
               ))}
             </div>

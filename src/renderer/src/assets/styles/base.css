@@ -15,6 +15,11 @@
   --ev-c-text-2: rgba(235, 235, 245, 0.6);
   --ev-c-text-3: rgba(235, 235, 245, 0.38);
 
+  /* Dark UI scroll regions (see workspace-rail, companion terminal). */
+  --app-scrollbar-size: 8px;
+  --app-scrollbar-thumb: rgba(235, 235, 245, 0.24);
+  --app-scrollbar-thumb-hover: rgba(235, 235, 245, 0.36);
+
   --ev-button-alt-border: transparent;
   --ev-button-alt-text: var(--ev-c-text-1);
   --ev-button-alt-bg: var(--ev-c-gray-3);

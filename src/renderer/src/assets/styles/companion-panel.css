@@ -25,6 +25,8 @@
   border-radius: 8px;
   background: #0d1117;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  /* Prefer dark native scroll/UI affordances on Linux GTK and improve scrollbar theming consistency with macOS. */
+  color-scheme: dark;
 }
 
 .companion-terminal-header {
@@ -60,6 +62,29 @@
   font-family: 'Menlo', 'Lucida Console', monospace;
   font-size: 12px;
   line-height: 1.45;
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-scrollbar-thumb) transparent;
+}
+
+.companion-terminal-screen::-webkit-scrollbar {
+  width: var(--app-scrollbar-size);
+  height: var(--app-scrollbar-size);
+}
+
+.companion-terminal-screen::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.companion-terminal-screen::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--app-scrollbar-thumb);
+  background-clip: content-box;
+}
+
+.companion-terminal-screen::-webkit-scrollbar-thumb:hover {
+  background: var(--app-scrollbar-thumb-hover);
+  background-clip: content-box;
 }
 
 .companion-line {
@@ -108,6 +133,77 @@
   padding: 0;
   color: var(--ev-c-text-2);
   white-space: pre-wrap;
+  /* Reserve classic scrollbar width so line breaks do not change when the bar appears (hover/focus). */
+  scrollbar-gutter: stable;
+}
+
+/* Touch / coarse pointer: no hover — keep scrollbar visible. */
+@media (hover: none), (pointer: coarse) {
+  .companion-line pre {
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-scrollbar-thumb) transparent;
+  }
+
+  .companion-line pre::-webkit-scrollbar {
+    width: var(--app-scrollbar-size);
+    height: var(--app-scrollbar-size);
+  }
+
+  .companion-line pre::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .companion-line pre::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: var(--app-scrollbar-thumb);
+    background-clip: content-box;
+  }
+
+  .companion-line pre::-webkit-scrollbar-thumb:hover {
+    background: var(--app-scrollbar-thumb-hover);
+    background-clip: content-box;
+  }
+}
+
+/* Mouse / fine pointer: scrollbar track width is always reserved; thumb appears on hover/focus. */
+@media (hover: hover) and (pointer: fine) {
+  .companion-line pre {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .companion-line pre:is(:hover, :focus-visible) {
+    scrollbar-color: var(--app-scrollbar-thumb) transparent;
+  }
+
+  .companion-line pre::-webkit-scrollbar {
+    width: var(--app-scrollbar-size);
+    height: var(--app-scrollbar-size);
+  }
+
+  .companion-line pre::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .companion-line pre:not(:is(:hover, :focus-visible))::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    background-clip: content-box;
+  }
+
+  .companion-line pre:is(:hover, :focus-visible)::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: var(--app-scrollbar-thumb);
+    background-clip: content-box;
+  }
+
+  .companion-line pre:is(:hover, :focus-visible)::-webkit-scrollbar-thumb:hover {
+    background: var(--app-scrollbar-thumb-hover);
+    background-clip: content-box;
+  }
 }
 
 .pixel-companion {
