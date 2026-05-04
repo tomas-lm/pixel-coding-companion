@@ -1,6 +1,7 @@
 @import './base.css';
 @import './app-shell.css';
 @import './workspace-rail.css';
+@import './prompt-templates.css';
 @import './companion-store.css';
 @import './box-opening.css';
 @import './companion-store-cards.css';

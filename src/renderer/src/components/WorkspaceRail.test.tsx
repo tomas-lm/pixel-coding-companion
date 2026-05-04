@@ -47,6 +47,7 @@ describe('WorkspaceRail', () => {
         onCreateTerminal={vi.fn()}
         onEditProject={vi.fn()}
         onEditTerminal={vi.fn()}
+        onOpenPromptPicker={vi.fn()}
         onResizePointerDown={vi.fn()}
         onScheduleTerminalHoverCard={vi.fn()}
         onSelectProject={vi.fn()}
@@ -62,6 +63,7 @@ describe('WorkspaceRail', () => {
 
     expect(screen.getByText('Pixel')).toBeInTheDocument()
     expect(screen.getAllByText('Assistant')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Prompts' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Stop Assistant' })).toBeInTheDocument()
     expect(screen.getByText('1 live')).toBeInTheDocument()
   })

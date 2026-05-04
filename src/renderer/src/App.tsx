@@ -1,6 +1,11 @@
 import { useCallback, useState, type CSSProperties } from 'react'
 import type { CompanionBridgeMessage } from '../../shared/companion'
-import type { Project, RunningSession, TerminalConfig } from '../../shared/workspace'
+import type {
+  Project,
+  PromptTemplate,
+  RunningSession,
+  TerminalConfig
+} from '../../shared/workspace'
 import {
   ActivitySidebar,
   type ActivitySidebarItem,
@@ -11,6 +16,8 @@ import { CompanionPanel } from './components/CompanionPanel'
 import { LoadingScreen } from './components/LoadingScreen'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { ProjectFormModal } from './components/ProjectFormModal'
+import { PromptTemplatePickerModal } from './components/PromptTemplatePickerModal'
+import { PromptTemplatesPanel } from './components/PromptTemplatesPanel'
 import { StarterSelectionPage } from './components/StarterSelectionPage'
 import { StartWorkspaceModal } from './components/StartWorkspaceModal'
 import { TerminalFormModal } from './components/TerminalFormModal'
@@ -23,6 +30,7 @@ import {
   getCompanionStageForLevel
 } from './companions/companionRegistry'
 import { getActiveCompanionProgress, getCompanionMessageColor } from './app/companionSelectors'
+import { getPromptTemplateProjectPath, getPromptTemplateSendStatus } from './app/promptTemplates'
 import type { ProjectForm } from './app/projectForms'
 import { createRunningSession } from './app/runningSessions'
 import {
@@ -81,8 +89,10 @@ function App(): React.JSX.Element {
   const {
     activeProjectId,
     configLoaded,
+    promptTemplates,
     projects,
     setActiveProjectId,
+    setPromptTemplates,
     setProjects,
     setTerminalConfigs,
     terminalConfigs
@@ -106,6 +116,7 @@ function App(): React.JSX.Element {
   } = useCompanionBridge(COMPANION_NAME)
   const [starterSelectionError, setStarterSelectionError] = useState<string | null>(null)
   const [isSelectingStarter, setIsSelectingStarter] = useState(false)
+  const [promptPickerOpen, setPromptPickerOpen] = useState(false)
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null
   const activeProjectConfigs = activeProject
@@ -171,6 +182,11 @@ function App(): React.JSX.Element {
       icon: 'companion',
       id: 'companions',
       label: 'Companion selector'
+    },
+    {
+      icon: 'prompts',
+      id: 'prompts',
+      label: 'Prompt templates'
     }
   ]
   const activeCompanionId = companionStoreState?.activeCompanionId ?? STARTER_COMPANION_ID
@@ -518,6 +534,33 @@ function App(): React.JSX.Element {
     )
   }
 
+  const savePromptTemplate = (template: PromptTemplate): void => {
+    setPromptTemplates((currentTemplates) => {
+      if (currentTemplates.some((currentTemplate) => currentTemplate.id === template.id)) {
+        return currentTemplates.map((currentTemplate) =>
+          currentTemplate.id === template.id ? template : currentTemplate
+        )
+      }
+
+      return [...currentTemplates, template]
+    })
+  }
+
+  const deletePromptTemplate = (templateId: string): void => {
+    setPromptTemplates((currentTemplates) =>
+      currentTemplates.filter((template) => template.id !== templateId)
+    )
+  }
+
+  const sendPromptToActiveTerminal = (prompt: string): void => {
+    if (!activeSession || !isLiveSession(activeSession)) return
+
+    window.api.terminal.write({
+      data: `${prompt.trimEnd()}\r`,
+      id: activeSession.id
+    })
+  }
+
   const completeOnboarding = async ({
     project,
     terminalConfig
@@ -530,6 +573,7 @@ function App(): React.JSX.Element {
       terminalConfigs: nextTerminalConfigs,
       activeProjectId: project.id,
       layout,
+      promptTemplates,
       terminalThemeId
     })
 
@@ -616,6 +660,8 @@ function App(): React.JSX.Element {
   const terminalStatusKey = activeSession?.status ?? 'ready'
   const activeSessionKind = activeSession?.kind ?? 'shell'
   const selectedSessionId = activeSession?.id ?? null
+  const promptSendStatus = getPromptTemplateSendStatus(activeSession)
+  const promptProjectPath = getPromptTemplateProjectPath(activeSession, activeProjectConfigs)
   const sessionSummary = activeSession
     ? getActiveSessionSummary(activeSession)
     : activeProject
@@ -642,6 +688,7 @@ function App(): React.JSX.Element {
         onCreateTerminal={openCreateTerminal}
         onEditProject={openEditProject}
         onEditTerminal={openEditTerminal}
+        onOpenPromptPicker={() => setPromptPickerOpen(true)}
         onResizePointerDown={startLayoutResize}
         onScheduleTerminalHoverCard={scheduleTerminalHoverCard}
         onSelectProject={selectProject}
@@ -677,6 +724,13 @@ function App(): React.JSX.Element {
           onSessionStartError={markSessionStartError}
           onSessionStarted={markSessionStarted}
           onStartWorkspace={openStartWorkspace}
+        />
+      ) : activeActivityItemId === 'prompts' ? (
+        <PromptTemplatesPanel
+          activeProject={activeProject}
+          templates={promptTemplates}
+          onDeleteTemplate={deletePromptTemplate}
+          onSaveTemplate={savePromptTemplate}
         />
       ) : (
         <CompanionCatalogPanel
@@ -726,6 +780,21 @@ function App(): React.JSX.Element {
           onStartSelected={startSelectedWorkspaceConfigs}
           onToggleConfig={toggleStartConfig}
           onToggleStartWithPixel={toggleStartWithPixel}
+        />
+      )}
+
+      {promptPickerOpen && (
+        <PromptTemplatePickerModal
+          activeProject={activeProject}
+          canSend={promptSendStatus.canSend}
+          renderContext={{
+            projectName: activeProject?.name ?? '',
+            projectPath: promptProjectPath
+          }}
+          sendStatusMessage={promptSendStatus.message}
+          templates={promptTemplates}
+          onClose={() => setPromptPickerOpen(false)}
+          onSendPrompt={sendPromptToActiveTerminal}
         />
       )}
 
