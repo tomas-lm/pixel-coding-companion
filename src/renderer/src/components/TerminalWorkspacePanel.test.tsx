@@ -23,7 +23,6 @@ describe('TerminalWorkspacePanel', () => {
         onStartWorkspace={vi.fn()}
         runningSessions={[]}
         selectedSessionId={null}
-        sessionSummary="0 configured terminals - No description"
         terminalThemeId={DEFAULT_TERMINAL_THEME_ID}
         terminalTitle="Workspace"
       />
@@ -32,6 +31,7 @@ describe('TerminalWorkspacePanel', () => {
     expect(screen.getByRole('heading', { name: 'Workspace' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Use prompt' })).toBeInTheDocument()
     expect(screen.queryByText('Ready')).not.toBeInTheDocument()
+    expect(screen.queryByText('0 configured terminals - No description')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add terminal' })).toBeInTheDocument()
   })
 })

@@ -109,7 +109,7 @@
   --terminal-red: #ef5b5b;
   --terminal-yellow: #f7d56f;
   display: grid;
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: 34px minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--terminal-foreground) 15%, var(--terminal-background));
@@ -118,7 +118,78 @@
 }
 
 .terminal-frame--context {
-  grid-template-rows: 28px minmax(0, 1fr);
+  grid-template-rows: 34px 28px minmax(0, 1fr);
+}
+
+.terminal-toolbar {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 0 12px;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--terminal-foreground) 10%, var(--terminal-background));
+  background: color-mix(in srgb, var(--terminal-background) 84%, var(--terminal-foreground));
+}
+
+.terminal-controls {
+  display: flex;
+  gap: 7px;
+}
+
+.terminal-controls span {
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  background: var(--terminal-red);
+}
+
+.terminal-controls span:nth-child(2) {
+  background: var(--terminal-yellow);
+}
+
+.terminal-controls span:nth-child(3) {
+  background: var(--terminal-green);
+}
+
+.terminal-meta {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  color: color-mix(in srgb, var(--terminal-foreground) 64%, var(--terminal-background));
+  font-size: 12px;
+}
+
+.terminal-meta span {
+  min-width: 0;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal-status {
+  color: var(--terminal-cyan);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.terminal-status--running {
+  color: var(--terminal-cyan);
+}
+
+.terminal-status--starting {
+  color: var(--terminal-blue);
+}
+
+.terminal-status--done {
+  color: var(--terminal-green);
+}
+
+.terminal-status--error {
+  color: var(--terminal-red);
 }
 
 .terminal-context-hud {

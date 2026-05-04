@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal, type ILink } from '@xterm/xterm'
 import type { TerminalContextEvent } from '../../../shared/terminal'
-import type { RunningSession, TerminalThemeId } from '../../../shared/workspace'
+import type {
+  RunningSession,
+  RunningSessionStatus,
+  TerminalThemeId
+} from '../../../shared/workspace'
 import { getOpenTargetRequestFromHyperlink } from '../lib/terminalHyperlinks'
 import { findTerminalLinks, type TerminalLinkCandidate } from '../lib/terminalLinks'
 import { handleTerminalKeyEvent } from '../lib/terminalKeyboard'
@@ -17,6 +21,13 @@ type TerminalPaneProps = {
   onSessionActivity: (sessionId: string, output: string) => void
   onSessionStartError: (sessionId: string, errorMessage: string) => void
   onSessionStarted: (sessionId: string, metadata: string) => void
+}
+
+function getStatusLabel(status: RunningSessionStatus): string {
+  if (status === 'starting') return 'starting'
+  if (status === 'running') return 'running'
+  if (status === 'done') return 'done'
+  return 'error'
 }
 
 function isOpenModifier(event: MouseEvent): boolean {
@@ -349,6 +360,19 @@ export function TerminalPane({
       style={getTerminalThemeStyle(terminalThemeId)}
       aria-label={`${session.name} terminal`}
     >
+      <div className="terminal-toolbar">
+        <div className="terminal-controls" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="terminal-meta">
+          <span>{session.metadata}</span>
+          <strong className={`terminal-status terminal-status--${session.status}`}>
+            {getStatusLabel(session.status)}
+          </strong>
+        </div>
+      </div>
       {showContextHud && (
         <TerminalContextHud
           isCodexCandidate={isCodexContextCandidate(session)}

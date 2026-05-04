@@ -20,7 +20,6 @@ type TerminalWorkspacePanelProps = {
   onStartWorkspace: () => void
   runningSessions: RunningSession[]
   selectedSessionId: string | null
-  sessionSummary: string
   terminalThemeId: TerminalThemeId
   terminalTitle: string
 }
@@ -38,7 +37,6 @@ export function TerminalWorkspacePanel({
   onStartWorkspace,
   runningSessions,
   selectedSessionId,
-  sessionSummary,
   terminalThemeId,
   terminalTitle
 }: TerminalWorkspacePanelProps): React.JSX.Element {
@@ -48,7 +46,6 @@ export function TerminalWorkspacePanel({
         <div>
           <span className="eyebrow">{activeProject?.name ?? 'Pixel Companion'}</span>
           <h1>{terminalTitle}</h1>
-          <p>{sessionSummary}</p>
         </div>
         <div className="session-header-actions">
           <button

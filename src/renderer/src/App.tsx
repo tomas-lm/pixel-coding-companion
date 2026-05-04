@@ -36,11 +36,9 @@ import { createRunningSession } from './app/runningSessions'
 import {
   commandsFromText,
   commandsToText,
-  getActiveSessionSummary,
   getCompanionMessage,
   getLiveConfigIds,
   getOutputPreview,
-  getProjectSummary,
   getTimeMs,
   isLiveSession
 } from './app/sessionDisplay'
@@ -658,11 +656,6 @@ function App(): React.JSX.Element {
   const selectedSessionId = activeSession?.id ?? null
   const promptSendStatus = getPromptTemplateSendStatus(activeSession)
   const promptProjectPath = getPromptTemplateProjectPath(activeSession, activeProjectConfigs)
-  const sessionSummary = activeSession
-    ? getActiveSessionSummary(activeSession)
-    : activeProject
-      ? getProjectSummary(activeProject, terminalConfigs)
-      : 'No workspace configured yet.'
 
   return (
     <main className="app-shell" style={activeStyle}>
@@ -707,7 +700,6 @@ function App(): React.JSX.Element {
           activeSession={activeSession}
           runningSessions={runningSessions}
           selectedSessionId={selectedSessionId}
-          sessionSummary={sessionSummary}
           terminalThemeId={terminalThemeId}
           terminalTitle={terminalTitle}
           onCreateProject={openCreateProject}
