@@ -27,6 +27,13 @@
   gap: 8px;
 }
 
+.session-prompt-button {
+  width: auto;
+  min-height: 30px;
+  padding: 0 11px;
+  white-space: nowrap;
+}
+
 .eyebrow {
   font-size: 12px;
   font-weight: 700;

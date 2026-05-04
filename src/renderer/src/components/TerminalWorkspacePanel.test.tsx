@@ -14,9 +14,9 @@ describe('TerminalWorkspacePanel', () => {
         activeProject={{ color: '#4ea1ff', description: '', id: 'project-1', name: 'Pixel' }}
         activeProjectConfigs={[]}
         activeSession={null}
-        activeSessionKind="shell"
         onCreateProject={vi.fn()}
         onCreateTerminal={vi.fn()}
+        onOpenPromptPicker={vi.fn()}
         onSessionActivity={vi.fn()}
         onSessionStartError={vi.fn()}
         onSessionStarted={vi.fn()}
@@ -24,14 +24,14 @@ describe('TerminalWorkspacePanel', () => {
         runningSessions={[]}
         selectedSessionId={null}
         sessionSummary="0 configured terminals - No description"
-        terminalStatus="Ready"
-        terminalStatusKey="ready"
         terminalThemeId={DEFAULT_TERMINAL_THEME_ID}
         terminalTitle="Workspace"
       />
     )
 
     expect(screen.getByRole('heading', { name: 'Workspace' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Use prompt' })).toBeInTheDocument()
+    expect(screen.queryByText('Ready')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add terminal' })).toBeInTheDocument()
   })
 })

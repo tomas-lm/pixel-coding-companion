@@ -4,7 +4,6 @@ import type {
   TerminalConfig,
   TerminalThemeId
 } from '../../../shared/workspace'
-import { KIND_LABELS } from '../app/sessionDisplay'
 import { AddButton } from './ui/IconButtons'
 import { TerminalPane } from './TerminalPane'
 
@@ -12,9 +11,9 @@ type TerminalWorkspacePanelProps = {
   activeProject: Project | null
   activeProjectConfigs: TerminalConfig[]
   activeSession: RunningSession | null
-  activeSessionKind: RunningSession['kind']
   onCreateProject: () => void
   onCreateTerminal: () => void
+  onOpenPromptPicker: () => void
   onSessionActivity: (sessionId: string, output: string) => void
   onSessionStartError: (sessionId: string, errorMessage: string) => void
   onSessionStarted: (sessionId: string, metadata: string) => void
@@ -22,8 +21,6 @@ type TerminalWorkspacePanelProps = {
   runningSessions: RunningSession[]
   selectedSessionId: string | null
   sessionSummary: string
-  terminalStatus: string
-  terminalStatusKey: string
   terminalThemeId: TerminalThemeId
   terminalTitle: string
 }
@@ -32,9 +29,9 @@ export function TerminalWorkspacePanel({
   activeProject,
   activeProjectConfigs,
   activeSession,
-  activeSessionKind,
   onCreateProject,
   onCreateTerminal,
+  onOpenPromptPicker,
   onSessionActivity,
   onSessionStartError,
   onSessionStarted,
@@ -42,8 +39,6 @@ export function TerminalWorkspacePanel({
   runningSessions,
   selectedSessionId,
   sessionSummary,
-  terminalStatus,
-  terminalStatusKey,
   terminalThemeId,
   terminalTitle
 }: TerminalWorkspacePanelProps): React.JSX.Element {
@@ -56,10 +51,13 @@ export function TerminalWorkspacePanel({
           <p>{sessionSummary}</p>
         </div>
         <div className="session-header-actions">
-          <span className={`kind-badge kind-badge--${activeSessionKind}`}>
-            {KIND_LABELS[activeSessionKind]}
-          </span>
-          <span className={`status-pill status-pill--${terminalStatusKey}`}>{terminalStatus}</span>
+          <button
+            className="secondary-button session-prompt-button"
+            type="button"
+            onClick={onOpenPromptPicker}
+          >
+            Use prompt
+          </button>
         </div>
       </header>
 

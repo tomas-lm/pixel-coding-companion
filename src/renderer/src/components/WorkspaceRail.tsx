@@ -19,7 +19,6 @@ type WorkspaceRailProps = {
   onCreateTerminal: () => void
   onEditProject: (project: Project) => void
   onEditTerminal: (config: TerminalConfig) => void
-  onOpenPromptPicker: () => void
   onResizePointerDown: (
     event: React.PointerEvent<HTMLButtonElement>,
     target: LayoutResizeTarget
@@ -44,7 +43,6 @@ export function WorkspaceRail({
   onCreateTerminal,
   onEditProject,
   onEditTerminal,
-  onOpenPromptPicker,
   onResizePointerDown,
   onScheduleTerminalHoverCard,
   onSelectProject,
@@ -180,13 +178,7 @@ export function WorkspaceRail({
         <section className="rail-section rail-section--running" aria-label="Running sessions">
           <div className="rail-header">
             <span>Running</span>
-            <button
-              className="secondary-button rail-prompts-button"
-              type="button"
-              onClick={onOpenPromptPicker}
-            >
-              Use prompt
-            </button>
+            <small>{activeProjectSessions.length}</small>
           </div>
 
           <div className="session-list">

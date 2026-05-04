@@ -41,7 +41,6 @@ import {
   getLiveConfigIds,
   getOutputPreview,
   getProjectSummary,
-  getStatusLabel,
   getTimeMs,
   isLiveSession
 } from './app/sessionDisplay'
@@ -656,9 +655,6 @@ function App(): React.JSX.Element {
         : 'idle'
   const terminalTitle =
     activeSession?.name ?? (activeProject ? 'Workspace' : 'No workspace selected')
-  const terminalStatus = activeSession ? getStatusLabel(activeSession.status) : 'Ready'
-  const terminalStatusKey = activeSession?.status ?? 'ready'
-  const activeSessionKind = activeSession?.kind ?? 'shell'
   const selectedSessionId = activeSession?.id ?? null
   const promptSendStatus = getPromptTemplateSendStatus(activeSession)
   const promptProjectPath = getPromptTemplateProjectPath(activeSession, activeProjectConfigs)
@@ -688,7 +684,6 @@ function App(): React.JSX.Element {
         onCreateTerminal={openCreateTerminal}
         onEditProject={openEditProject}
         onEditTerminal={openEditTerminal}
-        onOpenPromptPicker={() => setPromptPickerOpen(true)}
         onResizePointerDown={startLayoutResize}
         onScheduleTerminalHoverCard={scheduleTerminalHoverCard}
         onSelectProject={selectProject}
@@ -710,16 +705,14 @@ function App(): React.JSX.Element {
           activeProject={activeProject}
           activeProjectConfigs={activeProjectConfigs}
           activeSession={activeSession}
-          activeSessionKind={activeSessionKind}
           runningSessions={runningSessions}
           selectedSessionId={selectedSessionId}
           sessionSummary={sessionSummary}
-          terminalStatus={terminalStatus}
-          terminalStatusKey={terminalStatusKey}
           terminalThemeId={terminalThemeId}
           terminalTitle={terminalTitle}
           onCreateProject={openCreateProject}
           onCreateTerminal={openCreateTerminal}
+          onOpenPromptPicker={() => setPromptPickerOpen(true)}
           onSessionActivity={updateSessionActivity}
           onSessionStartError={markSessionStartError}
           onSessionStarted={markSessionStarted}

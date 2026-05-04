@@ -117,13 +117,6 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
-.rail-prompts-button {
-  width: auto;
-  min-height: 28px;
-  padding: 0 9px;
-  font-size: 11px;
-}
-
 .prompt-picker-modal {
   width: min(100%, 760px);
 }
