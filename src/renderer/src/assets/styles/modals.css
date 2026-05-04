@@ -92,6 +92,13 @@
   font: inherit;
 }
 
+.modal select,
+.modal option,
+.modal optgroup {
+  color: var(--ev-c-text-1);
+  background-color: #17191d;
+}
+
 .modal input[type='color'] {
   width: 64px;
   height: 36px;
