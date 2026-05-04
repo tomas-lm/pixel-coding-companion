@@ -12,6 +12,11 @@ type CreateMainWindowOptions = {
   registerMenu: (window: BrowserWindow) => void
 }
 
+function applyZoomDelta(mainWindow: BrowserWindow, delta: number): void {
+  const nextZoomLevel = mainWindow.webContents.getZoomLevel() + delta
+  mainWindow.webContents.setZoomLevel(nextZoomLevel)
+}
+
 export function createMainWindow(options: CreateMainWindowOptions): BrowserWindow {
   const platformWindowConfig = getPlatformWindowConfig()
   const mainWindow = new BrowserWindow({
@@ -48,6 +53,28 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
       void shell.openExternal(details.url)
     }
     return { action: 'deny' }
+  })
+
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    const hasZoomModifier = process.platform === 'darwin' ? input.meta : input.control
+    if (!hasZoomModifier || input.alt) return
+
+    if (input.key === '-' || input.key === '_' || input.key === 'Subtract') {
+      event.preventDefault()
+      applyZoomDelta(mainWindow, -0.5)
+      return
+    }
+
+    if (input.key === '+' || input.key === '=' || input.key === 'Add') {
+      event.preventDefault()
+      applyZoomDelta(mainWindow, 0.5)
+      return
+    }
+
+    if (input.key === '0') {
+      event.preventDefault()
+      mainWindow.webContents.setZoomLevel(0)
+    }
   })
 
   options.registerMenu(mainWindow)

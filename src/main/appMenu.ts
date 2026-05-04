@@ -8,6 +8,27 @@ type RegisterAppMenuOptions = {
   selectedTerminalThemeId: TerminalThemeId
 }
 
+function getMenuTargetWindow(mainWindow: BrowserWindow): BrowserWindow {
+  return BrowserWindow.getFocusedWindow() ?? mainWindow
+}
+
+function resetZoom(mainWindow: BrowserWindow): void {
+  const targetWindow = getMenuTargetWindow(mainWindow)
+  targetWindow.webContents.setZoomLevel(0)
+}
+
+function increaseZoom(mainWindow: BrowserWindow): void {
+  const targetWindow = getMenuTargetWindow(mainWindow)
+  const nextZoomLevel = targetWindow.webContents.getZoomLevel() + 0.5
+  targetWindow.webContents.setZoomLevel(nextZoomLevel)
+}
+
+function decreaseZoom(mainWindow: BrowserWindow): void {
+  const targetWindow = getMenuTargetWindow(mainWindow)
+  const nextZoomLevel = targetWindow.webContents.getZoomLevel() - 0.5
+  targetWindow.webContents.setZoomLevel(nextZoomLevel)
+}
+
 export function sendLayoutReset(targetWindow: BrowserWindow): void {
   if (!targetWindow.isDestroyed()) {
     targetWindow.webContents.send(VIEW_CHANNELS.resetLayout)
@@ -50,7 +71,7 @@ export function registerAppMenu(
       {
         label: 'Reset default',
         click: () => {
-          onResetLayout(BrowserWindow.getFocusedWindow() ?? mainWindow)
+          onResetLayout(getMenuTargetWindow(mainWindow))
         }
       },
       {
@@ -61,7 +82,7 @@ export function registerAppMenu(
           type: 'checkbox',
           checked: theme.id === selectedTerminalThemeId,
           click: () => {
-            onTerminalThemeSelected(BrowserWindow.getFocusedWindow() ?? mainWindow, theme.id)
+            onTerminalThemeSelected(getMenuTargetWindow(mainWindow), theme.id)
           }
         }))
       },
@@ -70,9 +91,27 @@ export function registerAppMenu(
       { role: 'forceReload' },
       { role: 'toggleDevTools' },
       { type: 'separator' },
-      { role: 'resetZoom' },
-      { role: 'zoomIn' },
-      { role: 'zoomOut' },
+      {
+        label: 'Actual size',
+        accelerator: 'CommandOrControl+0',
+        click: () => {
+          resetZoom(mainWindow)
+        }
+      },
+      {
+        label: 'Zoom in',
+        accelerator: 'CommandOrControl+=',
+        click: () => {
+          increaseZoom(mainWindow)
+        }
+      },
+      {
+        label: 'Zoom out',
+        accelerator: 'CommandOrControl+-',
+        click: () => {
+          decreaseZoom(mainWindow)
+        }
+      },
       { type: 'separator' },
       { role: 'togglefullscreen' }
     ]
