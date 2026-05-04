@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { COMPANION_REGISTRY, TATA_STAGES, TOUK_STAGES } from './companionRegistry'
+import { COMPANION_REGISTRY, KARPA_STAGES, TATA_STAGES, TOUK_STAGES } from './companionRegistry'
 
 describe('companion registry', () => {
   it('keeps marketplace companions ordered by rarity tier', () => {
@@ -40,6 +40,30 @@ describe('companion registry', () => {
       { height: 149, id: 'lvl1', offsetY: 40 },
       { height: 135, id: 'lvl2', offsetY: 0 },
       { height: 154, id: 'lvl3', offsetY: 0 }
+    ])
+  })
+
+  it('registers Karpa with all four idle evolutions', () => {
+    const karpa = COMPANION_REGISTRY.find((companion) => companion.id === 'karpa')
+
+    expect(karpa).toMatchObject({
+      id: 'karpa',
+      name: 'Karpa',
+      rarity: 'uncommon'
+    })
+    expect(karpa?.stages).toBe(KARPA_STAGES)
+    expect(karpa?.stages.map((stage) => stage.id)).toEqual(['egg', 'lvl1', 'lvl2', 'lvl3'])
+    expect(
+      karpa?.stages.map((stage) => ({
+        id: stage.id,
+        offsetX: stage.offsetX ?? 0,
+        offsetY: stage.offsetY ?? 0
+      }))
+    ).toEqual([
+      { id: 'egg', offsetX: 0, offsetY: 0 },
+      { id: 'lvl1', offsetX: 0, offsetY: 0 },
+      { id: 'lvl2', offsetX: 0, offsetY: 40 },
+      { id: 'lvl3', offsetX: 0, offsetY: 40 }
     ])
   })
 

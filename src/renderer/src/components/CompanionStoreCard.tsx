@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, MouseEvent } from 'react'
 import {
   formatCompanionRarity,
   formatMonsterPoints,
@@ -15,6 +15,7 @@ function getCompanionStoreStage(
   stage: ReturnType<typeof getCompanionStageForLevel>
 ): ReturnType<typeof getCompanionStageForLevel> {
   let avatarOffsetX = stage.avatarOffsetX
+  let avatarOffsetY = stage.avatarOffsetY
   let avatarScale = stage.avatarScale
 
   if (stage.id === 'egg') {
@@ -46,21 +47,39 @@ function getCompanionStoreStage(
     avatarOffsetX = (avatarOffsetX ?? 0) + 3
   }
 
+  if (companion.id === 'karpa') {
+    if (stage.id === 'lvl1' || stage.id === 'lvl2') {
+      avatarOffsetX = (avatarOffsetX ?? 0) - 45
+      avatarScale = (avatarScale ?? 1) * 0.7
+    }
+
+    if (stage.id === 'lvl2' || stage.id === 'lvl3') {
+      avatarOffsetY = companion.stages.find((candidate) => candidate.id === 'egg')?.avatarOffsetY
+    }
+  }
+
   return {
     ...stage,
     avatarOffsetX,
+    avatarOffsetY,
     avatarScale
   }
 }
 
 type CompanionStoreCardProps = {
   companion: CompanionDefinition
+  isDevLevelUpEnabled?: boolean
+  onLevelDown?: (companion: CompanionDefinition) => void
+  onLevelUp?: (companion: CompanionDefinition) => void
   onSelect: (companion: CompanionDefinition) => void
   state: CompanionCardState
 }
 
 export function CompanionStoreCard({
   companion,
+  isDevLevelUpEnabled = false,
+  onLevelDown,
+  onLevelUp,
   onSelect,
   state
 }: CompanionStoreCardProps): React.JSX.Element {
@@ -90,6 +109,23 @@ export function CompanionStoreCard({
     if (state.owned) {
       onSelect(companion)
     }
+  }
+  const canUseDevLevelUp = isDevLevelUpEnabled && state.owned
+  const isDevLevelDownDisabled = state.level <= 0
+  const isDevLevelUpDisabled = state.level >= 100
+  const levelUpCompanion = (event: MouseEvent<HTMLButtonElement>): void => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (isDevLevelUpDisabled) return
+
+    onLevelUp?.(companion)
+  }
+  const levelDownCompanion = (event: MouseEvent<HTMLButtonElement>): void => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (isDevLevelDownDisabled) return
+
+    onLevelDown?.(companion)
   }
 
   return (
@@ -129,11 +165,43 @@ export function CompanionStoreCard({
             </svg>
           </span>
         )}
+        {canUseDevLevelUp && (
+          <div className="companion-dev-level-controls">
+            <button
+              aria-label={`Level up ${companion.name}`}
+              className="companion-dev-level-button"
+              disabled={isDevLevelUpDisabled}
+              title={state.level >= 100 ? 'Max level reached' : 'Level up companion'}
+              type="button"
+              onClick={levelUpCompanion}
+              onKeyDown={(event) => {
+                event.stopPropagation()
+              }}
+            >
+              Lvl Up
+            </button>
+            <button
+              aria-label={`Level down ${companion.name}`}
+              className="companion-dev-level-button"
+              disabled={isDevLevelDownDisabled}
+              title={state.level <= 0 ? 'Minimum level reached' : 'Level down companion'}
+              type="button"
+              onClick={levelDownCompanion}
+              onKeyDown={(event) => {
+                event.stopPropagation()
+              }}
+            >
+              Lvl Down
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="companion-store-card-meta">
         <strong>{companion.name}</strong>
-        <span>{rarityLabel}</span>
+        <div className="companion-store-card-meta-row">
+          <span>{rarityLabel}</span>
+        </div>
       </div>
 
       <div className="companion-store-card-hover">

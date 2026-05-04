@@ -1,7 +1,9 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import type { CompanionBridgeState, CompanionProgressState } from '../../../shared/companion'
 import type { CompanionStoreState } from '../../../shared/companionStore'
+import { COMPANION_REGISTRY } from '../companions/companionRegistry'
 import { createCompanionProgressSnapshot } from '../lib/companionProgress'
+import { applyDevCompanionLevelOverrides } from '../lib/devCompanionLevelOverrides'
 
 const DEFAULT_COMPANION_BRIDGE_STATE: CompanionBridgeState = {
   currentState: 'idle',
@@ -43,9 +45,26 @@ export function useCompanionBridge(defaultCompanionName: string): UseCompanionBr
         .then(([bridgeState, progress, storeState]) => {
           if (!mounted) return
 
+          const nextStoreState = applyDevCompanionLevelOverrides(storeState)
+          const activeEntry = nextStoreState.companions[nextStoreState.activeCompanionId]
+          const activeCompanion = COMPANION_REGISTRY.find(
+            (companion) => companion.id === nextStoreState.activeCompanionId
+          )
+
           setCompanionBridgeState(bridgeState)
-          setCompanionProgress(progress)
-          setCompanionStoreState(storeState)
+          setCompanionProgress(
+            activeEntry?.owned
+              ? createCompanionProgressSnapshot({
+                  currentXp: activeEntry.currentXp,
+                  level: activeEntry.level,
+                  monsterPoints: progress.monsterPoints,
+                  name: activeCompanion?.name ?? progress.name,
+                  totalXp: activeEntry.totalXp,
+                  updatedAt: activeEntry.updatedAt ?? progress.updatedAt
+                })
+              : progress
+          )
+          setCompanionStoreState(nextStoreState)
           setCompanionStoreLoaded(true)
         })
         .catch((error: unknown) => {
