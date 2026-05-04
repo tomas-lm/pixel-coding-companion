@@ -54,6 +54,10 @@ export type PromptTemplate = {
   updatedAt: string
 }
 
+export type WorkspaceFeatureSettings = {
+  playSoundsUponFinishing: boolean
+}
+
 export type RunningSessionStatus = 'starting' | 'running' | 'done' | 'error'
 
 export type RunningSession = {
@@ -84,6 +88,7 @@ export type WorkspaceConfig = {
   terminalConfigs: TerminalConfig[]
   activeProjectId?: string
   layout?: WorkspaceLayout
+  featureSettings?: WorkspaceFeatureSettings
   promptTemplates?: PromptTemplate[]
   terminalThemeId?: TerminalThemeId
 }

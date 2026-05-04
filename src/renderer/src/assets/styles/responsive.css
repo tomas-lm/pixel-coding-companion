@@ -41,6 +41,7 @@
 
   .workspace-rail,
   .session-panel,
+  .configs-panel,
   .companion-catalog-panel,
   .companion-panel {
     grid-column: 2;
@@ -59,6 +60,7 @@
   }
 
   .session-panel,
+  .configs-panel,
   .companion-catalog-panel {
     min-height: 560px;
   }

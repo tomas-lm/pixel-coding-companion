@@ -4,7 +4,8 @@ import type {
   Project,
   PromptTemplate,
   RunningSession,
-  TerminalConfig
+  TerminalConfig,
+  WorkspaceFeatureSettings
 } from '../../shared/workspace'
 import {
   ActivitySidebar,
@@ -13,6 +14,7 @@ import {
 } from './components/ActivitySidebar'
 import { CompanionCatalogPanel } from './components/CompanionCatalogPanel'
 import { CompanionPanel } from './components/CompanionPanel'
+import { ConfigsPanel } from './components/ConfigsPanel'
 import { LoadingScreen } from './components/LoadingScreen'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { ProjectFormModal } from './components/ProjectFormModal'
@@ -30,6 +32,7 @@ import {
   getCompanionStageForLevel
 } from './companions/companionRegistry'
 import { getActiveCompanionProgress, getCompanionMessageColor } from './app/companionSelectors'
+import { primeCompletionSound } from './app/notificationSounds'
 import { getPromptTemplateProjectPath, getPromptTemplateSendStatus } from './app/promptTemplates'
 import type { ProjectForm } from './app/projectForms'
 import { createRunningSession } from './app/runningSessions'
@@ -44,6 +47,7 @@ import {
 } from './app/sessionDisplay'
 import { createEmptyTerminalForm, type TerminalForm } from './app/terminalForms'
 import { useCompanionBridge } from './hooks/useCompanionBridge'
+import { useCompletionNotificationSound } from './hooks/useCompletionNotificationSound'
 import { useTerminalEvents } from './hooks/useTerminalEvents'
 import { useTerminalHoverCard } from './hooks/useTerminalHoverCard'
 import { useWorkspaceConfig } from './hooks/useWorkspaceConfig'
@@ -86,9 +90,11 @@ function App(): React.JSX.Element {
   const {
     activeProjectId,
     configLoaded,
+    featureSettings,
     promptTemplates,
     projects,
     setActiveProjectId,
+    setFeatureSettings,
     setPromptTemplates,
     setProjects,
     setTerminalConfigs,
@@ -114,6 +120,22 @@ function App(): React.JSX.Element {
   const [starterSelectionError, setStarterSelectionError] = useState<string | null>(null)
   const [isSelectingStarter, setIsSelectingStarter] = useState(false)
   const [promptPickerOpen, setPromptPickerOpen] = useState(false)
+
+  useCompletionNotificationSound(
+    companionBridgeState.messages,
+    featureSettings.playSoundsUponFinishing
+  )
+
+  const changeFeatureSettings = useCallback(
+    (nextFeatureSettings: WorkspaceFeatureSettings): void => {
+      if (nextFeatureSettings.playSoundsUponFinishing) {
+        primeCompletionSound()
+      }
+
+      setFeatureSettings(nextFeatureSettings)
+    },
+    [setFeatureSettings]
+  )
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null
   const activeProjectConfigs = activeProject
@@ -184,6 +206,11 @@ function App(): React.JSX.Element {
       icon: 'prompts',
       id: 'prompts',
       label: 'Prompt templates'
+    },
+    {
+      icon: 'configs',
+      id: 'configs',
+      label: 'Configs'
     }
   ]
   const activeCompanionId = companionStoreState?.activeCompanionId ?? STARTER_COMPANION_ID
@@ -570,6 +597,7 @@ function App(): React.JSX.Element {
       terminalConfigs: nextTerminalConfigs,
       activeProjectId: project.id,
       layout,
+      featureSettings,
       promptTemplates,
       terminalThemeId
     })
@@ -716,6 +744,11 @@ function App(): React.JSX.Element {
           templates={promptTemplates}
           onDeleteTemplate={deletePromptTemplate}
           onSaveTemplate={savePromptTemplate}
+        />
+      ) : activeActivityItemId === 'configs' ? (
+        <ConfigsPanel
+          featureSettings={featureSettings}
+          onChangeFeatureSettings={changeFeatureSettings}
         />
       ) : (
         <CompanionCatalogPanel
