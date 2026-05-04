@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -14,6 +14,7 @@ import { registerWorkspaceIpc } from './ipc/registerWorkspaceIpc'
 import { isSafeExternalUrl } from './openTarget'
 import { TerminalContextRegistry } from './terminal/terminalContextRegistry'
 import { TerminalManager } from './terminal/terminalManager'
+import { createMainWindow } from './window/createMainWindow'
 import { WorkspaceStore } from './workspace/workspaceStore'
 import { DEFAULT_TERMINAL_THEME_ID, type TerminalThemeId } from '../shared/workspace'
 
@@ -131,47 +132,17 @@ function updateTerminalThemeMenu(themeId: TerminalThemeId): void {
 }
 
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
-    title: APP_NAME,
-    width: 1180,
-    height: 760,
-    show: false,
-    autoHideMenuBar: false,
+  createMainWindow({
+    appName: APP_NAME,
     icon,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
-    }
+    isDev: is.dev,
+    rendererUrl: process.env['ELECTRON_RENDERER_URL'],
+    isSafeExternalUrl,
+    onClosed: () => {
+      terminalManager.stopAll()
+    },
+    registerMenu: registerMainWindowMenu
   })
-
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.setTitle(APP_NAME)
-    mainWindow.show()
-  })
-
-  mainWindow.on('page-title-updated', (event) => {
-    event.preventDefault()
-    mainWindow.setTitle(APP_NAME)
-  })
-
-  mainWindow.on('closed', () => {
-    terminalManager.stopAll()
-  })
-
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    if (isSafeExternalUrl(details.url)) {
-      void shell.openExternal(details.url)
-    }
-    return { action: 'deny' }
-  })
-
-  registerMainWindowMenu(mainWindow)
-
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-  } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
-  }
 }
 
 // This method will be called when Electron has finished
