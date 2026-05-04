@@ -58,25 +58,24 @@ export function PromptTemplatesPanel({
         <div>
           <span className="eyebrow">{activeProject?.name ?? 'Pixel Companion'}</span>
           <h1>Prompts</h1>
+          <p className="prompt-template-tip">
+            Tip: use <code>%project_name</code> and <code>%project_path</code> in prompt bodies.
+          </p>
         </div>
         <div className="prompt-template-actions">
           <AddButton
-            className="secondary-button"
-            label="Global prompt"
-            onClick={() => setForm(createEmptyPromptTemplateForm('global'))}
-          />
-          <AddButton
             className="primary-button"
-            label="Project prompt"
-            disabled={!activeProject}
-            onClick={() => setForm(createEmptyPromptTemplateForm('project'))}
+            label="Add prompt"
+            onClick={() =>
+              setForm(createEmptyPromptTemplateForm(activeProject ? 'project' : 'global'))
+            }
           />
         </div>
       </header>
 
       <div className="prompt-template-grid">
         {scopedTemplates.length === 0 && (
-          <div className="prompt-template-empty">No prompt templates configured.</div>
+          <div className="prompt-template-empty">No prompt templates yet.</div>
         )}
 
         {scopedTemplates.map((template) => (

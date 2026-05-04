@@ -185,7 +185,7 @@ export function WorkspaceRail({
               type="button"
               onClick={onOpenPromptPicker}
             >
-              Prompts
+              Use prompt
             </button>
           </div>
 

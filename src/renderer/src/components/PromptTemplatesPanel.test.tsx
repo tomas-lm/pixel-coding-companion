@@ -44,6 +44,10 @@ describe('PromptTemplatesPanel', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Prompts' })).toBeInTheDocument()
+    expect(screen.getByText('%project_name')).toBeInTheDocument()
+    expect(screen.getByText('%project_path')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add prompt' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Global prompt' })).not.toBeInTheDocument()
     expect(screen.getByText('Global prompt')).toBeInTheDocument()
     expect(screen.getByText('Project prompt')).toBeInTheDocument()
   })
@@ -60,8 +64,9 @@ describe('PromptTemplatesPanel', () => {
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Global prompt' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add prompt' }))
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Review' } })
+    fireEvent.change(screen.getByLabelText('Scope'), { target: { value: 'global' } })
     fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: 'Review %project_name' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save prompt' }))
 

@@ -21,6 +21,18 @@
   letter-spacing: 0;
 }
 
+.prompt-template-tip {
+  max-width: 520px;
+  margin: 6px 0 0;
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.prompt-template-tip code {
+  color: var(--ev-c-text-1);
+}
+
 .prompt-template-actions,
 .prompt-template-card-actions {
   display: flex;

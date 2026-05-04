@@ -63,7 +63,7 @@ describe('WorkspaceRail', () => {
 
     expect(screen.getByText('Pixel')).toBeInTheDocument()
     expect(screen.getAllByText('Assistant')).toHaveLength(2)
-    expect(screen.getByRole('button', { name: 'Prompts' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Use prompt' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Stop Assistant' })).toBeInTheDocument()
     expect(screen.getByText('1 live')).toBeInTheDocument()
   })

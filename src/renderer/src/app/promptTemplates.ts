@@ -20,37 +20,15 @@ export type PromptTemplateRenderContext = {
   projectPath: string
 }
 
-const DEFAULT_PROMPT_TEMPLATE_TIMESTAMP = '2026-05-04T00:00:00.000Z'
+const REMOVED_PRESET_PROMPT_TEMPLATE_IDS = new Set([
+  'preset-inspect-project',
+  'preset-plan-task',
+  'preset-focused-fix'
+])
 
-export const DEFAULT_PROMPT_TEMPLATES: PromptTemplate[] = [
-  {
-    body: 'Explore o projeto %project_name em %project_path, entenda a estrutura e me diga quando estiver pronto para programar.',
-    createdAt: DEFAULT_PROMPT_TEMPLATE_TIMESTAMP,
-    description: 'Primeira leitura antes de implementar.',
-    id: 'preset-inspect-project',
-    name: 'Inspect project',
-    scope: 'global',
-    updatedAt: DEFAULT_PROMPT_TEMPLATE_TIMESTAMP
-  },
-  {
-    body: 'Leia o contexto do projeto %project_name em %project_path e transforme a ideia abaixo em uma task clara antes de programar:',
-    createdAt: DEFAULT_PROMPT_TEMPLATE_TIMESTAMP,
-    description: 'Transforma ideia em tarefa de implementação.',
-    id: 'preset-plan-task',
-    name: 'Plan task',
-    scope: 'global',
-    updatedAt: DEFAULT_PROMPT_TEMPLATE_TIMESTAMP
-  },
-  {
-    body: 'No projeto %project_name em %project_path, investigue o problema abaixo, implemente a correcao mais enxuta e valide com testes focados:',
-    createdAt: DEFAULT_PROMPT_TEMPLATE_TIMESTAMP,
-    description: 'Correção focada com validação.',
-    id: 'preset-focused-fix',
-    name: 'Focused fix',
-    scope: 'global',
-    updatedAt: DEFAULT_PROMPT_TEMPLATE_TIMESTAMP
-  }
-]
+export function normalizePromptTemplates(templates: PromptTemplate[] = []): PromptTemplate[] {
+  return templates.filter((template) => !REMOVED_PRESET_PROMPT_TEMPLATE_IDS.has(template.id))
+}
 
 export function createEmptyPromptTemplateForm(
   scope: PromptTemplateScope = 'global'

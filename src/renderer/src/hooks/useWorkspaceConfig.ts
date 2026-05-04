@@ -7,7 +7,7 @@ import type {
   WorkspaceLayout
 } from '../../../shared/workspace'
 import { normalizeLayout } from '../app/layout'
-import { DEFAULT_PROMPT_TEMPLATES } from '../app/promptTemplates'
+import { normalizePromptTemplates } from '../app/promptTemplates'
 
 type UseWorkspaceConfigOptions = {
   applyTerminalTheme: (themeId?: unknown) => TerminalThemeId
@@ -36,7 +36,7 @@ export function useWorkspaceConfig({
 }: UseWorkspaceConfigOptions): UseWorkspaceConfigResult {
   const [projects, setProjects] = useState<Project[]>([])
   const [terminalConfigs, setTerminalConfigs] = useState<TerminalConfig[]>([])
-  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>(DEFAULT_PROMPT_TEMPLATES)
+  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([])
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [configLoaded, setConfigLoaded] = useState(false)
 
@@ -51,7 +51,7 @@ export function useWorkspaceConfig({
         if (config) {
           setProjects(config.projects)
           setTerminalConfigs(config.terminalConfigs)
-          setPromptTemplates(config.promptTemplates ?? DEFAULT_PROMPT_TEMPLATES)
+          setPromptTemplates(normalizePromptTemplates(config.promptTemplates))
           setActiveProjectId(
             config.projects.find((project) => project.id === config.activeProjectId)?.id ??
               config.projects[0]?.id ??

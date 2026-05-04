@@ -5,6 +5,7 @@ import {
   getPromptTemplateProjectPath,
   getPromptTemplateSendStatus,
   getPromptTemplatesForProject,
+  normalizePromptTemplates,
   renderPromptTemplate
 } from './promptTemplates'
 
@@ -140,5 +141,21 @@ describe('promptTemplates', () => {
       createdAt: '2026-05-01T00:00:00.000Z',
       updatedAt: '2026-05-04T00:00:00.000Z'
     })
+  })
+
+  it('removes obsolete preset templates from saved config', () => {
+    expect(
+      normalizePromptTemplates([
+        {
+          body: 'obsolete',
+          createdAt: '2026-05-04T00:00:00.000Z',
+          id: 'preset-inspect-project',
+          name: 'Inspect project',
+          scope: 'global',
+          updatedAt: '2026-05-04T00:00:00.000Z'
+        },
+        templates[0]!
+      ]).map((template) => template.id)
+    ).toEqual(['global'])
   })
 })
