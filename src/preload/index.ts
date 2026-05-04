@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { clipboard, contextBridge, ipcRenderer } from 'electron'
 import {
   COMPANION_CHANNELS,
   type CompanionBridgeState,
@@ -36,6 +36,11 @@ const api: CompanionApi = {
     openBox: (request) => ipcRenderer.invoke(COMPANION_CHANNELS.openBox, request),
     selectCompanion: (request) => ipcRenderer.invoke(COMPANION_CHANNELS.selectCompanion, request),
     selectStarter: (request) => ipcRenderer.invoke(COMPANION_CHANNELS.selectStarter, request)
+  },
+  clipboard: {
+    writeText: (text: string): void => {
+      clipboard.writeText(text)
+    }
   },
   system: {
     openTarget: (request: OpenTargetRequest): Promise<OpenTargetResult> =>

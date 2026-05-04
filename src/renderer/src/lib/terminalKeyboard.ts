@@ -1,5 +1,18 @@
 const SHIFT_ENTER_CSI_U_SEQUENCE = '\x1b[13;2u'
 
+export function isLinuxTerminalCopyShortcut(event: KeyboardEvent, platform: string): boolean {
+  return (
+    event.type === 'keydown' &&
+    /linux/i.test(platform) &&
+    event.key.toLowerCase() === 'c' &&
+    event.ctrlKey &&
+    event.shiftKey &&
+    !event.altKey &&
+    !event.metaKey &&
+    !event.isComposing
+  )
+}
+
 export function handleTerminalKeyEvent(
   event: KeyboardEvent,
   writeData: (data: string) => void

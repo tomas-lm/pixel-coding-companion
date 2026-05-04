@@ -11,6 +11,10 @@ export type OpenTargetResult =
   | { ok: true; resolvedTarget?: string }
   | { ok: false; reason: 'unsupported_protocol' | 'not_found' | 'invalid_target' | 'open_failed' }
 
+export type ClipboardApi = {
+  writeText: (text: string) => void
+}
+
 export type SystemApi = {
   openTarget: (request: OpenTargetRequest) => Promise<OpenTargetResult>
 }

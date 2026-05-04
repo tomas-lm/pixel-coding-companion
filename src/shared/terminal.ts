@@ -1,5 +1,5 @@
 import type { CompanionBridgeApi } from './companion'
-import type { SystemApi } from './system'
+import type { ClipboardApi, SystemApi } from './system'
 import type { ViewApi, WorkspaceApi } from './workspace'
 
 export const TERMINAL_CHANNELS = {
@@ -106,6 +106,7 @@ export type TerminalApi = {
 
 export type CompanionApi = {
   companion: CompanionBridgeApi
+  clipboard: ClipboardApi
   system: SystemApi
   terminal: TerminalApi
   workspace: WorkspaceApi

@@ -9,7 +9,7 @@ import type {
 } from '../../../shared/workspace'
 import { getOpenTargetRequestFromHyperlink } from '../lib/terminalHyperlinks'
 import { findTerminalLinks, type TerminalLinkCandidate } from '../lib/terminalLinks'
-import { handleTerminalKeyEvent } from '../lib/terminalKeyboard'
+import { handleTerminalKeyEvent, isLinuxTerminalCopyShortcut } from '../lib/terminalKeyboard'
 import { getTerminalTheme, getTerminalThemeStyle } from '../lib/terminalThemes'
 import { TerminalContextHud } from './TerminalContextHud'
 import '@xterm/xterm/css/xterm.css'
@@ -131,11 +131,22 @@ export function TerminalPane({
     fitAddonRef.current = fitAddon
     terminal.loadAddon(fitAddon)
     terminal.open(terminalContainer)
-    terminal.attachCustomKeyEventHandler((event) =>
-      handleTerminalKeyEvent(event, (data) => {
+    terminal.attachCustomKeyEventHandler((event) => {
+      if (isLinuxTerminalCopyShortcut(event, navigator.platform)) {
+        event.preventDefault()
+        event.stopPropagation()
+
+        if (terminal.hasSelection()) {
+          window.api.clipboard.writeText(terminal.getSelection())
+        }
+
+        return false
+      }
+
+      return handleTerminalKeyEvent(event, (data) => {
         window.api.terminal.write({ id: session.id, data })
       })
-    )
+    })
 
     let hoveredFallbackLink: TerminalLinkCandidate | null = null
 
