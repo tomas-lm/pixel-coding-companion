@@ -14,6 +14,10 @@ import rayaEggSpriteUrl from '../assets/companions/raya/raya-egg-animated.png'
 import rayaLvl1SpriteUrl from '../assets/companions/raya/raya-lvl1-idle.png'
 import rayaLvl2SpriteUrl from '../assets/companions/raya/raya-lvl2-idle.png'
 import rayaLvl3SpriteUrl from '../assets/companions/raya/raya-lvl3-idle.png'
+import tataEggSpriteUrl from '../assets/companions/tata/tata-egg-idle.png'
+import tataLvl1SpriteUrl from '../assets/companions/tata/tata-lvl1-idle.png'
+import tataLvl2SpriteUrl from '../assets/companions/tata/tata-lvl2-idle.png'
+import tataLvl3SpriteUrl from '../assets/companions/tata/tata-lvl3-idle.png'
 import toukEggSpriteUrl from '../assets/companions/touk/touk-egg-idle.png'
 import toukLvl1SpriteUrl from '../assets/companions/touk/touk-lvl1-idle.png'
 import toukLvl2SpriteUrl from '../assets/companions/touk/touk-lvl2-idle.png'
@@ -212,6 +216,52 @@ export const COMBOT_STAGES: CompanionSpriteStage[] = [
   }
 ]
 
+export const TATA_STAGES: CompanionSpriteStage[] = [
+  {
+    avatarOffsetX: -4,
+    avatarOffsetY: 10,
+    frameColumns: 6,
+    frameRows: 6,
+    height: 149,
+    id: 'egg',
+    minLevel: 0,
+    spriteUrl: tataEggSpriteUrl,
+    width: 110
+  },
+  {
+    avatarOffsetY: 10,
+    frameColumns: 6,
+    frameRows: 6,
+    height: 149,
+    id: 'lvl1',
+    minLevel: 5,
+    offsetY: 40,
+    spriteUrl: tataLvl1SpriteUrl,
+    width: 93
+  },
+  {
+    avatarOffsetY: 10,
+    frameColumns: 6,
+    frameRows: 6,
+    height: 149,
+    id: 'lvl2',
+    minLevel: 25,
+    offsetY: 40,
+    spriteUrl: tataLvl2SpriteUrl,
+    width: 132
+  },
+  {
+    frameColumns: 6,
+    frameRows: 6,
+    height: 154,
+    id: 'lvl3',
+    minLevel: 50,
+    offsetY: 40,
+    spriteUrl: tataLvl3SpriteUrl,
+    width: 136
+  }
+]
+
 export const TOUK_STAGES: CompanionSpriteStage[] = [
   {
     avatarOffsetX: -4,
@@ -259,6 +309,7 @@ function getStagesForCompanion(companionId: string): CompanionSpriteStage[] {
   if (companionId === 'raya') return RAYA_STAGES
   if (companionId === 'frogo') return FROGO_STAGES
   if (companionId === 'combot') return COMBOT_STAGES
+  if (companionId === 'tata') return TATA_STAGES
   if (companionId === 'touk') return TOUK_STAGES
 
   return GHOU_STAGES

@@ -10,6 +10,49 @@ import { getCompanionStageForLevel } from '../companions/companionRegistry'
 import type { CompanionCardState, CompanionDefinition } from '../companions/companionTypes'
 import { CompanionAvatar } from './CompanionAvatar'
 
+function getCompanionStoreStage(
+  companion: CompanionDefinition,
+  stage: ReturnType<typeof getCompanionStageForLevel>
+): ReturnType<typeof getCompanionStageForLevel> {
+  let avatarOffsetX = stage.avatarOffsetX
+  let avatarScale = stage.avatarScale
+
+  if (stage.id === 'egg') {
+    avatarOffsetX = companion.id === 'combot' ? stage.avatarOffsetX : (stage.avatarOffsetX ?? 0) + 2
+    avatarScale = companion.id === 'touk' ? (stage.avatarScale ?? 1) * 0.9 : stage.avatarScale
+  }
+
+  if (companion.id === 'tata' && stage.id === 'egg') {
+    avatarScale = (avatarScale ?? 1) * 0.85
+  }
+
+  if (companion.id === 'combot' && stage.id === 'egg') {
+    avatarScale = (avatarScale ?? 1) * 0.97
+  }
+
+  if (companion.id === 'raya') {
+    avatarScale = (avatarScale ?? 1) * 0.7
+  }
+
+  if (companion.id === 'raya' && stage.id === 'lvl1') {
+    avatarOffsetX = (avatarOffsetX ?? 0) - 24
+  }
+
+  if (companion.id === 'frogo' && stage.id === 'lvl3') {
+    avatarOffsetX = (avatarOffsetX ?? 0) + 1
+  }
+
+  if (companion.id === 'ghou' && stage.id === 'egg') {
+    avatarOffsetX = (avatarOffsetX ?? 0) + 3
+  }
+
+  return {
+    ...stage,
+    avatarOffsetX,
+    avatarScale
+  }
+}
+
 type CompanionStoreCardProps = {
   companion: CompanionDefinition
   onSelect: (companion: CompanionDefinition) => void
@@ -22,15 +65,7 @@ export function CompanionStoreCard({
   state
 }: CompanionStoreCardProps): React.JSX.Element {
   const stage = getCompanionStageForLevel(companion, state.level)
-  const storeStage =
-    stage.id === 'egg'
-      ? {
-          ...stage,
-          avatarOffsetX:
-            companion.id === 'combot' ? stage.avatarOffsetX : (stage.avatarOffsetX ?? 0) + 2,
-          avatarScale: companion.id === 'touk' ? (stage.avatarScale ?? 1) * 0.9 : stage.avatarScale
-        }
-      : stage
+  const storeStage = getCompanionStoreStage(companion, stage)
   const price = getCompanionPrice(companion.basePrice, companion.rarity)
   const priceLabel = (() => {
     if (companion.acquisition === 'starter') return 'Daily Box only'

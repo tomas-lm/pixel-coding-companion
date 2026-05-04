@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { COMPANION_REGISTRY, TOUK_STAGES } from './companionRegistry'
+import { COMPANION_REGISTRY, TATA_STAGES, TOUK_STAGES } from './companionRegistry'
 
 describe('companion registry', () => {
   it('keeps marketplace companions ordered by rarity tier', () => {
@@ -11,6 +11,7 @@ describe('companion registry', () => {
     ).toEqual([
       { id: 'raya', rarity: 'common' },
       { id: 'karpa', rarity: 'uncommon' },
+      { id: 'tata', rarity: 'uncommon' },
       { id: 'drago', rarity: 'rare' },
       { id: 'touk', rarity: 'ultra_rare' },
       { id: 'phoebe', rarity: 'legendary' },
@@ -39,6 +40,23 @@ describe('companion registry', () => {
       { height: 149, id: 'lvl1', offsetY: 40 },
       { height: 135, id: 'lvl2', offsetY: 0 },
       { height: 154, id: 'lvl3', offsetY: 0 }
+    ])
+  })
+
+  it('keeps Tata monster evolutions grounded like Frogo', () => {
+    const tata = COMPANION_REGISTRY.find((companion) => companion.id === 'tata')
+
+    expect(tata?.stages).toBe(TATA_STAGES)
+    expect(
+      tata?.stages.map((stage) => ({
+        id: stage.id,
+        offsetY: stage.offsetY ?? 0
+      }))
+    ).toEqual([
+      { id: 'egg', offsetY: 0 },
+      { id: 'lvl1', offsetY: 40 },
+      { id: 'lvl2', offsetY: 40 },
+      { id: 'lvl3', offsetY: 40 }
     ])
   })
 })
