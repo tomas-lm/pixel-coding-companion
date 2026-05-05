@@ -3,19 +3,20 @@ import type { VaultConfig, VaultTreeNode } from '../../../shared/vault'
 import {
   createEmptyVaultForm,
   createVaultConfig,
+  createVaultEditForm,
   filterVaultTree,
-  getVaultTreeAncestorPaths,
   toggleVaultTreeCollapseState,
   type VaultTreeCollapseState,
   type VaultForm
 } from '../app/vaults'
-import { AddButton, IconOnlyButton, RowActionButton } from './ui/IconButtons'
+import { IconOnlyButton, RowActionButton } from './ui/IconButtons'
 
 type VaultRailProps = {
   activeVault: VaultConfig | null
   activeVaultId: string | null
   onCreateNote: (name: string) => Promise<void>
-  onCreateVault: (vault: VaultConfig) => void
+  onDeleteVault: (vaultId: string) => void
+  onSaveVault: (vault: VaultConfig) => void
   onSelectFile: (filePath: string) => void
   onSelectVault: (vaultId: string) => void
   refreshKey: number
@@ -36,23 +37,58 @@ function getStatusMessage(error: string | null, isLoading: boolean): string | nu
 
 const EMPTY_VAULT_TREE: VaultTreeNode[] = []
 
+function ChevronIcon({ collapsed }: { collapsed: boolean }): React.JSX.Element {
+  return (
+    <svg
+      aria-hidden="true"
+      className={`vault-tree-chevron${collapsed ? '' : ' vault-tree-chevron--open'}`}
+      viewBox="0 0 16 16"
+    >
+      <path d="M6 4.5 9.5 8 6 11.5" />
+    </svg>
+  )
+}
+
+function FolderTreeIcon({ open }: { open: boolean }): React.JSX.Element {
+  return (
+    <svg
+      aria-hidden="true"
+      className={`vault-tree-icon vault-tree-icon--folder${open ? ' vault-tree-icon--open' : ''}`}
+      viewBox="0 0 18 18"
+    >
+      <path d="M2.5 5.5h5l1.3 1.6h6.7v6.4a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1Z" />
+      <path d="M2.5 5.5V4.7a1 1 0 0 1 1-1h3.1l1.1 1.8" />
+    </svg>
+  )
+}
+
+function MarkdownFileIcon(): React.JSX.Element {
+  return (
+    <svg aria-hidden="true" className="vault-tree-icon vault-tree-icon--file" viewBox="0 0 18 18">
+      <path d="M5 2.5h5.5L14 6v9.5H5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1Z" />
+      <path d="M10.5 2.8V6H14" />
+      <path d="M6.5 9h5M6.5 11.5h4" />
+    </svg>
+  )
+}
+
 function VaultTreeItem({
   collapsedPaths,
+  filterActive,
   node,
   onSelectFile,
   onToggleFolder,
-  revealedPaths,
   selectedFilePath
 }: {
   collapsedPaths: VaultTreeCollapseState
+  filterActive: boolean
   node: VaultTreeNode
   onSelectFile: (filePath: string) => void
   onToggleFolder: (path: string) => void
-  revealedPaths: Set<string>
   selectedFilePath: string | null
 }): React.JSX.Element {
   const isSelected = selectedFilePath === node.path
-  const collapsed = !revealedPaths.has(node.path) && Boolean(collapsedPaths[node.path])
+  const collapsed = !filterActive && Boolean(collapsedPaths[node.path])
 
   if (node.type === 'markdown') {
     return (
@@ -61,9 +97,11 @@ function VaultTreeItem({
           className={`vault-file-button${isSelected ? ' vault-file-button--active' : ''}`}
           type="button"
           title={node.relativePath}
+          aria-current={isSelected ? 'page' : undefined}
           onClick={() => onSelectFile(node.path)}
         >
-          <span aria-hidden="true">#</span>
+          <span aria-hidden="true" className="vault-tree-spacer" />
+          <MarkdownFileIcon />
           <span>{node.name}</span>
         </button>
       </li>
@@ -76,6 +114,7 @@ function VaultTreeItem({
         className="vault-folder-button"
         type="button"
         title={node.relativePath}
+        aria-expanded={!collapsed}
         onClick={() => onToggleFolder(node.path)}
         onKeyDown={(event) => {
           if (event.key === 'ArrowRight' && collapsed) {
@@ -89,7 +128,8 @@ function VaultTreeItem({
           }
         }}
       >
-        <span aria-hidden="true">{collapsed ? '>' : 'v'}</span>
+        <ChevronIcon collapsed={collapsed} />
+        <FolderTreeIcon open={!collapsed} />
         <span>{node.name}</span>
       </button>
       {!collapsed && node.children && node.children.length > 0 && (
@@ -98,8 +138,8 @@ function VaultTreeItem({
             <VaultTreeItem
               key={child.path}
               collapsedPaths={collapsedPaths}
+              filterActive={filterActive}
               node={child}
-              revealedPaths={revealedPaths}
               selectedFilePath={selectedFilePath}
               onSelectFile={onSelectFile}
               onToggleFolder={onToggleFolder}
@@ -114,31 +154,35 @@ function VaultTreeItem({
 function VaultFormModal({
   form,
   onCancel,
+  onDelete,
   onSave
 }: {
   form: VaultForm
   onCancel: () => void
+  onDelete: (vaultId: string) => void
   onSave: (vault: VaultConfig) => void
 }): React.JSX.Element {
   const [draft, setDraft] = useState(form)
   const [error, setError] = useState<string | null>(null)
   const isExisting = draft.mode === 'existing'
+  const isEdit = draft.mode === 'edit'
   const canSave = Boolean(
-    draft.name.trim() && (isExisting ? draft.rootPath.trim() : draft.parentPath.trim())
+    draft.name.trim() && (isExisting || isEdit ? draft.rootPath.trim() : draft.parentPath.trim())
   )
 
   const selectFolder = async (): Promise<void> => {
-    const selection = isExisting
-      ? await window.api.vault.pickFolder()
-      : await window.api.vault.pickParentFolder()
+    const selection =
+      isExisting || isEdit
+        ? await window.api.vault.pickFolder()
+        : await window.api.vault.pickParentFolder()
 
     if (!selection) return
 
     setDraft((current) => ({
       ...current,
       name: current.name || selection.name,
-      parentPath: isExisting ? current.parentPath : selection.path,
-      rootPath: isExisting ? selection.path : current.rootPath
+      parentPath: isExisting || isEdit ? current.parentPath : selection.path,
+      rootPath: isExisting || isEdit ? selection.path : current.rootPath
     }))
   }
 
@@ -156,6 +200,18 @@ function VaultFormModal({
             })
           : { name: draft.name, path: draft.rootPath }
 
+      if (isEdit && draft.id && draft.createdAt) {
+        onSave({
+          id: draft.id,
+          name: draft.name.trim() || root.name,
+          rootPath: root.path,
+          createdAt: draft.createdAt,
+          updatedAt: now,
+          lastOpenedFilePath: form.rootPath === root.path ? draft.lastOpenedFilePath : undefined
+        })
+        return
+      }
+
       onSave(
         createVaultConfig({
           createId: () => createId('vault'),
@@ -169,11 +225,21 @@ function VaultFormModal({
     }
   }
 
+  const remove = (): void => {
+    if (!draft.id) return
+
+    onDelete(draft.id)
+    onCancel()
+  }
+
   return (
     <div className="modal-backdrop">
-      <section className="modal" aria-label={isExisting ? 'Add vault' : 'New vault'}>
+      <section
+        className="modal"
+        aria-label={isEdit ? 'Edit vault' : isExisting ? 'Add existing vault' : 'New vault'}
+      >
         <header className="modal-header">
-          <h2>{isExisting ? 'Add vault' : 'New vault'}</h2>
+          <h2>{isEdit ? 'Edit vault' : isExisting ? 'Add existing vault' : 'New vault'}</h2>
           <IconOnlyButton
             className="modal-close-button"
             label="Close vault settings"
@@ -193,9 +259,9 @@ function VaultFormModal({
         </label>
 
         <label>
-          <span>{isExisting ? 'Vault folder' : 'Parent folder'}</span>
+          <span>{isExisting || isEdit ? 'Vault folder' : 'Parent folder'}</span>
           <div className="vault-path-picker">
-            <input readOnly value={isExisting ? draft.rootPath : draft.parentPath} />
+            <input readOnly value={isExisting || isEdit ? draft.rootPath : draft.parentPath} />
             <button className="secondary-button" type="button" onClick={selectFolder}>
               Browse
             </button>
@@ -204,13 +270,22 @@ function VaultFormModal({
 
         {error && <div className="modal-error">{error}</div>}
 
-        <footer className="modal-actions modal-actions--end">
-          <button className="secondary-button" type="button" onClick={onCancel}>
-            Cancel
-          </button>
-          <button className="primary-button" type="button" disabled={!canSave} onClick={save}>
-            Save vault
-          </button>
+        <footer className="modal-actions">
+          <div>
+            {isEdit && (
+              <button className="danger-button" type="button" onClick={remove}>
+                Remove
+              </button>
+            )}
+          </div>
+          <div className="modal-actions modal-actions--inline">
+            <button className="secondary-button" type="button" onClick={onCancel}>
+              Cancel
+            </button>
+            <button className="primary-button" type="button" disabled={!canSave} onClick={save}>
+              {isEdit ? 'Update vault' : 'Save vault'}
+            </button>
+          </div>
         </footer>
       </section>
     </div>
@@ -281,7 +356,8 @@ export function VaultRail({
   activeVault,
   activeVaultId,
   onCreateNote,
-  onCreateVault,
+  onDeleteVault,
+  onSaveVault,
   onSelectFile,
   onSelectVault,
   refreshKey,
@@ -300,10 +376,7 @@ export function VaultRail({
     () => filterVaultTree(activeTree, filterQuery),
     [activeTree, filterQuery]
   )
-  const revealedPaths = useMemo(
-    () => new Set(selectedFilePath ? getVaultTreeAncestorPaths(activeTree, selectedFilePath) : []),
-    [activeTree, selectedFilePath]
-  )
+  const filterActive = filterQuery.trim().length > 0
   const statusMessage = getStatusMessage(
     activeVault ? treeError : null,
     activeVault ? isLoadingTree : false
@@ -348,18 +421,14 @@ export function VaultRail({
         <div className="brand-lockup">
           <div className="brand-title-row">
             <strong>Pixel Companion</strong>
-            <span className="brand-version">Vaults</span>
+            <span className="brand-version">V1.0.0</span>
           </div>
         </div>
 
         <section className="rail-section" aria-label="Vaults">
           <div className="rail-header">
             <span>Vaults</span>
-            <AddButton
-              className="secondary-button"
-              label="Add vault"
-              onClick={() => setForm(createEmptyVaultForm('existing'))}
-            />
+            <small>{vaults.length}</small>
           </div>
 
           <div className="vault-list">
@@ -379,8 +448,8 @@ export function VaultRail({
                   <small>{vault.rootPath}</small>
                 </button>
                 <RowActionButton
-                  label={`Open ${vault.name}`}
-                  onClick={() => onSelectVault(vault.id)}
+                  label={`Edit ${vault.name}`}
+                  onClick={() => setForm(createVaultEditForm(vault))}
                 >
                   ...
                 </RowActionButton>
@@ -390,21 +459,30 @@ export function VaultRail({
         </section>
 
         <section className="rail-section rail-section--actions" aria-label="Vault actions">
-          <button
-            className="secondary-button"
-            type="button"
-            onClick={() => setForm(createEmptyVaultForm('new'))}
-          >
-            New vault
-          </button>
-          <button
-            className="primary-button"
-            type="button"
-            disabled={!activeVault}
-            onClick={() => setNoteFormOpen(true)}
-          >
-            New note
-          </button>
+          <div className="vault-action-grid">
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setForm(createEmptyVaultForm('existing'))}
+            >
+              Add existing
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setForm(createEmptyVaultForm('new'))}
+            >
+              New vault
+            </button>
+            <button
+              className="primary-button"
+              type="button"
+              disabled={!activeVault}
+              onClick={() => setNoteFormOpen(true)}
+            >
+              New note
+            </button>
+          </div>
         </section>
 
         <section className="rail-section vault-tree-section" aria-label="Vault files">
@@ -435,8 +513,8 @@ export function VaultRail({
                 <VaultTreeItem
                   key={node.path}
                   collapsedPaths={collapsedPaths}
+                  filterActive={filterActive}
                   node={node}
-                  revealedPaths={revealedPaths}
                   selectedFilePath={selectedFilePath}
                   onSelectFile={onSelectFile}
                   onToggleFolder={(path) =>
@@ -455,8 +533,9 @@ export function VaultRail({
         <VaultFormModal
           form={form}
           onCancel={() => setForm(null)}
+          onDelete={onDeleteVault}
           onSave={(vault) => {
-            onCreateVault(vault)
+            onSaveVault(vault)
             setForm(null)
           }}
         />

@@ -3,6 +3,7 @@ import type { VaultConfig, VaultTreeNode } from '../../../shared/vault'
 import {
   createEmptyVaultForm,
   createVaultConfig,
+  createVaultEditForm,
   filterVaultTree,
   getFirstMarkdownPath,
   getVaultTreeAncestorPaths,
@@ -83,6 +84,27 @@ describe('vaults helpers', () => {
       name: 'Tomas',
       rootPath: '/vault',
       updatedAt: '2026-05-05T00:00:00.000Z'
+    })
+  })
+
+  it('creates edit forms from existing vault configs', () => {
+    expect(
+      createVaultEditForm({
+        createdAt: '2026-05-05T00:00:00.000Z',
+        id: 'vault-1',
+        lastOpenedFilePath: '/vault/A.md',
+        name: 'Docs',
+        rootPath: '/vault',
+        updatedAt: '2026-05-05T00:00:00.000Z'
+      })
+    ).toEqual({
+      createdAt: '2026-05-05T00:00:00.000Z',
+      id: 'vault-1',
+      lastOpenedFilePath: '/vault/A.md',
+      mode: 'edit',
+      name: 'Docs',
+      parentPath: '',
+      rootPath: '/vault'
     })
   })
 

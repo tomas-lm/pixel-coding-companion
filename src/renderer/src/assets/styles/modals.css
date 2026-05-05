@@ -38,6 +38,10 @@
   justify-content: flex-end;
 }
 
+.modal-actions--inline {
+  justify-content: flex-end;
+}
+
 .modal h2 {
   margin: 0;
   font-size: 18px;

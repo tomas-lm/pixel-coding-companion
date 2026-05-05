@@ -334,6 +334,8 @@ function buildMarkdownDecorations(
   view: EditorView,
   options: MarkdownRendererOptions
 ): DecorationSet {
+  if (view.hasFocus) return Decoration.none
+
   const ranges: DecorationRange[] = []
   addSyntaxTreeDecorations(view, ranges)
   addInlineDecorations(view, ranges, options)
@@ -360,7 +362,12 @@ export function createMarkdownRenderExtension(options: MarkdownRendererOptions):
       }
 
       update(update: ViewUpdate): void {
-        if (update.docChanged || update.selectionSet || update.viewportChanged) {
+        if (
+          update.docChanged ||
+          update.selectionSet ||
+          update.viewportChanged ||
+          update.focusChanged
+        ) {
           this.decorations = buildMarkdownDecorations(update.view, options)
         }
       }

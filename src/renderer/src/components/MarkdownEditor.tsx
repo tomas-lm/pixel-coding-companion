@@ -22,6 +22,7 @@ import {
 } from '../markdown/markdownToc'
 
 export type MarkdownEditorHandle = {
+  blur: () => void
   focus: () => void
   getValue: () => string
   insertImage: () => void
@@ -103,7 +104,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   ): React.JSX.Element {
     const containerRef = useRef<HTMLDivElement | null>(null)
     const viewRef = useRef<EditorView | null>(null)
-    const initialValueRef = useRef(initialValue)
+    const currentValueRef = useRef(initialValue)
     const callbacksRef = useRef({
       getInitialState,
       onChange,
@@ -130,11 +131,14 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     useImperativeHandle(
       ref,
       () => ({
+        blur() {
+          viewRef.current?.contentDOM.blur()
+        },
         focus() {
           viewRef.current?.focus()
         },
         getValue() {
-          return viewRef.current?.state.doc.toString() ?? initialValueRef.current
+          return viewRef.current?.state.doc.toString() ?? currentValueRef.current
         },
         insertImage() {
           runMarkdownCommand(viewRef.current, (text, selection) =>
@@ -185,10 +189,11 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       if (!containerRef.current) return
 
       const state = EditorState.create({
-        doc: initialValueRef.current,
+        doc: currentValueRef.current,
         extensions: [
           ...getCoreExtensions({
             onChange(value) {
+              currentValueRef.current = value
               callbacksRef.current.onChange(value)
             },
             onSave() {
@@ -240,7 +245,14 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       }
     }, [filePath, renderedMode])
 
-    return <div ref={containerRef} className="markdown-editor-surface" />
+    return (
+      <div
+        ref={containerRef}
+        className={`markdown-editor-surface markdown-editor-surface--${
+          renderedMode ? 'rendered' : 'editing'
+        }`}
+      />
+    )
   }
 )
 

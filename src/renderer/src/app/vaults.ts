@@ -1,8 +1,11 @@
 import type { VaultConfig, VaultTreeNode } from '../../../shared/vault'
 
-export type VaultFormMode = 'existing' | 'new'
+export type VaultFormMode = 'edit' | 'existing' | 'new'
 
 export type VaultForm = {
+  createdAt?: string
+  id?: string
+  lastOpenedFilePath?: string
   mode: VaultFormMode
   name: string
   parentPath: string
@@ -23,6 +26,18 @@ export function createEmptyVaultForm(mode: VaultFormMode): VaultForm {
     name: '',
     parentPath: '',
     rootPath: ''
+  }
+}
+
+export function createVaultEditForm(vault: VaultConfig): VaultForm {
+  return {
+    createdAt: vault.createdAt,
+    id: vault.id,
+    lastOpenedFilePath: vault.lastOpenedFilePath,
+    mode: 'edit',
+    name: vault.name,
+    parentPath: '',
+    rootPath: vault.rootPath
   }
 }
 

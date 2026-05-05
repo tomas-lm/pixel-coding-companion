@@ -38,7 +38,6 @@ export function VaultWorkspacePanel({
   const [loadState, setLoadState] = useState<LoadState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [editorMode, setEditorMode] = useState<'raw' | 'rendered'>('raw')
   const [stats, setStats] = useState<MarkdownEditorStats>({
     characters: 0,
     column: 1,
@@ -166,7 +165,12 @@ export function VaultWorkspacePanel({
 
   const saveFile = async (): Promise<void> => {
     const nextContent = editorRef.current?.getValue() ?? content
-    if (!activeVault || !selectedFile || nextContent === savedContent) return
+    if (!activeVault || !selectedFile) return
+
+    if (nextContent === savedContent) {
+      editorRef.current?.blur()
+      return
+    }
 
     setIsSaving(true)
     setError(null)
@@ -180,6 +184,7 @@ export function VaultWorkspacePanel({
       setFile(savedFile)
       setContent(savedFile.content)
       setSavedContent(savedFile.content)
+      editorRef.current?.blur()
       onDirtyChange(false)
       onFileSaved(savedFile)
     } catch (saveError) {
@@ -224,6 +229,7 @@ export function VaultWorkspacePanel({
             {saveStateLabel} · {stats.words} words · {stats.characters} chars · Ln {stats.line}, Col{' '}
             {stats.column}
           </span>
+          <span className="vault-editor-view-badge">Rendered</span>
           <button
             className="primary-button"
             type="button"
@@ -235,53 +241,13 @@ export function VaultWorkspacePanel({
         </div>
       </header>
 
-      <div className="vault-editor-toolbar" aria-label="Markdown tools">
-        <button type="button" title="Bold" onClick={() => editorRef.current?.toggleBold()}>
-          B
-        </button>
-        <button type="button" title="Italic" onClick={() => editorRef.current?.toggleItalic()}>
-          I
-        </button>
-        <button type="button" title="Link" onClick={() => editorRef.current?.insertLink()}>
-          Link
-        </button>
-        <button type="button" title="Image" onClick={() => editorRef.current?.insertImage()}>
-          Image
-        </button>
-        <button type="button" title="Task list" onClick={() => editorRef.current?.toggleTaskList()}>
-          Task
-        </button>
-        <button type="button" title="Heading 1" onClick={() => editorRef.current?.toggleHeading(1)}>
-          H1
-        </button>
-        <button type="button" title="Heading 2" onClick={() => editorRef.current?.toggleHeading(2)}>
-          H2
-        </button>
-        <div className="vault-editor-mode-toggle" aria-label="Editor mode">
-          <button
-            className={editorMode === 'raw' ? 'vault-editor-mode-toggle--active' : undefined}
-            type="button"
-            onClick={() => setEditorMode('raw')}
-          >
-            Raw
-          </button>
-          <button
-            className={editorMode === 'rendered' ? 'vault-editor-mode-toggle--active' : undefined}
-            type="button"
-            onClick={() => setEditorMode('rendered')}
-          >
-            Rendered
-          </button>
-        </div>
-      </div>
-
       {loadState === 'loading' && <div className="vault-empty-state">Opening file...</div>}
       {error && <div className="vault-error-state">{error}</div>}
 
       {loadState === 'ready' && selectedFile && (
         <div className="vault-editor-body">
           <MarkdownEditor
-            key={`${selectedFile.path}:${editorMode}`}
+            key={selectedFile.path}
             ref={editorRef}
             filePath={selectedFile.path}
             getInitialState={getPersistedEditorState}
@@ -295,7 +261,7 @@ export function VaultWorkspacePanel({
             onSave={saveFile}
             onStatsChange={setStats}
             onTableOfContentsChange={setTableOfContents}
-            renderedMode={editorMode === 'rendered'}
+            renderedMode={true}
             resolveImageSource={resolveImageSource}
           />
 

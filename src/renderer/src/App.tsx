@@ -607,12 +607,39 @@ function App(): React.JSX.Element {
   const saveVault = (vault: VaultConfig): void => {
     if (!confirmDiscardVaultChanges()) return
 
-    setVaults((currentVaults) => [...currentVaults, vault])
+    setVaults((currentVaults) => {
+      if (currentVaults.some((currentVault) => currentVault.id === vault.id)) {
+        return currentVaults.map((currentVault) =>
+          currentVault.id === vault.id ? vault : currentVault
+        )
+      }
+
+      return [...currentVaults, vault]
+    })
     setActiveVaultId(vault.id)
     setSelectedVaultFileSelection(
       vault.lastOpenedFilePath ? { path: vault.lastOpenedFilePath, vaultId: vault.id } : null
     )
     setVaultHasUnsavedChanges(false)
+  }
+
+  const deleteVault = (vaultId: string): void => {
+    if (vaultId === activeVaultId && !confirmDiscardVaultChanges()) return
+    if (!window.confirm('Remove this vault from Pixel? Files stay on disk.')) return
+
+    const remainingVaults = vaults.filter((vault) => vault.id !== vaultId)
+    setVaults(remainingVaults)
+
+    if (vaultId === activeVaultId) {
+      const nextVault = remainingVaults[0] ?? null
+      setActiveVaultId(nextVault?.id ?? null)
+      setSelectedVaultFileSelection(
+        nextVault?.lastOpenedFilePath
+          ? { path: nextVault.lastOpenedFilePath, vaultId: nextVault.id }
+          : null
+      )
+      setVaultHasUnsavedChanges(false)
+    }
   }
 
   const selectVault = (vaultId: string): void => {
@@ -794,7 +821,8 @@ function App(): React.JSX.Element {
           vaults={vaults}
           refreshKey={vaultRefreshKey}
           onCreateNote={createVaultNote}
-          onCreateVault={saveVault}
+          onDeleteVault={deleteVault}
+          onSaveVault={saveVault}
           onSelectFile={selectVaultFile}
           onSelectVault={selectVault}
         />
