@@ -105,9 +105,11 @@ export function toggleVaultTreeCollapseState(
   state: VaultTreeCollapseState,
   path: string
 ): VaultTreeCollapseState {
+  const isCollapsed = state[path] ?? true
+
   return {
     ...state,
-    [path]: !state[path]
+    [path]: !isCollapsed
   }
 }
 

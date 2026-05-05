@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { COMPANION_REGISTRY, KARPA_STAGES, TATA_STAGES, TOUK_STAGES } from './companionRegistry'
+import {
+  COMPANION_REGISTRY,
+  KARPA_STAGES,
+  PHOEBE_STAGES,
+  TATA_STAGES,
+  TOUK_STAGES
+} from './companionRegistry'
 
 describe('companion registry', () => {
   it('keeps marketplace companions ordered by rarity tier', () => {
@@ -11,11 +17,9 @@ describe('companion registry', () => {
     ).toEqual([
       { id: 'raya', rarity: 'common' },
       { id: 'karpa', rarity: 'uncommon' },
-      { id: 'tata', rarity: 'uncommon' },
-      { id: 'drago', rarity: 'rare' },
+      { id: 'tata', rarity: 'rare' },
       { id: 'touk', rarity: 'ultra_rare' },
-      { id: 'phoebe', rarity: 'legendary' },
-      { id: 'corax', rarity: 'special' }
+      { id: 'phoebe', rarity: 'legendary' }
     ])
   })
 
@@ -81,6 +85,29 @@ describe('companion registry', () => {
       { id: 'lvl1', offsetY: 40 },
       { id: 'lvl2', offsetY: 40 },
       { id: 'lvl3', offsetY: 40 }
+    ])
+  })
+
+  it('registers Phoebe with grounded early stages and flying evolved stages', () => {
+    const phoebe = COMPANION_REGISTRY.find((companion) => companion.id === 'phoebe')
+
+    expect(phoebe).toMatchObject({
+      id: 'phoebe',
+      name: 'Phoebe',
+      rarity: 'legendary'
+    })
+    expect(phoebe?.stages).toBe(PHOEBE_STAGES)
+    expect(
+      phoebe?.stages.map((stage) => ({
+        height: stage.height,
+        id: stage.id,
+        offsetY: stage.offsetY ?? 0
+      }))
+    ).toEqual([
+      { height: 149, id: 'egg', offsetY: 0 },
+      { height: 149, id: 'lvl1', offsetY: 40 },
+      { height: 135, id: 'lvl2', offsetY: 0 },
+      { height: 154, id: 'lvl3', offsetY: 0 }
     ])
   })
 })

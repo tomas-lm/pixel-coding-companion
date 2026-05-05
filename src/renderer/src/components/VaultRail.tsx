@@ -88,7 +88,7 @@ function VaultTreeItem({
   selectedFilePath: string | null
 }): React.JSX.Element {
   const isSelected = selectedFilePath === node.path
-  const collapsed = !filterActive && Boolean(collapsedPaths[node.path])
+  const collapsed = !filterActive && (collapsedPaths[node.path] ?? true)
 
   if (node.type === 'markdown') {
     return (

@@ -149,13 +149,6 @@ export const COMPANION_STORE_DEFINITIONS: CompanionStoreDefinition[] = [
     basePrice: 12500,
     id: 'tata',
     name: 'Tata',
-    rarity: 'uncommon'
-  },
-  {
-    acquisition: 'box_only',
-    basePrice: 15000,
-    id: 'drago',
-    name: 'Drago',
     rarity: 'rare'
   },
   {
@@ -171,13 +164,6 @@ export const COMPANION_STORE_DEFINITIONS: CompanionStoreDefinition[] = [
     id: 'phoebe',
     name: 'Phoebe',
     rarity: 'legendary'
-  },
-  {
-    acquisition: 'gifted',
-    basePrice: 0,
-    id: 'corax',
-    name: 'Corax',
-    rarity: 'special'
   }
 ]
 

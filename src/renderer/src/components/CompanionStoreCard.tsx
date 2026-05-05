@@ -10,6 +10,9 @@ import { getCompanionStageForLevel } from '../companions/companionRegistry'
 import type { CompanionCardState, CompanionDefinition } from '../companions/companionTypes'
 import { CompanionAvatar } from './CompanionAvatar'
 
+const RAYA_STORE_SCALE = 0.7
+const RAYA_STORE_EGG_SCALE = 0.91
+
 function getCompanionStoreStage(
   companion: CompanionDefinition,
   stage: ReturnType<typeof getCompanionStageForLevel>
@@ -32,7 +35,8 @@ function getCompanionStoreStage(
   }
 
   if (companion.id === 'raya') {
-    avatarScale = (avatarScale ?? 1) * 0.7
+    avatarScale =
+      (avatarScale ?? 1) * (stage.id === 'egg' ? RAYA_STORE_EGG_SCALE : RAYA_STORE_SCALE)
   }
 
   if (

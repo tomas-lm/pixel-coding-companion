@@ -14,6 +14,10 @@ import karpaEggSpriteUrl from '../assets/companions/karpa/karpa-egg-idle.png'
 import karpaLvl1SpriteUrl from '../assets/companions/karpa/karpa-lvl1-idle.png'
 import karpaLvl2SpriteUrl from '../assets/companions/karpa/karpa-lvl2-idle.png'
 import karpaLvl3SpriteUrl from '../assets/companions/karpa/karpa-lvl3-idle.png'
+import phoebeEggSpriteUrl from '../assets/companions/phoebe/phoebe-egg-idle.png'
+import phoebeLvl1SpriteUrl from '../assets/companions/phoebe/phoebe-lvl1-idle.png'
+import phoebeLvl2SpriteUrl from '../assets/companions/phoebe/phoebe-lvl2-idle.png'
+import phoebeLvl3SpriteUrl from '../assets/companions/phoebe/phoebe-lvl3-idle.png'
 import rayaEggSpriteUrl from '../assets/companions/raya/raya-egg-animated.png'
 import rayaLvl1SpriteUrl from '../assets/companions/raya/raya-lvl1-idle.png'
 import rayaLvl2SpriteUrl from '../assets/companions/raya/raya-lvl2-idle.png'
@@ -157,6 +161,49 @@ export const KARPA_STAGES: CompanionSpriteStage[] = [
     offsetY: 40,
     spriteUrl: karpaLvl3SpriteUrl,
     width: 142
+  }
+]
+
+export const PHOEBE_STAGES: CompanionSpriteStage[] = [
+  {
+    avatarOffsetX: -4,
+    avatarOffsetY: 10,
+    frameColumns: 6,
+    frameRows: 6,
+    height: 149,
+    id: 'egg',
+    minLevel: 0,
+    spriteUrl: phoebeEggSpriteUrl,
+    width: 111
+  },
+  {
+    avatarOffsetY: 10,
+    frameColumns: 6,
+    frameRows: 6,
+    height: 149,
+    id: 'lvl1',
+    minLevel: 5,
+    offsetY: 40,
+    spriteUrl: phoebeLvl1SpriteUrl,
+    width: 132
+  },
+  {
+    frameColumns: 6,
+    frameRows: 6,
+    height: 135,
+    id: 'lvl2',
+    minLevel: 25,
+    spriteUrl: phoebeLvl2SpriteUrl,
+    width: 165
+  },
+  {
+    frameColumns: 6,
+    frameRows: 6,
+    height: 154,
+    id: 'lvl3',
+    minLevel: 50,
+    spriteUrl: phoebeLvl3SpriteUrl,
+    width: 157
   }
 ]
 
@@ -355,6 +402,7 @@ export const TOUK_STAGES: CompanionSpriteStage[] = [
 function getStagesForCompanion(companionId: string): CompanionSpriteStage[] {
   if (companionId === 'raya') return RAYA_STAGES
   if (companionId === 'karpa') return KARPA_STAGES
+  if (companionId === 'phoebe') return PHOEBE_STAGES
   if (companionId === 'frogo') return FROGO_STAGES
   if (companionId === 'combot') return COMBOT_STAGES
   if (companionId === 'tata') return TATA_STAGES

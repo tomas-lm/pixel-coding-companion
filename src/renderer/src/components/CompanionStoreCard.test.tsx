@@ -62,7 +62,7 @@ describe('CompanionStoreCard', () => {
     expect(avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe('0.97')
   })
 
-  it('renders Raya 30 percent smaller only in the companion store card', () => {
+  it('renders Raya evolved stages 30 percent smaller only in the companion store card', () => {
     const raya = COMPANION_REGISTRY.find((companion) => companion.id === 'raya')
 
     if (!raya) throw new Error('Raya companion was not registered.')
@@ -71,6 +71,17 @@ describe('CompanionStoreCard', () => {
 
     expect(raya.stages[3].avatarScale).toBeUndefined()
     expect(avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe('0.7')
+  })
+
+  it('renders the Raya egg 30 percent larger than the scaled Raya store size', () => {
+    const raya = COMPANION_REGISTRY.find((companion) => companion.id === 'raya')
+
+    if (!raya) throw new Error('Raya companion was not registered.')
+
+    const avatar = renderStoreCard('raya', 0)
+
+    expect(raya.stages[0].avatarScale).toBeUndefined()
+    expect(avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe('0.91')
   })
 
   it('nudges Raya evolved stages left only in the companion store card', () => {

@@ -149,6 +149,9 @@ describe('vaults helpers', () => {
 
   it('toggles folder collapse state', () => {
     expect(toggleVaultTreeCollapseState({}, '/vault/Journal')).toEqual({
+      '/vault/Journal': false
+    })
+    expect(toggleVaultTreeCollapseState({ '/vault/Journal': false }, '/vault/Journal')).toEqual({
       '/vault/Journal': true
     })
     expect(toggleVaultTreeCollapseState({ '/vault/Journal': true }, '/vault/Journal')).toEqual({
