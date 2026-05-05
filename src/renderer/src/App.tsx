@@ -1,5 +1,6 @@
 import { useCallback, useState, type CSSProperties } from 'react'
 import type { CompanionBridgeMessage } from '../../shared/companion'
+import type { VaultConfig, VaultMarkdownFile } from '../../shared/vault'
 import type {
   Project,
   PromptTemplate,
@@ -24,6 +25,8 @@ import { StarterSelectionPage } from './components/StarterSelectionPage'
 import { StartWorkspaceModal } from './components/StartWorkspaceModal'
 import { TerminalFormModal } from './components/TerminalFormModal'
 import { TerminalWorkspacePanel } from './components/TerminalWorkspacePanel'
+import { VaultRail } from './components/VaultRail'
+import { VaultWorkspacePanel } from './components/VaultWorkspacePanel'
 import { WorkspaceRail } from './components/WorkspaceRail'
 import {
   COMPANION_REGISTRY,
@@ -46,6 +49,7 @@ import {
   isLiveSession
 } from './app/sessionDisplay'
 import { createEmptyTerminalForm, type TerminalForm } from './app/terminalForms'
+import { updateVaultLastOpenedFile } from './app/vaults'
 import { useCompanionBridge } from './hooks/useCompanionBridge'
 import { useCompletionNotificationSound } from './hooks/useCompletionNotificationSound'
 import { useTerminalEvents } from './hooks/useTerminalEvents'
@@ -89,16 +93,20 @@ function App(): React.JSX.Element {
     useWorkspaceLayout()
   const {
     activeProjectId,
+    activeVaultId,
     configLoaded,
     featureSettings,
     promptTemplates,
     projects,
     setActiveProjectId,
+    setActiveVaultId,
     setFeatureSettings,
     setPromptTemplates,
     setProjects,
     setTerminalConfigs,
-    terminalConfigs
+    setVaults,
+    terminalConfigs,
+    vaults
   } = useWorkspaceConfig({
     applyTerminalTheme,
     layout,
@@ -120,6 +128,11 @@ function App(): React.JSX.Element {
   const [starterSelectionError, setStarterSelectionError] = useState<string | null>(null)
   const [isSelectingStarter, setIsSelectingStarter] = useState(false)
   const [promptPickerOpen, setPromptPickerOpen] = useState(false)
+  const [selectedVaultFileSelection, setSelectedVaultFileSelection] = useState<{
+    path: string
+    vaultId: string
+  } | null>(null)
+  const [vaultRefreshKey, setVaultRefreshKey] = useState(0)
 
   useCompletionNotificationSound(
     companionBridgeState.messages,
@@ -208,6 +221,11 @@ function App(): React.JSX.Element {
       label: 'Prompt templates'
     },
     {
+      icon: 'vaults',
+      id: 'vaults',
+      label: 'Vaults'
+    },
+    {
       icon: 'configs',
       id: 'configs',
       label: 'Configs'
@@ -223,6 +241,11 @@ function App(): React.JSX.Element {
     activeCompanionDefinition,
     activeCompanionProgress.level
   )
+  const activeVault = vaults.find((vault) => vault.id === activeVaultId) ?? null
+  const selectedVaultFilePath =
+    activeVault && selectedVaultFileSelection?.vaultId === activeVault.id
+      ? selectedVaultFileSelection.path
+      : (activeVault?.lastOpenedFilePath ?? null)
 
   const updateSession = useCallback((sessionId: string, patch: RunningSessionPatch): void => {
     setRunningSessions((currentSessions) =>
@@ -570,6 +593,54 @@ function App(): React.JSX.Element {
     })
   }
 
+  const saveVault = (vault: VaultConfig): void => {
+    setVaults((currentVaults) => [...currentVaults, vault])
+    setActiveVaultId(vault.id)
+    setSelectedVaultFileSelection(
+      vault.lastOpenedFilePath ? { path: vault.lastOpenedFilePath, vaultId: vault.id } : null
+    )
+  }
+
+  const selectVault = (vaultId: string): void => {
+    const nextVault = vaults.find((vault) => vault.id === vaultId) ?? null
+    setActiveVaultId(nextVault?.id ?? null)
+    setSelectedVaultFileSelection(
+      nextVault?.lastOpenedFilePath
+        ? { path: nextVault.lastOpenedFilePath, vaultId: nextVault.id }
+        : null
+    )
+  }
+
+  const selectVaultFile = (filePath: string): void => {
+    if (!activeVault) return
+
+    setSelectedVaultFileSelection({ path: filePath, vaultId: activeVault.id })
+    setVaults((currentVaults) => updateVaultLastOpenedFile(currentVaults, activeVault.id, filePath))
+  }
+
+  const createVaultNote = async (name: string): Promise<void> => {
+    if (!activeVault) return
+
+    const file = await window.api.vault.createMarkdownFile({
+      name,
+      rootPath: activeVault.rootPath
+    })
+    setSelectedVaultFileSelection({ path: file.path, vaultId: activeVault.id })
+    setVaults((currentVaults) =>
+      updateVaultLastOpenedFile(currentVaults, activeVault.id, file.path)
+    )
+    setVaultRefreshKey((currentKey) => currentKey + 1)
+  }
+
+  const handleVaultFileSaved = (file: VaultMarkdownFile): void => {
+    if (!activeVault) return
+
+    setVaults((currentVaults) =>
+      updateVaultLastOpenedFile(currentVaults, activeVault.id, file.path)
+    )
+    setVaultRefreshKey((currentKey) => currentKey + 1)
+  }
+
   const deletePromptTemplate = (templateId: string): void => {
     setPromptTemplates((currentTemplates) =>
       currentTemplates.filter((template) => template.id !== templateId)
@@ -693,26 +764,40 @@ function App(): React.JSX.Element {
         onSelect={setActiveActivityItemId}
       />
 
-      <WorkspaceRail
-        activeProject={activeProject}
-        activeProjectConfigs={activeProjectConfigs}
-        activeProjectSessions={activeProjectSessions}
-        projects={projects}
-        runningSessions={runningSessions}
-        selectedSessionId={selectedSessionId}
-        onClearTerminalHoverCard={clearTerminalHoverCard}
-        onCreateProject={openCreateProject}
-        onCreateTerminal={openCreateTerminal}
-        onEditProject={openEditProject}
-        onEditTerminal={openEditTerminal}
-        onResizePointerDown={startLayoutResize}
-        onScheduleTerminalHoverCard={scheduleTerminalHoverCard}
-        onSelectProject={selectProject}
-        onSelectSession={setActiveSessionId}
-        onStartConfig={startConfig}
-        onStartWorkspace={openStartWorkspace}
-        onStopSession={stopSession}
-      />
+      {activeActivityItemId === 'vaults' ? (
+        <VaultRail
+          activeVault={activeVault}
+          activeVaultId={activeVaultId}
+          selectedFilePath={selectedVaultFilePath}
+          vaults={vaults}
+          refreshKey={vaultRefreshKey}
+          onCreateNote={createVaultNote}
+          onCreateVault={saveVault}
+          onSelectFile={selectVaultFile}
+          onSelectVault={selectVault}
+        />
+      ) : (
+        <WorkspaceRail
+          activeProject={activeProject}
+          activeProjectConfigs={activeProjectConfigs}
+          activeProjectSessions={activeProjectSessions}
+          projects={projects}
+          runningSessions={runningSessions}
+          selectedSessionId={selectedSessionId}
+          onClearTerminalHoverCard={clearTerminalHoverCard}
+          onCreateProject={openCreateProject}
+          onCreateTerminal={openCreateTerminal}
+          onEditProject={openEditProject}
+          onEditTerminal={openEditTerminal}
+          onResizePointerDown={startLayoutResize}
+          onScheduleTerminalHoverCard={scheduleTerminalHoverCard}
+          onSelectProject={selectProject}
+          onSelectSession={setActiveSessionId}
+          onStartConfig={startConfig}
+          onStartWorkspace={openStartWorkspace}
+          onStopSession={stopSession}
+        />
+      )}
 
       <button
         className="resize-handle resize-handle--column"
@@ -751,6 +836,12 @@ function App(): React.JSX.Element {
           onChangeFeatureSettings={changeFeatureSettings}
           onSelectTerminalTheme={applyTerminalTheme}
           terminalThemeId={terminalThemeId}
+        />
+      ) : activeActivityItemId === 'vaults' ? (
+        <VaultWorkspacePanel
+          activeVault={activeVault}
+          selectedFilePath={selectedVaultFilePath}
+          onFileSaved={handleVaultFileSaved}
         />
       ) : (
         <CompanionCatalogPanel

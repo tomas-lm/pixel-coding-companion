@@ -19,6 +19,14 @@ import {
   type TerminalStartResponse
 } from '../shared/terminal'
 import {
+  VAULT_CHANNELS,
+  type VaultCreateFolderRequest,
+  type VaultCreateMarkdownFileRequest,
+  type VaultFileRequest,
+  type VaultRootRequest,
+  type VaultSaveMarkdownFileRequest
+} from '../shared/vault'
+import {
   VIEW_CHANNELS,
   WORKSPACE_CHANNELS,
   type FolderPickResult,
@@ -79,6 +87,19 @@ const api: CompanionApi = {
       ipcRenderer.on(TERMINAL_CHANNELS.context, listener)
       return () => ipcRenderer.removeListener(TERMINAL_CHANNELS.context, listener)
     }
+  },
+  vault: {
+    createMarkdownFile: (request: VaultCreateMarkdownFileRequest) =>
+      ipcRenderer.invoke(VAULT_CHANNELS.createMarkdownFile, request),
+    createVaultFolder: (request: VaultCreateFolderRequest) =>
+      ipcRenderer.invoke(VAULT_CHANNELS.createVaultFolder, request),
+    listTree: (request: VaultRootRequest) => ipcRenderer.invoke(VAULT_CHANNELS.listTree, request),
+    pickFolder: () => ipcRenderer.invoke(VAULT_CHANNELS.pickFolder),
+    pickParentFolder: () => ipcRenderer.invoke(VAULT_CHANNELS.pickParentFolder),
+    readMarkdownFile: (request: VaultFileRequest) =>
+      ipcRenderer.invoke(VAULT_CHANNELS.readMarkdownFile, request),
+    saveMarkdownFile: (request: VaultSaveMarkdownFileRequest) =>
+      ipcRenderer.invoke(VAULT_CHANNELS.saveMarkdownFile, request)
   },
   workspace: {
     pickFolder: (): Promise<FolderPickResult> => ipcRenderer.invoke(WORKSPACE_CHANNELS.pickFolder),

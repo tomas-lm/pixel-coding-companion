@@ -9,6 +9,7 @@ import { CompanionStoreService } from './companion/companionStoreService'
 import { registerCompanionIpc } from './ipc/registerCompanionIpc'
 import { registerSystemIpc } from './ipc/registerSystemIpc'
 import { registerTerminalIpc } from './ipc/registerTerminalIpc'
+import { registerVaultIpc } from './ipc/registerVaultIpc'
 import { registerWorkspaceIpc } from './ipc/registerWorkspaceIpc'
 import { isSafeExternalUrl } from './openTarget'
 import { CodexContextTelemetryService } from './terminal/codexContextTelemetry'
@@ -168,6 +169,7 @@ app.whenReady().then(() => {
 
   registerTerminalIpc(terminalManager)
   registerWorkspaceIpc(workspaceStore)
+  registerVaultIpc()
   registerCompanionIpc(companionBridgeStore, companionStoreService)
   registerSystemIpc()
 
