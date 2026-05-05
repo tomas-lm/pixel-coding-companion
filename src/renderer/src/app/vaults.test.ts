@@ -5,7 +5,9 @@ import {
   createVaultConfig,
   filterVaultTree,
   getFirstMarkdownPath,
+  getVaultTreeAncestorPaths,
   normalizeVaults,
+  toggleVaultTreeCollapseState,
   updateVaultLastOpenedFile
 } from './vaults'
 
@@ -121,5 +123,19 @@ describe('vaults helpers', () => {
       lastOpenedFilePath: '/vault-1/note.md'
     })
     expect(updated[1]?.lastOpenedFilePath).toBeUndefined()
+  })
+
+  it('toggles folder collapse state', () => {
+    expect(toggleVaultTreeCollapseState({}, '/vault/Journal')).toEqual({
+      '/vault/Journal': true
+    })
+    expect(toggleVaultTreeCollapseState({ '/vault/Journal': true }, '/vault/Journal')).toEqual({
+      '/vault/Journal': false
+    })
+  })
+
+  it('finds ancestors for active file reveal', () => {
+    expect(getVaultTreeAncestorPaths(tree, '/vault/Journal/Daily.md')).toEqual(['/vault/Journal'])
+    expect(getVaultTreeAncestorPaths(tree, '/vault/Roadmap.md')).toEqual([])
   })
 })

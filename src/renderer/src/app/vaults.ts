@@ -9,6 +9,8 @@ export type VaultForm = {
   rootPath: string
 }
 
+export type VaultTreeCollapseState = Record<string, boolean>
+
 export function normalizeVaults(vaults: VaultConfig[] | undefined): VaultConfig[] {
   if (!Array.isArray(vaults)) return []
 
@@ -82,4 +84,27 @@ export function filterVaultTree(nodes: VaultTreeNode[], query: string): VaultTre
 
     return []
   })
+}
+
+export function toggleVaultTreeCollapseState(
+  state: VaultTreeCollapseState,
+  path: string
+): VaultTreeCollapseState {
+  return {
+    ...state,
+    [path]: !state[path]
+  }
+}
+
+export function getVaultTreeAncestorPaths(nodes: VaultTreeNode[], targetPath: string): string[] {
+  for (const node of nodes) {
+    if (node.path === targetPath) return []
+
+    const childPath = getVaultTreeAncestorPaths(node.children ?? [], targetPath)
+    if (childPath.length > 0 || node.children?.some((child) => child.path === targetPath)) {
+      return [node.path, ...childPath]
+    }
+  }
+
+  return []
 }

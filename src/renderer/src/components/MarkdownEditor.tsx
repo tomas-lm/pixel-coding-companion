@@ -14,6 +14,7 @@ import {
   serializeMarkdownEditorState,
   type SerializedMarkdownEditorState
 } from '../markdown/markdownEditorState'
+import { createMarkdownRenderExtension } from '../markdown/markdownRenderers'
 import { getMarkdownEditorStats, type MarkdownEditorStats } from '../markdown/markdownStats'
 import {
   extractMarkdownTableOfContents,
@@ -37,10 +38,14 @@ type MarkdownEditorProps = {
   getInitialState?: (filePath: string) => SerializedMarkdownEditorState | undefined
   initialValue: string
   onChange: (value: string) => void
+  onOpenLink: (href: string) => void
+  onOpenWikiLink: (target: string) => void
   onPersistState: (filePath: string, state: SerializedMarkdownEditorState) => void
   onSave: () => void
   onStatsChange: (stats: MarkdownEditorStats) => void
   onTableOfContentsChange: (items: MarkdownTableOfContentsItem[]) => void
+  renderedMode: boolean
+  resolveImageSource: (href: string) => string | null
 }
 
 function applyEditorTextEdit(view: EditorView, edit: MarkdownTextEdit): void {
@@ -85,10 +90,14 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       getInitialState,
       initialValue,
       onChange,
+      onOpenLink,
+      onOpenWikiLink,
       onPersistState,
       onSave,
       onStatsChange,
-      onTableOfContentsChange
+      onTableOfContentsChange,
+      renderedMode,
+      resolveImageSource
     },
     ref
   ): React.JSX.Element {
@@ -98,18 +107,24 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     const callbacksRef = useRef({
       getInitialState,
       onChange,
+      onOpenLink,
+      onOpenWikiLink,
       onPersistState,
       onSave,
       onStatsChange,
-      onTableOfContentsChange
+      onTableOfContentsChange,
+      resolveImageSource
     })
     callbacksRef.current = {
       getInitialState,
       onChange,
+      onOpenLink,
+      onOpenWikiLink,
       onPersistState,
       onSave,
       onStatsChange,
-      onTableOfContentsChange
+      onTableOfContentsChange,
+      resolveImageSource
     }
 
     useImperativeHandle(
@@ -186,7 +201,22 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
               callbacksRef.current.onTableOfContentsChange(items)
             }
           }),
-          ...getMarkdownExtensions()
+          ...getMarkdownExtensions(),
+          ...(renderedMode
+            ? [
+                createMarkdownRenderExtension({
+                  onOpenLink(href) {
+                    callbacksRef.current.onOpenLink(href)
+                  },
+                  onOpenWikiLink(target) {
+                    callbacksRef.current.onOpenWikiLink(target)
+                  },
+                  resolveImageSource(href) {
+                    return callbacksRef.current.resolveImageSource(href)
+                  }
+                })
+              ]
+            : [])
         ]
       })
       const view = new EditorView({
@@ -208,7 +238,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
           viewRef.current = null
         }
       }
-    }, [filePath])
+    }, [filePath, renderedMode])
 
     return <div ref={containerRef} className="markdown-editor-surface" />
   }

@@ -1,14 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 import type { VaultConfig, VaultMarkdownFile } from '../../../shared/vault'
 import type { SerializedMarkdownEditorState } from '../markdown/markdownEditorState'
+import {
+  findWikiLinkTarget,
+  isExternalMarkdownLink,
+  resolveMarkdownLinkTarget,
+  resolveVaultRelativePath
+} from '../markdown/markdownLinks'
 import type { MarkdownEditorStats } from '../markdown/markdownStats'
 import type { MarkdownTableOfContentsItem } from '../markdown/markdownToc'
 import { MarkdownEditor, type MarkdownEditorHandle } from './MarkdownEditor'
 
 type VaultWorkspacePanelProps = {
   activeVault: VaultConfig | null
+  onCreateNote: (name: string) => Promise<void>
   onDirtyChange: (isDirty: boolean) => void
   onFileSaved: (file: VaultMarkdownFile) => void
+  onSelectFile: (filePath: string) => void
   selectedFilePath: string | null
 }
 
@@ -16,8 +24,10 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error'
 
 export function VaultWorkspacePanel({
   activeVault,
+  onCreateNote,
   onDirtyChange,
   onFileSaved,
+  onSelectFile,
   selectedFilePath
 }: VaultWorkspacePanelProps): React.JSX.Element {
   const editorRef = useRef<MarkdownEditorHandle | null>(null)
@@ -28,6 +38,7 @@ export function VaultWorkspacePanel({
   const [loadState, setLoadState] = useState<LoadState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [editorMode, setEditorMode] = useState<'raw' | 'rendered'>('raw')
   const [stats, setStats] = useState<MarkdownEditorStats>({
     characters: 0,
     column: 1,
@@ -98,6 +109,59 @@ export function VaultWorkspacePanel({
   const changeContent = (nextContent: string): void => {
     setContent(nextContent)
     onDirtyChange(nextContent !== savedContent)
+  }
+
+  const openMarkdownLink = (href: string): void => {
+    if (!activeVaultRootPath || !selectedFile) return
+
+    const target = resolveMarkdownLinkTarget({
+      currentFilePath: selectedFile.path,
+      href,
+      rootPath: activeVaultRootPath
+    })
+
+    if (target.kind === 'external') {
+      void window.api.system.openTarget({
+        kind: 'external_url',
+        url: target.url
+      })
+      return
+    }
+
+    if (target.kind === 'local_markdown') {
+      onSelectFile(target.path)
+    }
+  }
+
+  const openWikiLink = async (target: string): Promise<void> => {
+    if (!activeVaultRootPath) return
+
+    const tree = await window.api.vault.listTree({ rootPath: activeVaultRootPath })
+    const filePath = findWikiLinkTarget(tree, target)
+
+    if (filePath) {
+      onSelectFile(filePath)
+      return
+    }
+
+    if (window.confirm(`Create "${target}" in this vault?`)) {
+      await onCreateNote(target)
+    }
+  }
+
+  const resolveImageSource = (href: string): string | null => {
+    if (!activeVaultRootPath || !selectedFile) return null
+    if (/^https?:/i.test(href.trim())) return href
+    if (isExternalMarkdownLink(href)) return null
+
+    const assetPath = resolveVaultRelativePath({
+      currentFilePath: selectedFile.path,
+      href,
+      rootPath: activeVaultRootPath
+    })
+    if (!assetPath || !/\.(avif|gif|jpe?g|png|svg|webp)$/i.test(assetPath)) return null
+
+    return `file://${assetPath.split('/').map(encodeURIComponent).join('/')}`
   }
 
   const saveFile = async (): Promise<void> => {
@@ -194,11 +258,19 @@ export function VaultWorkspacePanel({
           H2
         </button>
         <div className="vault-editor-mode-toggle" aria-label="Editor mode">
-          <button className="vault-editor-mode-toggle--active" type="button">
+          <button
+            className={editorMode === 'raw' ? 'vault-editor-mode-toggle--active' : undefined}
+            type="button"
+            onClick={() => setEditorMode('raw')}
+          >
             Raw
           </button>
-          <button type="button" disabled>
-            Preview
+          <button
+            className={editorMode === 'rendered' ? 'vault-editor-mode-toggle--active' : undefined}
+            type="button"
+            onClick={() => setEditorMode('rendered')}
+          >
+            Rendered
           </button>
         </div>
       </div>
@@ -209,16 +281,22 @@ export function VaultWorkspacePanel({
       {loadState === 'ready' && selectedFile && (
         <div className="vault-editor-body">
           <MarkdownEditor
-            key={selectedFile.path}
+            key={`${selectedFile.path}:${editorMode}`}
             ref={editorRef}
             filePath={selectedFile.path}
             getInitialState={getPersistedEditorState}
             initialValue={content}
             onChange={changeContent}
+            onOpenLink={openMarkdownLink}
+            onOpenWikiLink={(target) => {
+              void openWikiLink(target)
+            }}
             onPersistState={persistEditorState}
             onSave={saveFile}
             onStatsChange={setStats}
             onTableOfContentsChange={setTableOfContents}
+            renderedMode={editorMode === 'rendered'}
+            resolveImageSource={resolveImageSource}
           />
 
           <aside className="vault-outline" aria-label="Document outline">

@@ -4,6 +4,9 @@ import {
   createEmptyVaultForm,
   createVaultConfig,
   filterVaultTree,
+  getVaultTreeAncestorPaths,
+  toggleVaultTreeCollapseState,
+  type VaultTreeCollapseState,
   type VaultForm
 } from '../app/vaults'
 import { AddButton, IconOnlyButton, RowActionButton } from './ui/IconButtons'
@@ -34,16 +37,22 @@ function getStatusMessage(error: string | null, isLoading: boolean): string | nu
 const EMPTY_VAULT_TREE: VaultTreeNode[] = []
 
 function VaultTreeItem({
+  collapsedPaths,
   node,
   onSelectFile,
+  onToggleFolder,
+  revealedPaths,
   selectedFilePath
 }: {
+  collapsedPaths: VaultTreeCollapseState
   node: VaultTreeNode
   onSelectFile: (filePath: string) => void
+  onToggleFolder: (path: string) => void
+  revealedPaths: Set<string>
   selectedFilePath: string | null
 }): React.JSX.Element {
-  const [collapsed, setCollapsed] = useState(false)
   const isSelected = selectedFilePath === node.path
+  const collapsed = !revealedPaths.has(node.path) && Boolean(collapsedPaths[node.path])
 
   if (node.type === 'markdown') {
     return (
@@ -67,7 +76,18 @@ function VaultTreeItem({
         className="vault-folder-button"
         type="button"
         title={node.relativePath}
-        onClick={() => setCollapsed((current) => !current)}
+        onClick={() => onToggleFolder(node.path)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowRight' && collapsed) {
+            event.preventDefault()
+            onToggleFolder(node.path)
+          }
+
+          if (event.key === 'ArrowLeft' && !collapsed) {
+            event.preventDefault()
+            onToggleFolder(node.path)
+          }
+        }}
       >
         <span aria-hidden="true">{collapsed ? '>' : 'v'}</span>
         <span>{node.name}</span>
@@ -77,9 +97,12 @@ function VaultTreeItem({
           {node.children.map((child) => (
             <VaultTreeItem
               key={child.path}
+              collapsedPaths={collapsedPaths}
               node={child}
+              revealedPaths={revealedPaths}
               selectedFilePath={selectedFilePath}
               onSelectFile={onSelectFile}
+              onToggleFolder={onToggleFolder}
             />
           ))}
         </ul>
@@ -269,12 +292,17 @@ export function VaultRail({
   const [form, setForm] = useState<VaultForm | null>(null)
   const [noteFormOpen, setNoteFormOpen] = useState(false)
   const [tree, setTree] = useState<VaultTreeNode[]>([])
+  const [collapsedPaths, setCollapsedPaths] = useState<VaultTreeCollapseState>({})
   const [isLoadingTree, setIsLoadingTree] = useState(false)
   const [treeError, setTreeError] = useState<string | null>(null)
   const activeTree = activeVault ? tree : EMPTY_VAULT_TREE
   const visibleTree = useMemo(
     () => filterVaultTree(activeTree, filterQuery),
     [activeTree, filterQuery]
+  )
+  const revealedPaths = useMemo(
+    () => new Set(selectedFilePath ? getVaultTreeAncestorPaths(activeTree, selectedFilePath) : []),
+    [activeTree, selectedFilePath]
   )
   const statusMessage = getStatusMessage(
     activeVault ? treeError : null,
@@ -406,9 +434,16 @@ export function VaultRail({
               {visibleTree.map((node) => (
                 <VaultTreeItem
                   key={node.path}
+                  collapsedPaths={collapsedPaths}
                   node={node}
+                  revealedPaths={revealedPaths}
                   selectedFilePath={selectedFilePath}
                   onSelectFile={onSelectFile}
+                  onToggleFolder={(path) =>
+                    setCollapsedPaths((currentState) =>
+                      toggleVaultTreeCollapseState(currentState, path)
+                    )
+                  }
                 />
               ))}
             </ul>

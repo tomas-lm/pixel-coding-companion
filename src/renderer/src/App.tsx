@@ -863,8 +863,10 @@ function App(): React.JSX.Element {
         <VaultWorkspacePanel
           activeVault={activeVault}
           selectedFilePath={selectedVaultFilePath}
+          onCreateNote={createVaultNote}
           onDirtyChange={changeVaultDirtyState}
           onFileSaved={handleVaultFileSaved}
+          onSelectFile={selectVaultFile}
         />
       ) : (
         <CompanionCatalogPanel
