@@ -1,18 +1,23 @@
+import { useState } from 'react'
 import type {
   Project,
   RunningSession,
   TerminalConfig,
-  TerminalThemeId
+  TerminalThemeId,
+  WorkspaceCodeEditorSettings
 } from '../../../shared/workspace'
 import { AddButton } from './ui/IconButtons'
+import { SessionChangesPanel } from './SessionChangesPanel'
 import { TerminalPane } from './TerminalPane'
 
 type TerminalWorkspacePanelProps = {
   activeProject: Project | null
   activeProjectConfigs: TerminalConfig[]
   activeSession: RunningSession | null
+  codeEditorSettings: WorkspaceCodeEditorSettings
   onCreateProject: () => void
   onCreateTerminal: () => void
+  onOpenMarkdownArtifact: (filePath: string) => void
   onOpenPromptPicker: () => void
   onSessionActivity: (sessionId: string, output: string) => void
   onSessionStartError: (sessionId: string, errorMessage: string) => void
@@ -28,8 +33,10 @@ export function TerminalWorkspacePanel({
   activeProject,
   activeProjectConfigs,
   activeSession,
+  codeEditorSettings,
   onCreateProject,
   onCreateTerminal,
+  onOpenMarkdownArtifact,
   onOpenPromptPicker,
   onSessionActivity,
   onSessionStartError,
@@ -40,6 +47,9 @@ export function TerminalWorkspacePanel({
   terminalThemeId,
   terminalTitle
 }: TerminalWorkspacePanelProps): React.JSX.Element {
+  const [changesSessionId, setChangesSessionId] = useState<string | null>(null)
+  const isChangesOpen = Boolean(activeSession && changesSessionId === activeSession.id)
+
   return (
     <section className="session-panel" aria-label="Session preview">
       <header className="session-header">
@@ -48,6 +58,14 @@ export function TerminalWorkspacePanel({
           <h1>{terminalTitle}</h1>
         </div>
         <div className="session-header-actions">
+          <button
+            className="secondary-button session-prompt-button"
+            type="button"
+            disabled={!activeSession}
+            onClick={() => setChangesSessionId(isChangesOpen ? null : (activeSession?.id ?? null))}
+          >
+            Changes
+          </button>
           <button
             className="secondary-button session-prompt-button"
             type="button"
@@ -70,6 +88,7 @@ export function TerminalWorkspacePanel({
               <TerminalPane
                 session={session}
                 isActive={session.id === selectedSessionId}
+                codeEditorSettings={codeEditorSettings}
                 terminalThemeId={terminalThemeId}
                 onSessionActivity={onSessionActivity}
                 onSessionStartError={onSessionStartError}
@@ -100,6 +119,14 @@ export function TerminalWorkspacePanel({
             )}
           </div>
         )}
+        {activeSession && isChangesOpen ? (
+          <SessionChangesPanel
+            codeEditorSettings={codeEditorSettings}
+            session={activeSession}
+            onClose={() => setChangesSessionId(null)}
+            onOpenMarkdownFile={onOpenMarkdownArtifact}
+          />
+        ) : null}
       </div>
     </section>
   )

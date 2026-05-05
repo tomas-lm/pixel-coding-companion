@@ -159,6 +159,7 @@ describe('TerminalPane', () => {
 
       render(
         <TerminalPane
+          codeEditorSettings={{ preferredEditor: 'auto' }}
           isActive={true}
           onSessionActivity={vi.fn()}
           onSessionStartError={vi.fn()}

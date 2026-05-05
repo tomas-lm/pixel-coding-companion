@@ -8,8 +8,10 @@ describe('ConfigsPanel', () => {
   it('renders feature toggles', () => {
     render(
       <ConfigsPanel
+        codeEditorSettings={{ preferredEditor: 'auto' }}
         featureSettings={{ playSoundsUponFinishing: false }}
         terminalThemeId="catppuccin_mocha"
+        onChangeCodeEditorSettings={vi.fn()}
         onChangeFeatureSettings={vi.fn()}
         onSelectTerminalTheme={vi.fn()}
       />
@@ -17,6 +19,7 @@ describe('ConfigsPanel', () => {
 
     expect(screen.getByRole('heading', { name: 'Configs' })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Theme Catppuccin Mocha' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'External code editor' })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Play sounds upon finishing' })).not.toBeChecked()
   })
 
@@ -25,8 +28,10 @@ describe('ConfigsPanel', () => {
 
     render(
       <ConfigsPanel
+        codeEditorSettings={{ preferredEditor: 'auto' }}
         featureSettings={{ playSoundsUponFinishing: false }}
         terminalThemeId="catppuccin_mocha"
+        onChangeCodeEditorSettings={vi.fn()}
         onChangeFeatureSettings={onChangeFeatureSettings}
         onSelectTerminalTheme={vi.fn()}
       />
@@ -39,13 +44,36 @@ describe('ConfigsPanel', () => {
     })
   })
 
+  it('updates the preferred code editor', () => {
+    const onChangeCodeEditorSettings = vi.fn()
+
+    render(
+      <ConfigsPanel
+        codeEditorSettings={{ preferredEditor: 'auto' }}
+        featureSettings={{ playSoundsUponFinishing: false }}
+        terminalThemeId="catppuccin_mocha"
+        onChangeCodeEditorSettings={onChangeCodeEditorSettings}
+        onChangeFeatureSettings={vi.fn()}
+        onSelectTerminalTheme={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cursor' }))
+
+    expect(onChangeCodeEditorSettings).toHaveBeenCalledWith({
+      preferredEditor: 'cursor'
+    })
+  })
+
   it('updates the terminal theme from dropdown', () => {
     const onSelectTerminalTheme = vi.fn()
 
     render(
       <ConfigsPanel
+        codeEditorSettings={{ preferredEditor: 'auto' }}
         featureSettings={{ playSoundsUponFinishing: false }}
         terminalThemeId="catppuccin_mocha"
+        onChangeCodeEditorSettings={vi.fn()}
         onChangeFeatureSettings={vi.fn()}
         onSelectTerminalTheme={onSelectTerminalTheme}
       />
@@ -62,8 +90,10 @@ describe('ConfigsPanel', () => {
 
     render(
       <ConfigsPanel
+        codeEditorSettings={{ preferredEditor: 'auto' }}
         featureSettings={{ playSoundsUponFinishing: false }}
         terminalThemeId="catppuccin_mocha"
+        onChangeCodeEditorSettings={vi.fn()}
         onChangeFeatureSettings={vi.fn()}
         onSelectTerminalTheme={onSelectTerminalTheme}
       />

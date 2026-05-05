@@ -1,24 +1,32 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { CODE_EDITOR_OPTIONS, type CodeEditorCheckResult } from '../../../shared/system'
 import {
   TERMINAL_THEME_OPTIONS,
   type TerminalThemeId,
+  type WorkspaceCodeEditorSettings,
   type WorkspaceFeatureSettings
 } from '../../../shared/workspace'
 
 type ConfigsPanelProps = {
+  codeEditorSettings: WorkspaceCodeEditorSettings
   featureSettings: WorkspaceFeatureSettings
   terminalThemeId: TerminalThemeId
+  onChangeCodeEditorSettings: (settings: WorkspaceCodeEditorSettings) => void
   onChangeFeatureSettings: (featureSettings: WorkspaceFeatureSettings) => void
   onSelectTerminalTheme: (themeId: TerminalThemeId) => void
 }
 
 export function ConfigsPanel({
+  codeEditorSettings,
   featureSettings,
   terminalThemeId,
+  onChangeCodeEditorSettings,
   onChangeFeatureSettings,
   onSelectTerminalTheme
 }: ConfigsPanelProps): React.JSX.Element {
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false)
+  const [isCheckingEditor, setIsCheckingEditor] = useState(false)
+  const [editorCheckResult, setEditorCheckResult] = useState<CodeEditorCheckResult | null>(null)
   const [highlightedThemeId, setHighlightedThemeId] = useState<TerminalThemeId>(terminalThemeId)
   const themeDropdownRef = useRef<HTMLDivElement | null>(null)
   const optionRefs = useRef<Record<TerminalThemeId, HTMLButtonElement | null>>(
@@ -34,6 +42,9 @@ export function ConfigsPanel({
     () => TERMINAL_THEME_OPTIONS.map((themeOption) => themeOption.id),
     []
   )
+  const selectedEditorLabel =
+    CODE_EDITOR_OPTIONS.find((option) => option.id === codeEditorSettings.preferredEditor)?.label ??
+    CODE_EDITOR_OPTIONS[0].label
 
   const getNextThemeId = (currentThemeId: TerminalThemeId, delta: number): TerminalThemeId => {
     const currentIndex = Math.max(themeOptionIds.indexOf(currentThemeId), 0)
@@ -80,6 +91,22 @@ export function ConfigsPanel({
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [isThemeMenuOpen])
+
+  const visibleEditorCheckResult =
+    editorCheckResult?.editor === codeEditorSettings.preferredEditor ? editorCheckResult : null
+
+  const checkEditorCommand = async (): Promise<void> => {
+    setIsCheckingEditor(true)
+
+    try {
+      const result = await window.api.system.checkCodeEditor({
+        editor: codeEditorSettings.preferredEditor
+      })
+      setEditorCheckResult(result)
+    } finally {
+      setIsCheckingEditor(false)
+    }
+  }
 
   return (
     <section className="configs-panel" aria-label="Configs">
@@ -197,6 +224,60 @@ export function ConfigsPanel({
                 })}
               </ul>
             )}
+          </div>
+        </section>
+
+        <section className="configs-section" aria-labelledby="configs-code-editor-title">
+          <h2 id="configs-code-editor-title">Code editor</h2>
+          <div className="code-editor-config">
+            <div>
+              <span>External editor</span>
+              <strong>{selectedEditorLabel}</strong>
+            </div>
+            <div className="code-editor-options" role="group" aria-label="External code editor">
+              {CODE_EDITOR_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  aria-pressed={option.id === codeEditorSettings.preferredEditor}
+                  type="button"
+                  onClick={() =>
+                    onChangeCodeEditorSettings({
+                      preferredEditor: option.id
+                    })
+                  }
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p>
+              Code files from terminal changes open in this editor. Markdown files still open in
+              Pixel Vaults when they belong to a configured vault.
+            </p>
+            <div className="code-editor-check-row">
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={isCheckingEditor}
+                onClick={() => {
+                  void checkEditorCommand()
+                }}
+              >
+                {isCheckingEditor ? 'Checking...' : 'Check command'}
+              </button>
+              {visibleEditorCheckResult ? (
+                <small
+                  className={`code-editor-check-status${
+                    visibleEditorCheckResult.ok ? ' code-editor-check-status--ok' : ''
+                  }`}
+                  role="status"
+                >
+                  {visibleEditorCheckResult.ok
+                    ? `${visibleEditorCheckResult.label} found as ${visibleEditorCheckResult.command}`
+                    : `${visibleEditorCheckResult.label} command was not found`}
+                </small>
+              ) : null}
+            </div>
           </div>
         </section>
 

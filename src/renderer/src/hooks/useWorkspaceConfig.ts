@@ -1,5 +1,6 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import type {
+  WorkspaceCodeEditorSettings,
   WorkspaceFeatureSettings,
   PromptTemplate,
   Project,
@@ -11,6 +12,10 @@ import type { VaultConfig } from '../../../shared/vault'
 import { normalizeLayout } from '../app/layout'
 import { normalizePromptTemplates } from '../app/promptTemplates'
 import { normalizeVaults } from '../app/vaults'
+import {
+  DEFAULT_WORKSPACE_CODE_EDITOR_SETTINGS,
+  normalizeWorkspaceCodeEditorSettings
+} from '../app/workspaceCodeEditorSettings'
 import {
   DEFAULT_WORKSPACE_FEATURE_SETTINGS,
   normalizeWorkspaceFeatureSettings
@@ -26,12 +31,14 @@ type UseWorkspaceConfigOptions = {
 type UseWorkspaceConfigResult = {
   activeProjectId: string | null
   activeVaultId: string | null
+  codeEditorSettings: WorkspaceCodeEditorSettings
   configLoaded: boolean
   featureSettings: WorkspaceFeatureSettings
   projects: Project[]
   promptTemplates: PromptTemplate[]
   setActiveProjectId: Dispatch<SetStateAction<string | null>>
   setActiveVaultId: Dispatch<SetStateAction<string | null>>
+  setCodeEditorSettings: Dispatch<SetStateAction<WorkspaceCodeEditorSettings>>
   setFeatureSettings: Dispatch<SetStateAction<WorkspaceFeatureSettings>>
   setPromptTemplates: Dispatch<SetStateAction<PromptTemplate[]>>
   setProjects: Dispatch<SetStateAction<Project[]>>
@@ -54,6 +61,9 @@ export function useWorkspaceConfig({
   const [featureSettings, setFeatureSettings] = useState<WorkspaceFeatureSettings>(
     DEFAULT_WORKSPACE_FEATURE_SETTINGS
   )
+  const [codeEditorSettings, setCodeEditorSettings] = useState<WorkspaceCodeEditorSettings>(
+    DEFAULT_WORKSPACE_CODE_EDITOR_SETTINGS
+  )
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [activeVaultId, setActiveVaultId] = useState<string | null>(null)
   const [configLoaded, setConfigLoaded] = useState(false)
@@ -73,6 +83,7 @@ export function useWorkspaceConfig({
           const normalizedVaults = normalizeVaults(config.vaults)
           setVaults(normalizedVaults)
           setFeatureSettings(normalizeWorkspaceFeatureSettings(config.featureSettings))
+          setCodeEditorSettings(normalizeWorkspaceCodeEditorSettings(config.codeEditorSettings))
           setActiveProjectId(
             config.projects.find((project) => project.id === config.activeProjectId)?.id ??
               config.projects[0]?.id ??
@@ -105,6 +116,7 @@ export function useWorkspaceConfig({
         terminalConfigs,
         activeProjectId: activeProjectId ?? undefined,
         activeVaultId: activeVaultId ?? undefined,
+        codeEditorSettings,
         featureSettings,
         layout,
         promptTemplates,
@@ -117,6 +129,7 @@ export function useWorkspaceConfig({
   }, [
     activeProjectId,
     activeVaultId,
+    codeEditorSettings,
     configLoaded,
     featureSettings,
     layout,
@@ -130,12 +143,14 @@ export function useWorkspaceConfig({
   return {
     activeProjectId,
     activeVaultId,
+    codeEditorSettings,
     featureSettings,
     configLoaded,
     promptTemplates,
     projects,
     setActiveProjectId,
     setActiveVaultId,
+    setCodeEditorSettings,
     setFeatureSettings,
     setPromptTemplates,
     setProjects,

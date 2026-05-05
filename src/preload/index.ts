@@ -4,7 +4,15 @@ import {
   type CompanionBridgeState,
   type CompanionProgressState
 } from '../shared/companion'
-import { SYSTEM_CHANNELS, type OpenTargetRequest, type OpenTargetResult } from '../shared/system'
+import {
+  SYSTEM_CHANNELS,
+  type CodeEditorCheckRequest,
+  type CodeEditorCheckResult,
+  type OpenTargetRequest,
+  type OpenTargetResult,
+  type WorkspaceChangesRequest,
+  type WorkspaceChangesResult
+} from '../shared/system'
 import {
   TERMINAL_CHANNELS,
   type CompanionApi,
@@ -51,6 +59,10 @@ const api: CompanionApi = {
     }
   },
   system: {
+    checkCodeEditor: (request: CodeEditorCheckRequest): Promise<CodeEditorCheckResult> =>
+      ipcRenderer.invoke(SYSTEM_CHANNELS.checkCodeEditor, request),
+    listChangedFiles: (request: WorkspaceChangesRequest): Promise<WorkspaceChangesResult> =>
+      ipcRenderer.invoke(SYSTEM_CHANNELS.listChangedFiles, request),
     openTarget: (request: OpenTargetRequest): Promise<OpenTargetResult> =>
       ipcRenderer.invoke(SYSTEM_CHANNELS.openTarget, request)
   },

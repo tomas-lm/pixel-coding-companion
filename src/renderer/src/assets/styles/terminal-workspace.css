@@ -34,6 +34,193 @@
   white-space: nowrap;
 }
 
+.session-changes-panel {
+  z-index: 3;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-width: min(720px, 100%);
+  min-height: 0;
+  align-self: stretch;
+  justify-self: end;
+  width: min(720px, 100%);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(18, 22, 28, 0.98);
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.42);
+}
+
+.session-changes-header,
+.session-changes-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+.session-changes-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.session-changes-header > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.session-changes-header strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ev-c-text-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.session-changes-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.session-changes-summary {
+  min-height: 46px;
+  color: var(--ev-c-text-2);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.session-changes-list {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 12px 12px;
+}
+
+.session-changes-group {
+  display: grid;
+  gap: 6px;
+}
+
+.session-changes-group h2 {
+  margin: 0;
+  color: var(--ev-c-text-2);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.session-changes-group ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-change-file {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  padding: 7px 9px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ev-c-text-1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.session-change-file:hover,
+.session-change-file:focus-visible {
+  border-color: color-mix(in srgb, var(--active-project-color) 48%, rgba(255, 255, 255, 0.12));
+  background: color-mix(in srgb, var(--active-project-color) 10%, rgba(255, 255, 255, 0.04));
+}
+
+.session-change-file:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.session-change-status {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  min-height: 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ev-c-text-2);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.session-change-status--added,
+.session-change-status--untracked {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.12);
+}
+
+.session-change-status--conflicted,
+.session-change-status--deleted {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.session-change-status--renamed,
+.session-change-status--copied {
+  color: #7fe7dc;
+  background: rgba(127, 231, 220, 0.12);
+}
+
+.session-change-path {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.session-change-path strong,
+.session-change-path small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-change-path strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.session-change-path small,
+.session-change-open-label {
+  color: var(--ev-c-text-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.session-change-open-label {
+  white-space: nowrap;
+}
+
+.session-changes-empty {
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  padding: 18px;
+  color: var(--ev-c-text-2);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .eyebrow {
   font-size: 12px;
   font-weight: 700;

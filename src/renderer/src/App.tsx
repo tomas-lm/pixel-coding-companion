@@ -6,6 +6,7 @@ import type {
   PromptTemplate,
   RunningSession,
   TerminalConfig,
+  WorkspaceCodeEditorSettings,
   WorkspaceFeatureSettings
 } from '../../shared/workspace'
 import {
@@ -64,6 +65,7 @@ import { useWorkspaceLayout } from './hooks/useWorkspaceLayout'
 
 const COMPANION_NAME = 'Ghou'
 const PROJECT_COLORS = ['#4ea1ff', '#ef5b5b', '#f7d56f', '#7fe7dc', '#c084fc', '#34d399']
+const MARKDOWN_ARTIFACT_PATTERN = /\.(?:md|markdown)$/i
 type StartWorkspaceSelection = {
   projectId: string
   selectedConfigIds: string[]
@@ -88,6 +90,19 @@ function createId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`
 }
 
+function normalizeLocalPath(pathText: string): string {
+  return pathText.replace(/\\/g, '/').replace(/\/+$/g, '')
+}
+
+function isPathInsideRoot(rootPath: string, filePath: string): boolean {
+  const normalizedRoot = normalizeLocalPath(rootPath)
+  const normalizedFilePath = normalizeLocalPath(filePath)
+
+  return (
+    normalizedFilePath === normalizedRoot || normalizedFilePath.startsWith(`${normalizedRoot}/`)
+  )
+}
+
 function App(): React.JSX.Element {
   const [runningSessions, setRunningSessions] = useState<RunningSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
@@ -100,12 +115,14 @@ function App(): React.JSX.Element {
   const {
     activeProjectId,
     activeVaultId,
+    codeEditorSettings,
     configLoaded,
     featureSettings,
     promptTemplates,
     projects,
     setActiveProjectId,
     setActiveVaultId,
+    setCodeEditorSettings,
     setFeatureSettings,
     setPromptTemplates,
     setProjects,
@@ -155,6 +172,13 @@ function App(): React.JSX.Element {
       setFeatureSettings(nextFeatureSettings)
     },
     [setFeatureSettings]
+  )
+
+  const changeCodeEditorSettings = useCallback(
+    (nextCodeEditorSettings: WorkspaceCodeEditorSettings): void => {
+      setCodeEditorSettings(nextCodeEditorSettings)
+    },
+    [setCodeEditorSettings]
   )
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null
@@ -710,6 +734,37 @@ function App(): React.JSX.Element {
     setVaultHasUnsavedChanges(false)
   }
 
+  const openMarkdownArtifact = (filePath: string): void => {
+    if (!MARKDOWN_ARTIFACT_PATTERN.test(filePath)) {
+      void window.api.system.openTarget({
+        editor: codeEditorSettings.preferredEditor,
+        kind: 'file_path',
+        path: filePath
+      })
+      return
+    }
+
+    const targetVault = vaults.find((vault) => isPathInsideRoot(vault.rootPath, filePath)) ?? null
+    if (!targetVault) {
+      void window.api.system.openTarget({
+        editor: codeEditorSettings.preferredEditor,
+        kind: 'file_path',
+        path: filePath
+      })
+      return
+    }
+
+    const isDifferentOpenFile =
+      targetVault.id !== activeVaultId || selectedVaultFilePath !== filePath
+    if (isDifferentOpenFile && !confirmDiscardVaultChanges()) return
+
+    setActiveVaultId(targetVault.id)
+    setSelectedVaultFileSelection({ path: filePath, vaultId: targetVault.id })
+    setVaults((currentVaults) => updateVaultLastOpenedFile(currentVaults, targetVault.id, filePath))
+    setVaultHasUnsavedChanges(false)
+    setActiveActivityItemId('vaults')
+  }
+
   const createVaultNote = async (name: string): Promise<void> => {
     if (!activeVault) return
     if (!confirmDiscardVaultChanges()) return
@@ -762,6 +817,7 @@ function App(): React.JSX.Element {
       projects: nextProjects,
       terminalConfigs: nextTerminalConfigs,
       activeProjectId: project.id,
+      codeEditorSettings,
       layout,
       featureSettings,
       promptTemplates,
@@ -907,12 +963,14 @@ function App(): React.JSX.Element {
           activeProject={activeProject}
           activeProjectConfigs={activeProjectConfigs}
           activeSession={activeSession}
+          codeEditorSettings={codeEditorSettings}
           runningSessions={runningSessions}
           selectedSessionId={selectedSessionId}
           terminalThemeId={terminalThemeId}
           terminalTitle={terminalTitle}
           onCreateProject={openCreateProject}
           onCreateTerminal={openCreateTerminal}
+          onOpenMarkdownArtifact={openMarkdownArtifact}
           onOpenPromptPicker={() => setPromptPickerOpen(true)}
           onSessionActivity={updateSessionActivity}
           onSessionStartError={markSessionStartError}
@@ -928,7 +986,9 @@ function App(): React.JSX.Element {
         />
       ) : activeActivityItemId === 'configs' ? (
         <ConfigsPanel
+          codeEditorSettings={codeEditorSettings}
           featureSettings={featureSettings}
+          onChangeCodeEditorSettings={changeCodeEditorSettings}
           onChangeFeatureSettings={changeFeatureSettings}
           onSelectTerminalTheme={applyTerminalTheme}
           terminalThemeId={terminalThemeId}

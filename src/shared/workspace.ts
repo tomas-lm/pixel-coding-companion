@@ -1,3 +1,4 @@
+import type { CodeEditorId } from './system'
 import type { VaultConfig } from './vault'
 
 export const WORKSPACE_CHANNELS = {
@@ -59,6 +60,10 @@ export type WorkspaceFeatureSettings = {
   playSoundsUponFinishing: boolean
 }
 
+export type WorkspaceCodeEditorSettings = {
+  preferredEditor: CodeEditorId
+}
+
 export type RunningSessionStatus = 'starting' | 'running' | 'done' | 'error'
 
 export type RunningSession = {
@@ -90,6 +95,7 @@ export type WorkspaceConfig = {
   activeProjectId?: string
   layout?: WorkspaceLayout
   featureSettings?: WorkspaceFeatureSettings
+  codeEditorSettings?: WorkspaceCodeEditorSettings
   promptTemplates?: PromptTemplate[]
   activeVaultId?: string
   vaults?: VaultConfig[]

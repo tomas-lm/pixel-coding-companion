@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal, type ILink } from '@xterm/xterm'
+import type { OpenTargetRequest } from '../../../shared/system'
 import type { TerminalContextEvent } from '../../../shared/terminal'
 import type {
   RunningSession,
   RunningSessionStatus,
-  TerminalThemeId
+  TerminalThemeId,
+  WorkspaceCodeEditorSettings
 } from '../../../shared/workspace'
 import { getOpenTargetRequestFromHyperlink } from '../lib/terminalHyperlinks'
 import { findTerminalLinks, type TerminalLinkCandidate } from '../lib/terminalLinks'
@@ -17,6 +19,7 @@ import '@xterm/xterm/css/xterm.css'
 type TerminalPaneProps = {
   session: RunningSession
   isActive: boolean
+  codeEditorSettings: WorkspaceCodeEditorSettings
   terminalThemeId: TerminalThemeId
   onSessionActivity: (sessionId: string, output: string) => void
   onSessionStartError: (sessionId: string, errorMessage: string) => void
@@ -52,9 +55,22 @@ function isCodexContextCandidate(session: RunningSession): boolean {
   )
 }
 
+function withPreferredEditor(
+  request: OpenTargetRequest,
+  preferredEditor: WorkspaceCodeEditorSettings['preferredEditor']
+): OpenTargetRequest {
+  if (request.kind !== 'file_path') return request
+
+  return {
+    ...request,
+    editor: preferredEditor
+  }
+}
+
 export function TerminalPane({
   session,
   isActive,
+  codeEditorSettings,
   terminalThemeId,
   onSessionActivity,
   onSessionStartError,
@@ -64,6 +80,7 @@ export function TerminalPane({
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const initialTerminalThemeIdRef = useRef(terminalThemeId)
+  const preferredEditorRef = useRef(codeEditorSettings.preferredEditor)
   const sessionStatusRef = useRef(session.status)
   const [contextEvent, setContextEvent] = useState<TerminalContextEvent | null>(null)
   const contextSnapshot = contextEvent?.id === session.id ? contextEvent.snapshot : null
@@ -72,6 +89,10 @@ export function TerminalPane({
   useEffect(() => {
     sessionStatusRef.current = session.status
   }, [session.status])
+
+  useEffect(() => {
+    preferredEditorRef.current = codeEditorSettings.preferredEditor
+  }, [codeEditorSettings.preferredEditor])
 
   useEffect(() => {
     return window.api.terminal.onContext((event) => {
@@ -118,7 +139,9 @@ export function TerminalPane({
           if (!request) return
 
           event.preventDefault()
-          void window.api.system.openTarget(request)
+          void window.api.system.openTarget(
+            withPreferredEditor(request, preferredEditorRef.current)
+          )
         }
       },
       theme: getTerminalTheme(initialTerminalThemeIdRef.current)
@@ -155,7 +178,9 @@ export function TerminalPane({
       if (!hoveredFallbackLink) return
 
       stopTerminalMouseEvent(event)
-      void window.api.system.openTarget(hoveredFallbackLink.request)
+      void window.api.system.openTarget(
+        withPreferredEditor(hoveredFallbackLink.request, preferredEditorRef.current)
+      )
     }
 
     terminalContainer.addEventListener('mousedown', handleModifierMouseDown, { capture: true })
@@ -187,7 +212,9 @@ export function TerminalPane({
             if (!isOpenModifier(event)) return
 
             event.preventDefault()
-            void window.api.system.openTarget(candidate.request)
+            void window.api.system.openTarget(
+              withPreferredEditor(candidate.request, preferredEditorRef.current)
+            )
           },
           hover: () => {
             hoveredFallbackLink = candidate

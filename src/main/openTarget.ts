@@ -3,6 +3,7 @@ import { access } from 'fs/promises'
 import { isAbsolute, normalize, resolve } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import type { OpenTargetRequest, OpenTargetResult } from '../shared/system'
+import { openWithCodeEditor } from './codeEditors'
 
 const TRAILING_PUNCTUATION_PATTERN = /[.,;:!?)}\]'"]+$/
 
@@ -109,6 +110,17 @@ export async function openTarget(request: OpenTargetRequest): Promise<OpenTarget
   const resolvedTarget = resolveLocalTarget(request.path, request.cwd)
   if (!resolvedTarget) return { ok: false, reason: 'invalid_target' }
   if (!(await pathExists(resolvedTarget))) return { ok: false, reason: 'not_found' }
+
+  if (
+    await openWithCodeEditor({
+      column: request.column,
+      editor: request.editor ?? 'auto',
+      line: request.line,
+      targetPath: resolvedTarget
+    })
+  ) {
+    return { ok: true, resolvedTarget }
+  }
 
   if (await openWithEditorUrl(resolvedTarget, request.line, request.column)) {
     return { ok: true, resolvedTarget }
