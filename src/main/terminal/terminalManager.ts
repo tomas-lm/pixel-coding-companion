@@ -14,7 +14,8 @@ import {
   COMMAND_EXIT_PATTERN,
   appendTerminalOutputBuffer,
   getMarkerPrefixLength,
-  isCodexCliReady
+  isCodexCliReady,
+  stripBenignMacOsMallocStackLogging
 } from './terminalOutput'
 import { shouldTrackCodexContext, type CodexContextTelemetryService } from './codexContextTelemetry'
 
@@ -140,6 +141,7 @@ export class TerminalManager {
 
       visibleData += combinedData.slice(lastIndex)
       visibleData = visibleData.replaceAll(COMMAND_EXIT_COMMAND, '')
+      visibleData = stripBenignMacOsMallocStackLogging(visibleData)
 
       const pendingLength = getMarkerPrefixLength(visibleData)
       managedTerminal.pendingData = pendingLength > 0 ? visibleData.slice(-pendingLength) : ''

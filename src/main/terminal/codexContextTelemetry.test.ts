@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises'
+import { mkdir, mkdtemp, rm, utimes, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -29,6 +29,58 @@ async function waitFor(predicate: () => boolean): Promise<void> {
   }
 
   throw new Error('Timed out waiting for condition')
+}
+
+type WriteCodexRolloutOptions = {
+  cwd: string
+  effort?: string
+  filePath: string
+  inputTokens: number
+  metadata?: Record<string, unknown>
+  model?: string
+  modelContextWindow?: number
+}
+
+async function writeCodexRollout({
+  cwd,
+  effort = 'medium',
+  filePath,
+  inputTokens,
+  metadata,
+  model = 'gpt-5.2',
+  modelContextWindow = 200
+}: WriteCodexRolloutOptions): Promise<void> {
+  await writeFile(
+    filePath,
+    `${[
+      JSON.stringify({
+        payload: {
+          cwd,
+          model_provider: 'openai',
+          source: 'cli',
+          ...metadata
+        },
+        type: 'session_meta'
+      }),
+      JSON.stringify({
+        payload: { effort, model },
+        timestamp: '2026-05-03T12:00:00Z',
+        type: 'turn_context'
+      }),
+      JSON.stringify({
+        payload: {
+          info: {
+            last_token_usage: { input_tokens: inputTokens },
+            model_context_window: modelContextWindow
+          },
+          type: 'token_count'
+        },
+        timestamp: '2026-05-03T12:00:05Z',
+        type: 'event_msg'
+      })
+    ].join('\n')}\n`,
+    'utf8'
+  )
 }
 
 afterEach(async () => {
@@ -130,36 +182,11 @@ describe('codexContextTelemetry', () => {
     const rolloutPath = join(rolloutDir, 'rollout-test.jsonl')
     await mkdir(cwd, { recursive: true })
     await mkdir(rolloutDir, { recursive: true })
-    await writeFile(
-      rolloutPath,
-      `${[
-        JSON.stringify({
-          payload: {
-            cwd,
-            model_provider: 'openai',
-            source: 'cli'
-          },
-          type: 'session_meta'
-        }),
-        JSON.stringify({
-          payload: { effort: 'medium', model: 'gpt-5.2' },
-          timestamp: '2026-05-03T12:00:00Z',
-          type: 'turn_context'
-        }),
-        JSON.stringify({
-          payload: {
-            info: {
-              last_token_usage: { input_tokens: 150 },
-              model_context_window: 200
-            },
-            type: 'token_count'
-          },
-          timestamp: '2026-05-03T12:00:05Z',
-          type: 'event_msg'
-        })
-      ].join('\n')}\n`,
-      'utf8'
-    )
+    await writeCodexRollout({
+      cwd,
+      filePath: rolloutPath,
+      inputTokens: 150
+    })
 
     const events: TerminalContextEvent[] = []
     const service = new CodexContextTelemetryService({
@@ -192,5 +219,104 @@ describe('codexContextTelemetry', () => {
       }
     })
     expect(events.at(-1)).toEqual({ id: 'terminal-1', snapshot: null })
+  })
+
+  it('discovers rollouts with large session metadata from a related workspace cwd', async () => {
+    const root = await createTempDir()
+    const codexCwd = join(root, 'project')
+    const terminalCwd = join(codexCwd, 'pixel-coding-companion')
+    const rolloutDir = join(root, 'sessions', '2026', '05', '03')
+    const rolloutPath = join(rolloutDir, 'rollout-large-meta.jsonl')
+    await mkdir(terminalCwd, { recursive: true })
+    await mkdir(rolloutDir, { recursive: true })
+    await writeCodexRollout({
+      cwd: codexCwd,
+      effort: 'high',
+      filePath: rolloutPath,
+      inputTokens: 120,
+      metadata: { instructions: 'x'.repeat(20_000) },
+      model: 'gpt-5.3-codex'
+    })
+
+    const events: TerminalContextEvent[] = []
+    const service = new CodexContextTelemetryService({
+      broadcastTerminalContext: (event) => events.push(event),
+      getCodexSessionsRoot: () => join(root, 'sessions'),
+      pollIntervalMs: 10
+    })
+
+    try {
+      service.trackTerminal({
+        cwd: terminalCwd,
+        sessionId: 'terminal-large-meta',
+        startedAtMs: Date.now() - 1_000
+      })
+
+      await waitFor(() => events.some((event) => event.snapshot?.contextUsedPercent === 60))
+    } finally {
+      service.stopAll()
+    }
+
+    expect(events[0]).toMatchObject({
+      id: 'terminal-large-meta',
+      snapshot: {
+        contextUsedPercent: 60,
+        model: 'gpt-5.3-codex',
+        reasoningEffort: 'high',
+        status: 'filling'
+      }
+    })
+  })
+
+  it('prefers exact cwd rollouts over newer related workspace rollouts', async () => {
+    const root = await createTempDir()
+    const parentCwd = join(root, 'project')
+    const terminalCwd = join(parentCwd, 'pixel-coding-companion')
+    const rolloutDir = join(root, 'sessions', '2026', '05', '03')
+    const exactRolloutPath = join(rolloutDir, 'rollout-exact.jsonl')
+    const relatedRolloutPath = join(rolloutDir, 'rollout-related.jsonl')
+    await mkdir(terminalCwd, { recursive: true })
+    await mkdir(rolloutDir, { recursive: true })
+    await writeCodexRollout({
+      cwd: terminalCwd,
+      filePath: exactRolloutPath,
+      inputTokens: 40
+    })
+    await writeCodexRollout({
+      cwd: parentCwd,
+      filePath: relatedRolloutPath,
+      inputTokens: 180
+    })
+
+    const now = Date.now()
+    await utimes(exactRolloutPath, new Date(now - 1_000), new Date(now - 1_000))
+    await utimes(relatedRolloutPath, new Date(now), new Date(now))
+
+    const events: TerminalContextEvent[] = []
+    const service = new CodexContextTelemetryService({
+      broadcastTerminalContext: (event) => events.push(event),
+      getCodexSessionsRoot: () => join(root, 'sessions'),
+      pollIntervalMs: 10
+    })
+
+    try {
+      service.trackTerminal({
+        cwd: terminalCwd,
+        sessionId: 'terminal-exact',
+        startedAtMs: now - 2_000
+      })
+
+      await waitFor(() => events.some((event) => event.snapshot?.contextUsedPercent === 20))
+    } finally {
+      service.stopAll()
+    }
+
+    expect(events[0]).toMatchObject({
+      id: 'terminal-exact',
+      snapshot: {
+        contextUsedPercent: 20,
+        status: 'flow'
+      }
+    })
   })
 })

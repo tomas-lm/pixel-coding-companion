@@ -8,6 +8,8 @@ export const COMMAND_EXIT_PATTERN = new RegExp(
 const TERMINAL_OUTPUT_BUFFER_MAX_LENGTH = 250_000
 const ANSI_SEQUENCE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[ -/]*[@-~]`, 'g')
 const CODEX_CLI_READY_PATTERNS = [/Tip: Use \/skills/i, /›\s*$/]
+const BENIGN_MALLOC_STACK_LOGGING_PATTERN =
+  /^[^\r\n]*\(\d+\) MallocStackLogging: can't turn off malloc stack logging because it was not enabled\.\r?\n?/gm
 
 export function getMarkerPrefixLength(data: string): number {
   const maxLength = Math.min(COMMAND_EXIT_MARKER.length - 1, data.length)
@@ -31,6 +33,10 @@ export function appendTerminalOutputBuffer(
 
 export function stripAnsiSequences(output: string): string {
   return output.replace(ANSI_SEQUENCE_PATTERN, '')
+}
+
+export function stripBenignMacOsMallocStackLogging(output: string): string {
+  return output.replace(BENIGN_MALLOC_STACK_LOGGING_PATTERN, '')
 }
 
 export function isCodexCliReady(output: string): boolean {

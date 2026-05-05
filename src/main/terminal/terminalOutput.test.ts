@@ -6,6 +6,7 @@ import {
   appendTerminalOutputBuffer,
   getMarkerPrefixLength,
   isCodexCliReady,
+  stripBenignMacOsMallocStackLogging,
   stripAnsiSequences
 } from './terminalOutput'
 
@@ -33,5 +34,22 @@ describe('terminalOutput', () => {
     expect(isCodexCliReady('\u001b[32mTip: Use /skills\u001b[0m')).toBe(true)
     expect(isCodexCliReady('›')).toBe(true)
     expect(isCodexCliReady('still booting')).toBe(false)
+  })
+
+  it('filters benign macOS malloc stack logging noise', () => {
+    expect(
+      stripBenignMacOsMallocStackLogging(
+        [
+          'before',
+          "codex(19354) MallocStackLogging: can't turn off malloc stack logging because it was not enabled.",
+          'after'
+        ].join('\n')
+      )
+    ).toBe('before\nafter')
+    expect(
+      stripBenignMacOsMallocStackLogging(
+        'codex(19354) MallocStackLogging: process is not in a debuggable environment'
+      )
+    ).toBe('codex(19354) MallocStackLogging: process is not in a debuggable environment')
   })
 })

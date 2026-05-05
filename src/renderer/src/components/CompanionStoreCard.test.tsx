@@ -73,15 +73,21 @@ describe('CompanionStoreCard', () => {
     expect(avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe('0.7')
   })
 
-  it('nudges Raya level 1 left only in the companion store card', () => {
+  it('nudges Raya evolved stages left only in the companion store card', () => {
     const raya = COMPANION_REGISTRY.find((companion) => companion.id === 'raya')
 
     if (!raya) throw new Error('Raya companion was not registered.')
 
-    const avatar = renderStoreCard('raya', 5)
+    const level1Avatar = renderStoreCard('raya', 5)
+    const level2Avatar = renderStoreCard('raya', 25)
+    const level3Avatar = renderStoreCard('raya', 50)
 
     expect(raya.stages[1].avatarOffsetX).toBeUndefined()
-    expect(avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('-24px')
+    expect(raya.stages[2].avatarOffsetX).toBeUndefined()
+    expect(raya.stages[3].avatarOffsetX).toBeUndefined()
+    expect(level1Avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('-24px')
+    expect(level2Avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('-24px')
+    expect(level3Avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('-24px')
   })
 
   it('nudges Frogo level 3 one pixel right only in the companion store card', () => {

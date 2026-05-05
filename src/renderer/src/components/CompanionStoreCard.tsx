@@ -35,7 +35,10 @@ function getCompanionStoreStage(
     avatarScale = (avatarScale ?? 1) * 0.7
   }
 
-  if (companion.id === 'raya' && stage.id === 'lvl1') {
+  if (
+    companion.id === 'raya' &&
+    (stage.id === 'lvl1' || stage.id === 'lvl2' || stage.id === 'lvl3')
+  ) {
     avatarOffsetX = (avatarOffsetX ?? 0) - 24
   }
 

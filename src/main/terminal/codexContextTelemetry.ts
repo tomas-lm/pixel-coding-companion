@@ -1,5 +1,5 @@
 import { open, readdir, stat } from 'fs/promises'
-import { resolve } from 'path'
+import { isAbsolute, relative, resolve } from 'path'
 import {
   type TerminalContextEvent,
   type TerminalContextHudSnapshot,
@@ -10,6 +10,8 @@ import {
 
 const CODEX_COMMAND_PATTERN = /^(?:codex|pixel\s+codex|node\s+.+pixel\.mjs['"]?\s+codex)(?:\s|$)/
 const CODEX_DISCOVERY_GRACE_MS = 30_000
+const CODEX_SESSION_META_MAX_BYTES = 1_000_000
+const CODEX_SESSION_META_READ_CHUNK_BYTES = 16_384
 const DEFAULT_POLL_INTERVAL_MS = 1_500
 
 type CodexRolloutRecord = {
@@ -201,8 +203,17 @@ function getSnapshotKey(snapshot: TerminalContextHudSnapshot): string {
   return JSON.stringify(snapshot)
 }
 
-function pathsMatch(a: string, b: string): boolean {
-  return resolve(a) === resolve(b)
+function isPathInside(parentPath: string, childPath: string): boolean {
+  const pathBetween = relative(parentPath, childPath)
+  return pathBetween === '' || (!pathBetween.startsWith('..') && !isAbsolute(pathBetween))
+}
+
+function getPathMatchScore(a: string, b: string): number | null {
+  const left = resolve(a)
+  const right = resolve(b)
+  if (left === right) return 0
+  if (isPathInside(left, right) || isPathInside(right, left)) return 1
+  return null
 }
 
 async function listRolloutFiles(root: string): Promise<string[]> {
@@ -221,17 +232,41 @@ async function listRolloutFiles(root: string): Promise<string[]> {
 }
 
 async function readSessionMeta(filePath: string): Promise<CodexRolloutSessionMeta | null> {
+  const firstLine = await readFirstJsonlLine(filePath)
+  if (!firstLine) return null
+
+  const record = parseCodexRolloutLine(firstLine)
+
+  if (record?.type !== 'session_meta') return null
+  return record.payload && typeof record.payload === 'object'
+    ? (record.payload as CodexRolloutSessionMeta)
+    : null
+}
+
+async function readFirstJsonlLine(filePath: string): Promise<string | null> {
   const fileHandle = await open(filePath, 'r')
   try {
-    const buffer = Buffer.alloc(4096)
-    const { bytesRead } = await fileHandle.read(buffer, 0, buffer.length, 0)
-    const firstLine = buffer.toString('utf8', 0, bytesRead).split(/\r?\n/, 1)[0]
-    const record = parseCodexRolloutLine(firstLine)
+    let offset = 0
+    const chunks: Buffer[] = []
 
-    if (record?.type !== 'session_meta') return null
-    return record.payload && typeof record.payload === 'object'
-      ? (record.payload as CodexRolloutSessionMeta)
-      : null
+    while (offset < CODEX_SESSION_META_MAX_BYTES) {
+      const bytesRemaining = CODEX_SESSION_META_MAX_BYTES - offset
+      const buffer = Buffer.alloc(Math.min(CODEX_SESSION_META_READ_CHUNK_BYTES, bytesRemaining))
+      const { bytesRead } = await fileHandle.read(buffer, 0, buffer.length, offset)
+      if (bytesRead <= 0) break
+
+      const chunk = buffer.subarray(0, bytesRead)
+      const lineBreakIndex = chunk.indexOf(0x0a)
+      if (lineBreakIndex >= 0) {
+        chunks.push(chunk.subarray(0, lineBreakIndex))
+        return Buffer.concat(chunks).toString('utf8').replace(/\r$/, '')
+      }
+
+      chunks.push(chunk)
+      offset += bytesRead
+    }
+
+    return chunks.length > 0 ? Buffer.concat(chunks).toString('utf8').replace(/\r$/, '') : null
   } finally {
     await fileHandle.close()
   }
@@ -262,19 +297,31 @@ async function findCodexRolloutFile(
     return null
   }
 
+  const matches: { filePath: string; matchScore: number; mtimeMs: number }[] = []
+
   for (const candidate of candidates) {
-    const meta = await readSessionMeta(candidate.filePath)
-    if (
-      meta?.model_provider === 'openai' &&
-      meta.source === 'cli' &&
-      typeof meta.cwd === 'string' &&
-      pathsMatch(meta.cwd, monitor.cwd)
-    ) {
-      return candidate.filePath
+    let meta: CodexRolloutSessionMeta | null = null
+    try {
+      meta = await readSessionMeta(candidate.filePath)
+    } catch {
+      continue
     }
+
+    if (
+      meta?.model_provider !== 'openai' ||
+      meta.source !== 'cli' ||
+      typeof meta.cwd !== 'string'
+    ) {
+      continue
+    }
+
+    const matchScore = getPathMatchScore(meta.cwd, monitor.cwd)
+    if (matchScore === null) continue
+    matches.push({ ...candidate, matchScore })
   }
 
-  return null
+  matches.sort((a, b) => a.matchScore - b.matchScore || b.mtimeMs - a.mtimeMs)
+  return matches[0]?.filePath ?? null
 }
 
 async function readNewRolloutLines(
