@@ -3,13 +3,12 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { registerAppMenu, sendLayoutReset, sendTerminalThemeSelection } from './appMenu'
+import { registerAppMenu, sendLayoutReset } from './appMenu'
 import { CompanionBridgeStore } from './companion/companionBridgeStore'
 import { CompanionStoreService } from './companion/companionStoreService'
 import { registerCompanionIpc } from './ipc/registerCompanionIpc'
 import { registerSystemIpc } from './ipc/registerSystemIpc'
 import { registerTerminalIpc } from './ipc/registerTerminalIpc'
-import { registerViewIpc } from './ipc/registerViewIpc'
 import { registerWorkspaceIpc } from './ipc/registerWorkspaceIpc'
 import { isSafeExternalUrl } from './openTarget'
 import { CodexContextTelemetryService } from './terminal/codexContextTelemetry'
@@ -18,7 +17,6 @@ import { TerminalManager } from './terminal/terminalManager'
 import { createMainWindow } from './window/createMainWindow'
 import { WorkspaceStore } from './workspace/workspaceStore'
 import { TERMINAL_CHANNELS, type TerminalContextEvent } from '../shared/terminal'
-import { DEFAULT_TERMINAL_THEME_ID, type TerminalThemeId } from '../shared/workspace'
 
 function readEnvSetting(name: string): string | undefined {
   const value = process.env[name]?.trim()
@@ -30,7 +28,6 @@ const APP_NAME = readEnvSetting('PIXEL_COMPANION_APP_NAME') ?? 'Pixel Companion'
 const APP_ID = readEnvSetting('PIXEL_COMPANION_APP_ID') ?? 'dev.tomasmuniz.pixel-coding-companion'
 const APP_USER_DATA_DIR =
   readEnvSetting('PIXEL_COMPANION_USER_DATA_DIR') ?? 'pixel-coding-companion'
-let selectedTerminalThemeId: TerminalThemeId = DEFAULT_TERMINAL_THEME_ID
 const terminalContextRegistry = new TerminalContextRegistry(() => app.getPath('userData'))
 const codexContextTelemetry = new CodexContextTelemetryService({
   broadcastTerminalContext,
@@ -128,22 +125,8 @@ function broadcastTerminalContext(event: TerminalContextEvent): void {
 function registerMainWindowMenu(mainWindow: BrowserWindow): void {
   registerAppMenu(mainWindow, {
     appName: APP_NAME,
-    onResetLayout: sendLayoutReset,
-    onTerminalThemeSelected: (targetWindow, themeId) => {
-      updateTerminalThemeMenu(themeId)
-      sendTerminalThemeSelection(targetWindow, themeId)
-    },
-    selectedTerminalThemeId
+    onResetLayout: sendLayoutReset
   })
-}
-
-function updateTerminalThemeMenu(themeId: TerminalThemeId): void {
-  selectedTerminalThemeId = themeId
-
-  const mainWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed())
-  if (mainWindow) {
-    registerMainWindowMenu(mainWindow)
-  }
 }
 
 function createWindow(): void {
@@ -185,7 +168,6 @@ app.whenReady().then(() => {
 
   registerTerminalIpc(terminalManager)
   registerWorkspaceIpc(workspaceStore)
-  registerViewIpc(updateTerminalThemeMenu)
   registerCompanionIpc(companionBridgeStore, companionStoreService)
   registerSystemIpc()
 

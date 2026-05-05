@@ -98,6 +98,33 @@ button {
   font: inherit;
 }
 
+.app-dark-scroll {
+  color-scheme: dark;
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-scrollbar-thumb) transparent;
+}
+
+.app-dark-scroll::-webkit-scrollbar {
+  width: var(--app-scrollbar-size);
+  height: var(--app-scrollbar-size);
+}
+
+.app-dark-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-dark-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--app-scrollbar-thumb);
+  background-clip: content-box;
+}
+
+.app-dark-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--app-scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
 #root {
   height: 100vh;
   min-height: 0;

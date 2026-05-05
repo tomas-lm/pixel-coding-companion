@@ -749,6 +749,8 @@ function App(): React.JSX.Element {
         <ConfigsPanel
           featureSettings={featureSettings}
           onChangeFeatureSettings={changeFeatureSettings}
+          onSelectTerminalTheme={applyTerminalTheme}
+          terminalThemeId={terminalThemeId}
         />
       ) : (
         <CompanionCatalogPanel

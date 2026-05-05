@@ -5,9 +5,7 @@ export const WORKSPACE_CHANNELS = {
 } as const
 
 export const VIEW_CHANNELS = {
-  resetLayout: 'view:reset-layout',
-  selectTerminalTheme: 'view:select-terminal-theme',
-  setTerminalTheme: 'view:set-terminal-theme'
+  resetLayout: 'view:reset-layout'
 } as const
 
 export const TERMINAL_THEME_OPTIONS = [
@@ -113,8 +111,6 @@ export type WorkspaceApi = {
 
 export type ViewApi = {
   onResetLayout: (callback: () => void) => () => void
-  onTerminalThemeSelected: (callback: (themeId: TerminalThemeId) => void) => () => void
-  setTerminalTheme: (themeId: TerminalThemeId) => void
 }
 
 export function isTerminalThemeId(value: unknown): value is TerminalThemeId {

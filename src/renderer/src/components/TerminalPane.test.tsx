@@ -147,9 +147,7 @@ describe('TerminalPane', () => {
             write: vi.fn()
           },
           view: {
-            onResetLayout: vi.fn(),
-            onTerminalThemeSelected: vi.fn(),
-            setTerminalTheme: vi.fn()
+            onResetLayout: vi.fn()
           },
           workspace: {
             loadConfig: vi.fn(),

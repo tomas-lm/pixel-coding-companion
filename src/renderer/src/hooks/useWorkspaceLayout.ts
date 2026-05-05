@@ -28,7 +28,6 @@ export function useWorkspaceLayout(): UseWorkspaceLayoutResult {
     const normalizedThemeId = normalizeTerminalThemeId(themeId)
 
     setTerminalThemeId(normalizedThemeId)
-    window.api.view.setTerminalTheme(normalizedThemeId)
 
     return normalizedThemeId
   }, [])
@@ -38,12 +37,6 @@ export function useWorkspaceLayout(): UseWorkspaceLayoutResult {
       setLayout(DEFAULT_LAYOUT)
     })
   }, [])
-
-  useEffect(() => {
-    return window.api.view.onTerminalThemeSelected((themeId) => {
-      applyTerminalTheme(themeId)
-    })
-  }, [applyTerminalTheme])
 
   const startLayoutResize = useCallback(
     (event: React.PointerEvent<HTMLButtonElement>, target: LayoutResizeTarget): void => {
