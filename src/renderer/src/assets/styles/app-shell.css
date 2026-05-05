@@ -118,6 +118,7 @@
 .session-panel,
 .configs-panel,
 .companion-catalog-panel,
+.vault-workspace-panel,
 .companion-panel {
   min-width: 0;
   min-height: 0;

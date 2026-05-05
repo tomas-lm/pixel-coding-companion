@@ -1,3 +1,5 @@
+import type { VaultConfig } from './vault'
+
 export const WORKSPACE_CHANNELS = {
   pickFolder: 'workspace:pick-folder',
   loadConfig: 'workspace:load-config',
@@ -89,6 +91,8 @@ export type WorkspaceConfig = {
   layout?: WorkspaceLayout
   featureSettings?: WorkspaceFeatureSettings
   promptTemplates?: PromptTemplate[]
+  activeVaultId?: string
+  vaults?: VaultConfig[]
   terminalThemeId?: TerminalThemeId
 }
 

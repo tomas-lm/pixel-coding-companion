@@ -7,8 +7,10 @@ import type {
   TerminalThemeId,
   WorkspaceLayout
 } from '../../../shared/workspace'
+import type { VaultConfig } from '../../../shared/vault'
 import { normalizeLayout } from '../app/layout'
 import { normalizePromptTemplates } from '../app/promptTemplates'
+import { normalizeVaults } from '../app/vaults'
 import {
   DEFAULT_WORKSPACE_FEATURE_SETTINGS,
   normalizeWorkspaceFeatureSettings
@@ -23,16 +25,20 @@ type UseWorkspaceConfigOptions = {
 
 type UseWorkspaceConfigResult = {
   activeProjectId: string | null
+  activeVaultId: string | null
   configLoaded: boolean
   featureSettings: WorkspaceFeatureSettings
   projects: Project[]
   promptTemplates: PromptTemplate[]
   setActiveProjectId: Dispatch<SetStateAction<string | null>>
+  setActiveVaultId: Dispatch<SetStateAction<string | null>>
   setFeatureSettings: Dispatch<SetStateAction<WorkspaceFeatureSettings>>
   setPromptTemplates: Dispatch<SetStateAction<PromptTemplate[]>>
   setProjects: Dispatch<SetStateAction<Project[]>>
   setTerminalConfigs: Dispatch<SetStateAction<TerminalConfig[]>>
+  setVaults: Dispatch<SetStateAction<VaultConfig[]>>
   terminalConfigs: TerminalConfig[]
+  vaults: VaultConfig[]
 }
 
 export function useWorkspaceConfig({
@@ -44,10 +50,12 @@ export function useWorkspaceConfig({
   const [projects, setProjects] = useState<Project[]>([])
   const [terminalConfigs, setTerminalConfigs] = useState<TerminalConfig[]>([])
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([])
+  const [vaults, setVaults] = useState<VaultConfig[]>([])
   const [featureSettings, setFeatureSettings] = useState<WorkspaceFeatureSettings>(
     DEFAULT_WORKSPACE_FEATURE_SETTINGS
   )
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
+  const [activeVaultId, setActiveVaultId] = useState<string | null>(null)
   const [configLoaded, setConfigLoaded] = useState(false)
 
   useEffect(() => {
@@ -62,10 +70,17 @@ export function useWorkspaceConfig({
           setProjects(config.projects)
           setTerminalConfigs(config.terminalConfigs)
           setPromptTemplates(normalizePromptTemplates(config.promptTemplates))
+          const normalizedVaults = normalizeVaults(config.vaults)
+          setVaults(normalizedVaults)
           setFeatureSettings(normalizeWorkspaceFeatureSettings(config.featureSettings))
           setActiveProjectId(
             config.projects.find((project) => project.id === config.activeProjectId)?.id ??
               config.projects[0]?.id ??
+              null
+          )
+          setActiveVaultId(
+            normalizedVaults.find((vault) => vault.id === config.activeVaultId)?.id ??
+              normalizedVaults[0]?.id ??
               null
           )
           setLayout(normalizeLayout(config.layout))
@@ -89,36 +104,44 @@ export function useWorkspaceConfig({
         projects,
         terminalConfigs,
         activeProjectId: activeProjectId ?? undefined,
+        activeVaultId: activeVaultId ?? undefined,
         featureSettings,
         layout,
         promptTemplates,
-        terminalThemeId
+        terminalThemeId,
+        vaults
       })
     }, 180)
 
     return () => window.clearTimeout(saveTimer)
   }, [
     activeProjectId,
+    activeVaultId,
     configLoaded,
     featureSettings,
     layout,
     projects,
     promptTemplates,
     terminalConfigs,
-    terminalThemeId
+    terminalThemeId,
+    vaults
   ])
 
   return {
     activeProjectId,
+    activeVaultId,
     featureSettings,
     configLoaded,
     promptTemplates,
     projects,
     setActiveProjectId,
+    setActiveVaultId,
     setFeatureSettings,
     setPromptTemplates,
     setProjects,
     setTerminalConfigs,
-    terminalConfigs
+    setVaults,
+    terminalConfigs,
+    vaults
   }
 }
