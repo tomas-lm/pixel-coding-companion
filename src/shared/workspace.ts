@@ -26,12 +26,19 @@ export const DEFAULT_TERMINAL_THEME_ID: TerminalThemeId = 'catppuccin_mocha'
 
 export type SessionKind = 'ai' | 'shell' | 'dev_server' | 'logs' | 'test' | 'custom'
 
+export type ProjectChangeRoot = {
+  id: string
+  path: string
+  label?: string
+}
+
 export type Project = {
   id: string
   name: string
   color: string
   description: string
   defaultFolder?: string
+  changeRoots?: ProjectChangeRoot[]
 }
 
 export type TerminalConfig = {

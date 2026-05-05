@@ -121,6 +121,7 @@ export function TerminalWorkspacePanel({
         )}
         {activeSession && isChangesOpen ? (
           <SessionChangesPanel
+            activeProject={activeProject}
             codeEditorSettings={codeEditorSettings}
             session={activeSession}
             onClose={() => setChangesSessionId(null)}

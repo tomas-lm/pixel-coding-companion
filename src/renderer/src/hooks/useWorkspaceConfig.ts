@@ -11,6 +11,7 @@ import type {
 import type { VaultConfig } from '../../../shared/vault'
 import { normalizeLayout } from '../app/layout'
 import { normalizePromptTemplates } from '../app/promptTemplates'
+import { normalizeProjects } from '../app/projects'
 import { normalizeVaults } from '../app/vaults'
 import {
   DEFAULT_WORKSPACE_CODE_EDITOR_SETTINGS,
@@ -77,7 +78,8 @@ export function useWorkspaceConfig({
         if (!mounted) return
 
         if (config) {
-          setProjects(config.projects)
+          const normalizedProjects = normalizeProjects(config.projects)
+          setProjects(normalizedProjects)
           setTerminalConfigs(config.terminalConfigs)
           setPromptTemplates(normalizePromptTemplates(config.promptTemplates))
           const normalizedVaults = normalizeVaults(config.vaults)
@@ -85,8 +87,8 @@ export function useWorkspaceConfig({
           setFeatureSettings(normalizeWorkspaceFeatureSettings(config.featureSettings))
           setCodeEditorSettings(normalizeWorkspaceCodeEditorSettings(config.codeEditorSettings))
           setActiveProjectId(
-            config.projects.find((project) => project.id === config.activeProjectId)?.id ??
-              config.projects[0]?.id ??
+            normalizedProjects.find((project) => project.id === config.activeProjectId)?.id ??
+              normalizedProjects[0]?.id ??
               null
           )
           setActiveVaultId(

@@ -5,6 +5,8 @@ import { promisify } from 'util'
 import type {
   WorkspaceChangedFile,
   WorkspaceChangesRequest,
+  WorkspaceChangesRootRequest,
+  WorkspaceChangesRootResult,
   WorkspaceChangesResult,
   WorkspaceChangeKind
 } from '../shared/system'
@@ -74,6 +76,17 @@ export function parseGitStatusPorcelain(
   return files.sort((left, right) => left.path.localeCompare(right.path))
 }
 
+function getFallbackRootRequest(cwd?: string): WorkspaceChangesRootRequest | null {
+  const path = cwd?.trim()
+  if (!path) return null
+
+  return {
+    id: 'cwd',
+    label: 'Terminal folder',
+    path
+  }
+}
+
 async function runGit(cwd: string, args: string[]): Promise<string> {
   const { stdout } = await execFileAsync('git', ['-C', cwd, ...args], {
     encoding: 'utf8',
@@ -83,23 +96,30 @@ async function runGit(cwd: string, args: string[]): Promise<string> {
   return stdout
 }
 
-export async function listChangedFiles(
-  request: WorkspaceChangesRequest
-): Promise<WorkspaceChangesResult> {
-  const cwd = request.cwd?.trim()
-  if (!cwd || cwd.includes('\0')) return { ok: false, reason: 'invalid_target' }
+async function listChangedFilesForRoot(
+  root: WorkspaceChangesRootRequest
+): Promise<WorkspaceChangesRootResult> {
+  const rootPath = root.path.trim()
+  const rootBase = {
+    id: root.id,
+    ...(root.label ? { label: root.label } : {}),
+    path: root.path
+  }
+  if (!rootPath || rootPath.includes('\0')) {
+    return { ...rootBase, ok: false, reason: 'invalid_target' }
+  }
 
   try {
-    await access(cwd)
+    await access(rootPath)
   } catch {
-    return { ok: false, reason: 'not_found' }
+    return { ...rootBase, ok: false, reason: 'not_found' }
   }
 
   let repoRoot: string
   try {
-    repoRoot = (await runGit(cwd, ['rev-parse', '--show-toplevel'])).trim()
+    repoRoot = (await runGit(rootPath, ['rev-parse', '--show-toplevel'])).trim()
   } catch {
-    return { ok: false, reason: 'not_git_repo' }
+    return { ...rootBase, ok: false, reason: 'not_git_repo' }
   }
 
   try {
@@ -111,11 +131,47 @@ export async function listChangedFiles(
     ])
 
     return {
+      ...rootBase,
       ok: true,
       files: parseGitStatusPorcelain(porcelainOutput, repoRoot),
       repoRoot
     }
   } catch {
-    return { ok: false, reason: 'open_failed' }
+    return { ...rootBase, ok: false, reason: 'open_failed' }
+  }
+}
+
+export async function listChangedFiles(
+  request: WorkspaceChangesRequest
+): Promise<WorkspaceChangesResult> {
+  const requestedRoots =
+    request.roots && request.roots.length > 0
+      ? request.roots
+      : [getFallbackRootRequest(request.cwd)].filter((root): root is WorkspaceChangesRootRequest =>
+          Boolean(root)
+        )
+
+  if (requestedRoots.length === 0) return { ok: false, reason: 'invalid_target' }
+
+  const roots = await Promise.all(requestedRoots.map(listChangedFilesForRoot))
+
+  if (request.roots && request.roots.length > 0) {
+    return {
+      ok: true,
+      roots
+    }
+  }
+
+  const fallbackRoot = roots[0]
+  if (!fallbackRoot.ok) {
+    return {
+      ok: false,
+      reason: fallbackRoot.reason
+    }
+  }
+
+  return {
+    ok: true,
+    roots
   }
 }

@@ -109,6 +109,83 @@
   padding: 3px;
 }
 
+.change-roots-field {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.change-roots-field__header,
+.change-roots-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.change-roots-field__header > div,
+.change-roots-list span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.change-roots-field__header span {
+  color: var(--ev-c-text-1);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.change-roots-field__header small,
+.change-roots-empty,
+.change-roots-list small {
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+}
+
+.change-roots-empty {
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.change-roots-list {
+  display: grid;
+  gap: 6px;
+  max-height: 180px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.change-roots-list li {
+  min-height: 46px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.change-roots-list strong,
+.change-roots-list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.change-roots-list strong {
+  color: var(--ev-c-text-1);
+  font-size: 13px;
+}
+
 .modal textarea {
   resize: vertical;
   font-family: 'Menlo', 'Lucida Console', monospace;

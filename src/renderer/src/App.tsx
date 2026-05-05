@@ -508,7 +508,8 @@ function App(): React.JSX.Element {
       name: '',
       description: '',
       color: PROJECT_COLORS[projects.length % PROJECT_COLORS.length],
-      defaultFolder: ''
+      defaultFolder: '',
+      changeRoots: []
     })
   }
 
@@ -519,7 +520,8 @@ function App(): React.JSX.Element {
       name: project.name,
       description: project.description,
       color: project.color,
-      defaultFolder: normalizeWorkspaceFolderPath(project.defaultFolder ?? '')
+      defaultFolder: normalizeWorkspaceFolderPath(project.defaultFolder ?? ''),
+      changeRoots: project.changeRoots ?? []
     })
   }
 
@@ -542,7 +544,8 @@ function App(): React.JSX.Element {
                 name: projectForm.name.trim(),
                 description: projectForm.description.trim(),
                 color: projectForm.color,
-                defaultFolder: normalizedDefaultFolder || undefined
+                defaultFolder: normalizedDefaultFolder || undefined,
+                changeRoots: projectForm.changeRoots
               }
             : project
         )
@@ -556,7 +559,8 @@ function App(): React.JSX.Element {
       name: projectForm.name.trim(),
       description: projectForm.description.trim(),
       color: projectForm.color,
-      defaultFolder: normalizedDefaultFolder || undefined
+      defaultFolder: normalizedDefaultFolder || undefined,
+      changeRoots: projectForm.changeRoots
     }
 
     setProjects((currentProjects) => [...currentProjects, project])
@@ -1081,6 +1085,7 @@ function App(): React.JSX.Element {
             setProjectForm(null)
           }}
           onPickDefaultFolder={pickProjectDefaultFolder}
+          onPickChangeRoot={window.api.workspace.pickFolder}
           onSave={saveProjectForm}
         />
       )}

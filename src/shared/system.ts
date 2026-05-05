@@ -66,15 +66,44 @@ export type WorkspaceChangedFile = {
   status: string
 }
 
+export type WorkspaceChangesRootRequest = {
+  id: string
+  label?: string
+  path: string
+}
+
+export type WorkspaceChangesRootFailureReason =
+  | 'invalid_target'
+  | 'not_found'
+  | 'not_git_repo'
+  | 'open_failed'
+
+export type WorkspaceChangesRootResult =
+  | {
+      files: WorkspaceChangedFile[]
+      id: string
+      label?: string
+      ok: true
+      path: string
+      repoRoot: string
+    }
+  | {
+      id: string
+      label?: string
+      ok: false
+      path: string
+      reason: WorkspaceChangesRootFailureReason
+    }
+
 export type WorkspaceChangesRequest = {
   cwd?: string
+  roots?: WorkspaceChangesRootRequest[]
 }
 
 export type WorkspaceChangesResult =
   | {
       ok: true
-      files: WorkspaceChangedFile[]
-      repoRoot: string
+      roots: WorkspaceChangesRootResult[]
     }
   | {
       ok: false

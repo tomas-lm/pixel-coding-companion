@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { WorkspaceChangedFile, WorkspaceChangesResult } from '../../../shared/system'
-import type { RunningSession, WorkspaceCodeEditorSettings } from '../../../shared/workspace'
+import type {
+  WorkspaceChangedFile,
+  WorkspaceChangesRootResult,
+  WorkspaceChangesResult
+} from '../../../shared/system'
+import type {
+  Project,
+  RunningSession,
+  WorkspaceCodeEditorSettings
+} from '../../../shared/workspace'
 
 type SessionChangesPanelProps = {
+  activeProject: Project | null
   codeEditorSettings: WorkspaceCodeEditorSettings
   onClose: () => void
   onOpenMarkdownFile: (filePath: string) => void
@@ -10,6 +19,8 @@ type SessionChangesPanelProps = {
 }
 
 type LoadState = 'loading' | 'ready'
+
+const EMPTY_CHANGE_ROOTS: NonNullable<Project['changeRoots']> = []
 
 const CHANGE_GROUP_LABELS: Record<WorkspaceChangedFile['kind'], string> = {
   added: 'Added',
@@ -31,12 +42,28 @@ const CHANGE_GROUP_ORDER: WorkspaceChangedFile['kind'][] = [
   'deleted'
 ]
 
+const ROOT_FAILURE_MESSAGES: Record<
+  Extract<WorkspaceChangesRootResult, { ok: false }>['reason'],
+  string
+> = {
+  invalid_target: 'This change root is not valid.',
+  not_found: 'This folder no longer exists.',
+  not_git_repo: 'No Git repo found for this folder.',
+  open_failed: 'Could not read Git changes for this folder.'
+}
+
 function getFailureMessage(result: Extract<WorkspaceChangesResult, { ok: false }>): string {
   if (result.reason === 'invalid_target') return 'This terminal does not have a valid folder.'
   if (result.reason === 'not_found') return 'The terminal folder no longer exists.'
   if (result.reason === 'not_git_repo') return 'No Git repo found for this terminal.'
 
   return 'Could not read Git changes.'
+}
+
+function getRootLabel(root: WorkspaceChangesRootResult): string {
+  if (root.ok) return root.label || root.repoRoot
+
+  return root.label || root.path
 }
 
 function getOpenLabel(file: WorkspaceChangedFile): string {
@@ -47,6 +74,7 @@ function getOpenLabel(file: WorkspaceChangedFile): string {
 }
 
 export function SessionChangesPanel({
+  activeProject,
   codeEditorSettings,
   onClose,
   onOpenMarkdownFile,
@@ -54,10 +82,25 @@ export function SessionChangesPanel({
 }: SessionChangesPanelProps): React.JSX.Element {
   const [loadState, setLoadState] = useState<LoadState>('loading')
   const [result, setResult] = useState<WorkspaceChangesResult | null>(null)
+  const changeRoots: NonNullable<Project['changeRoots']> =
+    activeProject?.changeRoots ?? EMPTY_CHANGE_ROOTS
+  const hasProjectChangeRoots = changeRoots.length > 0
 
   const fetchChanges = useCallback(
-    (): Promise<WorkspaceChangesResult> => window.api.system.listChangedFiles({ cwd: session.cwd }),
-    [session.cwd]
+    (): Promise<WorkspaceChangesResult> =>
+      window.api.system.listChangedFiles({
+        cwd: session.cwd,
+        ...(hasProjectChangeRoots
+          ? {
+              roots: changeRoots.map((root) => ({
+                id: root.id,
+                ...(root.label ? { label: root.label } : {}),
+                path: root.path
+              }))
+            }
+          : {})
+      }),
+    [changeRoots, hasProjectChangeRoots, session.cwd]
   )
 
   const refreshChanges = useCallback(async (): Promise<void> => {
@@ -82,22 +125,28 @@ export function SessionChangesPanel({
     }
   }, [fetchChanges])
 
-  const groupedFiles = useMemo(() => {
-    if (!result?.ok) return []
+  const totalChangedFiles = useMemo(() => {
+    if (!result?.ok) return 0
 
-    return CHANGE_GROUP_ORDER.map((kind) => ({
-      files: result.files.filter((file) => file.kind === kind),
-      kind
-    })).filter((group) => group.files.length > 0)
+    return result.roots.reduce(
+      (totalFiles, root) => totalFiles + (root.ok ? root.files.length : 0),
+      0
+    )
   }, [result])
 
-  const openProjectInEditor = (): void => {
-    if (!result?.ok) return
-
+  const openRootInEditor = (root: Extract<WorkspaceChangesRootResult, { ok: true }>): void => {
     void window.api.system.openTarget({
       editor: codeEditorSettings.preferredEditor,
       kind: 'file_path',
-      path: result.repoRoot
+      path: root.repoRoot
+    })
+  }
+
+  const openConfiguredRootInEditor = (root: WorkspaceChangesRootResult): void => {
+    void window.api.system.openTarget({
+      editor: codeEditorSettings.preferredEditor,
+      kind: 'file_path',
+      path: root.path
     })
   }
 
@@ -121,7 +170,11 @@ export function SessionChangesPanel({
       <header className="session-changes-header">
         <div>
           <span className="eyebrow">Changes</span>
-          <strong>{session.cwd || session.name}</strong>
+          <strong>
+            {hasProjectChangeRoots
+              ? (activeProject?.name ?? 'Workspace')
+              : session.cwd || session.name}
+          </strong>
         </div>
         <div className="session-changes-actions">
           <button
@@ -150,49 +203,82 @@ export function SessionChangesPanel({
         <>
           <div className="session-changes-summary">
             <span>
-              {result.files.length} changed {result.files.length === 1 ? 'file' : 'files'}
+              {totalChangedFiles} changed {totalChangedFiles === 1 ? 'file' : 'files'} across{' '}
+              {result.roots.length} {result.roots.length === 1 ? 'root' : 'roots'}
             </span>
-            <button
-              className="secondary-button"
-              type="button"
-              disabled={!result.repoRoot}
-              onClick={openProjectInEditor}
-            >
-              Open project
-            </button>
           </div>
 
-          {result.files.length === 0 ? (
-            <div className="session-changes-empty">No changed files in this repo.</div>
+          {result.roots.length === 0 ? (
+            <div className="session-changes-empty">No changed files in these roots.</div>
           ) : (
             <div className="session-changes-list app-dark-scroll">
-              {groupedFiles.map((group) => (
-                <section className="session-changes-group" key={group.kind}>
-                  <h2>{CHANGE_GROUP_LABELS[group.kind]}</h2>
-                  <ul>
-                    {group.files.map((file) => (
-                      <li key={`${file.status}-${file.path}`}>
-                        <button
-                          className="session-change-file"
-                          type="button"
-                          disabled={file.kind === 'deleted'}
-                          title={file.absolutePath}
-                          onClick={() => openFile(file)}
-                        >
-                          <span
-                            className={`session-change-status session-change-status--${file.kind}`}
-                          >
-                            {file.status}
-                          </span>
-                          <span className="session-change-path">
-                            <strong>{file.path}</strong>
-                            {file.oldPath ? <small>from {file.oldPath}</small> : null}
-                          </span>
-                          <span className="session-change-open-label">{getOpenLabel(file)}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+              {result.roots.map((root) => (
+                <section className="session-changes-root" key={root.id}>
+                  <header>
+                    <div>
+                      <h2>{getRootLabel(root)}</h2>
+                      <small>{root.ok ? root.repoRoot : root.path}</small>
+                    </div>
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => {
+                        if (root.ok) {
+                          openRootInEditor(root)
+                          return
+                        }
+
+                        openConfiguredRootInEditor(root)
+                      }}
+                    >
+                      Open root
+                    </button>
+                  </header>
+
+                  {!root.ok ? (
+                    <div className="session-changes-root-error">
+                      {ROOT_FAILURE_MESSAGES[root.reason]}
+                    </div>
+                  ) : root.files.length === 0 ? (
+                    <div className="session-changes-root-empty">No changes in this root.</div>
+                  ) : (
+                    CHANGE_GROUP_ORDER.map((kind) => ({
+                      files: root.files.filter((file) => file.kind === kind),
+                      kind
+                    }))
+                      .filter((group) => group.files.length > 0)
+                      .map((group) => (
+                        <section className="session-changes-group" key={`${root.id}-${group.kind}`}>
+                          <h3>{CHANGE_GROUP_LABELS[group.kind]}</h3>
+                          <ul>
+                            {group.files.map((file) => (
+                              <li key={`${root.id}-${file.status}-${file.path}`}>
+                                <button
+                                  className="session-change-file"
+                                  type="button"
+                                  disabled={file.kind === 'deleted'}
+                                  title={file.absolutePath}
+                                  onClick={() => openFile(file)}
+                                >
+                                  <span
+                                    className={`session-change-status session-change-status--${file.kind}`}
+                                  >
+                                    {file.status}
+                                  </span>
+                                  <span className="session-change-path">
+                                    <strong>{file.path}</strong>
+                                    {file.oldPath ? <small>from {file.oldPath}</small> : null}
+                                  </span>
+                                  <span className="session-change-open-label">
+                                    {getOpenLabel(file)}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      ))
+                  )}
                 </section>
               ))}
             </div>

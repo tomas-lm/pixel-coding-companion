@@ -95,10 +95,69 @@
 .session-changes-list {
   display: grid;
   align-content: start;
-  gap: 14px;
+  gap: 12px;
   min-height: 0;
   overflow: auto;
   padding: 0 12px 12px;
+}
+
+.session-changes-root {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.session-changes-root > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.session-changes-root > header > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.session-changes-root h2,
+.session-changes-root small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-changes-root h2 {
+  margin: 0;
+  color: var(--ev-c-text-1);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.session-changes-root small,
+.session-changes-root-empty,
+.session-changes-root-error {
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+}
+
+.session-changes-root-empty,
+.session-changes-root-error {
+  border: 1px dashed rgba(255, 255, 255, 0.11);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.session-changes-root-error {
+  border-color: rgba(248, 113, 113, 0.22);
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.08);
 }
 
 .session-changes-group {
@@ -106,7 +165,7 @@
   gap: 6px;
 }
 
-.session-changes-group h2 {
+.session-changes-group h3 {
   margin: 0;
   color: var(--ev-c-text-2);
   font-size: 11px;
