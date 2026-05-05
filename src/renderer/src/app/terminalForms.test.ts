@@ -10,4 +10,13 @@ describe('terminal forms', () => {
       name: ''
     })
   })
+
+  it('prefills cwd from initialCwd', () => {
+    expect(createEmptyTerminalForm('/repo/workspace')).toEqual({
+      commandsText: '',
+      cwd: '/repo/workspace',
+      kind: 'ai',
+      name: ''
+    })
+  })
 })

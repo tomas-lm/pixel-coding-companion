@@ -22,6 +22,7 @@ import {
   VIEW_CHANNELS,
   WORKSPACE_CHANNELS,
   type FolderPickResult,
+  type PickFolderOptions,
   type WorkspaceConfig
 } from '../shared/workspace'
 
@@ -81,7 +82,8 @@ const api: CompanionApi = {
     }
   },
   workspace: {
-    pickFolder: (): Promise<FolderPickResult> => ipcRenderer.invoke(WORKSPACE_CHANNELS.pickFolder),
+    pickFolder: (options?: PickFolderOptions): Promise<FolderPickResult> =>
+      ipcRenderer.invoke(WORKSPACE_CHANNELS.pickFolder, options),
     loadConfig: (): Promise<WorkspaceConfig | null> =>
       ipcRenderer.invoke(WORKSPACE_CHANNELS.loadConfig),
     saveConfig: (config: WorkspaceConfig): Promise<void> =>

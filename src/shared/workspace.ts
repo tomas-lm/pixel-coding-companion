@@ -28,6 +28,7 @@ export type Project = {
   name: string
   color: string
   description: string
+  defaultFolder?: string
 }
 
 export type TerminalConfig = {
@@ -96,6 +97,11 @@ export type FolderPickResult = {
   path: string
 } | null
 
+export type PickFolderOptions = {
+  /** Directory the native dialog opens in first */
+  defaultPath?: string
+}
+
 export type WorkspaceLayout = {
   railWidth: number
   companionWidth: number
@@ -104,7 +110,7 @@ export type WorkspaceLayout = {
 }
 
 export type WorkspaceApi = {
-  pickFolder: () => Promise<FolderPickResult>
+  pickFolder: (options?: PickFolderOptions) => Promise<FolderPickResult>
   loadConfig: () => Promise<WorkspaceConfig | null>
   saveConfig: (config: WorkspaceConfig) => Promise<void>
 }

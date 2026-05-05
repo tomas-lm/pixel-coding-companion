@@ -35,6 +35,11 @@ import { getActiveCompanionProgress, getCompanionMessageColor } from './app/comp
 import { primeCompletionSound } from './app/notificationSounds'
 import { getPromptTemplateProjectPath, getPromptTemplateSendStatus } from './app/promptTemplates'
 import type { ProjectForm } from './app/projectForms'
+import {
+  normalizeWorkspaceFolderPath,
+  resolvePickFolderDefaultPath,
+  workspaceDefaultFolderValidationMessage
+} from './app/workspacePaths'
 import { createRunningSession } from './app/runningSessions'
 import {
   commandsFromText,
@@ -83,6 +88,7 @@ function App(): React.JSX.Element {
   const [runningSessions, setRunningSessions] = useState<RunningSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [projectForm, setProjectForm] = useState<ProjectForm | null>(null)
+  const [projectFormError, setProjectFormError] = useState<string | null>(null)
   const [terminalForm, setTerminalForm] = useState<TerminalForm | null>(null)
   const [startSelection, setStartSelection] = useState<StartWorkspaceSelection | null>(null)
   const { applyTerminalTheme, layout, setLayout, startLayoutResize, terminalThemeId } =
@@ -449,24 +455,35 @@ function App(): React.JSX.Element {
   }
 
   const openCreateProject = (): void => {
+    setProjectFormError(null)
     setProjectForm({
       name: '',
       description: '',
-      color: PROJECT_COLORS[projects.length % PROJECT_COLORS.length]
+      color: PROJECT_COLORS[projects.length % PROJECT_COLORS.length],
+      defaultFolder: ''
     })
   }
 
   const openEditProject = (project: Project): void => {
+    setProjectFormError(null)
     setProjectForm({
       id: project.id,
       name: project.name,
       description: project.description,
-      color: project.color
+      color: project.color,
+      defaultFolder: normalizeWorkspaceFolderPath(project.defaultFolder ?? '')
     })
   }
 
   const saveProjectForm = (): void => {
     if (!projectForm?.name.trim()) return
+    const normalizedDefaultFolder = normalizeWorkspaceFolderPath(projectForm.defaultFolder)
+    const folderIssue = workspaceDefaultFolderValidationMessage(normalizedDefaultFolder)
+    if (folderIssue) {
+      setProjectFormError(folderIssue)
+      return
+    }
+    setProjectFormError(null)
 
     if (projectForm.id) {
       setProjects((currentProjects) =>
@@ -476,7 +493,8 @@ function App(): React.JSX.Element {
                 ...project,
                 name: projectForm.name.trim(),
                 description: projectForm.description.trim(),
-                color: projectForm.color
+                color: projectForm.color,
+                defaultFolder: normalizedDefaultFolder || undefined
               }
             : project
         )
@@ -489,7 +507,8 @@ function App(): React.JSX.Element {
       id: createId('project'),
       name: projectForm.name.trim(),
       description: projectForm.description.trim(),
-      color: projectForm.color
+      color: projectForm.color,
+      defaultFolder: normalizedDefaultFolder || undefined
     }
 
     setProjects((currentProjects) => [...currentProjects, project])
@@ -501,7 +520,9 @@ function App(): React.JSX.Element {
   const openCreateTerminal = (): void => {
     if (!activeProject) return
 
-    setTerminalForm(createEmptyTerminalForm())
+    setTerminalForm(
+      createEmptyTerminalForm(normalizeWorkspaceFolderPath(activeProject.defaultFolder ?? ''))
+    )
   }
 
   const openEditTerminal = (config: TerminalConfig): void => {
@@ -515,15 +536,40 @@ function App(): React.JSX.Element {
   }
 
   const pickTerminalFolder = async (): Promise<void> => {
-    const folder = await window.api.workspace.pickFolder()
+    if (!activeProject || !terminalForm) return
+
+    const defaultPath = resolvePickFolderDefaultPath(
+      terminalForm.cwd,
+      activeProject.defaultFolder ?? ''
+    )
+    const folder = await window.api.workspace.pickFolder(defaultPath ? { defaultPath } : undefined)
     if (!folder) return
+    const path = normalizeWorkspaceFolderPath(folder.path)
 
     setTerminalForm((currentForm) =>
       currentForm
         ? {
             ...currentForm,
-            cwd: folder.path,
+            cwd: path,
             name: currentForm.name || folder.name
+          }
+        : currentForm
+    )
+  }
+
+  const pickProjectDefaultFolder = async (): Promise<void> => {
+    if (!projectForm) return
+
+    const defaultPath = resolvePickFolderDefaultPath(projectForm.defaultFolder)
+    const folder = await window.api.workspace.pickFolder(defaultPath ? { defaultPath } : undefined)
+    if (!folder) return
+    const path = normalizeWorkspaceFolderPath(folder.path)
+
+    setProjectForm((currentForm) =>
+      currentForm
+        ? {
+            ...currentForm,
+            defaultFolder: path
           }
         : currentForm
     )
@@ -538,7 +584,7 @@ function App(): React.JSX.Element {
       projectId: activeProject.id,
       name: terminalForm.name.trim(),
       kind: terminalForm.kind,
-      cwd: terminalForm.cwd.trim(),
+      cwd: normalizeWorkspaceFolderPath(terminalForm.cwd.trim()),
       commands
     }
 
@@ -820,9 +866,17 @@ function App(): React.JSX.Element {
 
       {projectForm && (
         <ProjectFormModal
+          defaultFolderError={projectFormError}
           form={projectForm}
-          onChange={setProjectForm}
-          onClose={() => setProjectForm(null)}
+          onChange={(nextForm) => {
+            setProjectFormError(null)
+            setProjectForm(nextForm)
+          }}
+          onClose={() => {
+            setProjectFormError(null)
+            setProjectForm(null)
+          }}
+          onPickDefaultFolder={pickProjectDefaultFolder}
           onSave={saveProjectForm}
         />
       )}

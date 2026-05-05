@@ -246,6 +246,46 @@
   gap: 8px;
 }
 
+.modal-input-with-trailing-icon {
+  position: relative;
+  width: 100%;
+}
+
+.modal-input-with-trailing-icon input {
+  padding-right: 40px;
+}
+
+.modal-input-trailing-button {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0;
+  color: var(--ev-c-text-2);
+  background: transparent;
+  cursor: pointer;
+}
+
+.modal-input-trailing-button:hover,
+.modal-input-trailing-button:focus-visible {
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--ev-c-text-1);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.modal-field-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #fca5a5;
+}
+
 .danger-button {
   width: auto;
   border-color: rgba(248, 113, 113, 0.24);

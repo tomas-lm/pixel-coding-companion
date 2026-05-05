@@ -3,4 +3,5 @@ export type ProjectForm = {
   name: string
   description: string
   color: string
+  defaultFolder: string
 }

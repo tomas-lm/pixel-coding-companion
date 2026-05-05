@@ -8,11 +8,11 @@ export type TerminalForm = {
   commandsText: string
 }
 
-export function createEmptyTerminalForm(): TerminalForm {
+export function createEmptyTerminalForm(initialCwd = ''): TerminalForm {
   return {
     name: '',
     kind: 'ai',
-    cwd: '',
+    cwd: initialCwd,
     commandsText: ''
   }
 }

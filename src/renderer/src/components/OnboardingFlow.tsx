@@ -8,6 +8,7 @@ import type {
 import anthropicLogoUrl from '../assets/logos/anthropic.svg'
 import cursorLogoUrl from '../assets/logos/cursor.svg'
 import openAiLogoUrl from '../assets/logos/openai.svg'
+import { normalizeWorkspaceFolderPath } from '../app/workspacePaths'
 
 type CommandPreset = {
   id: 'cursor' | 'claude' | 'codex' | 'custom'
@@ -192,18 +193,20 @@ export function OnboardingFlow({
     setIsSaving(true)
     setSaveError(null)
     const projectId = createId('project')
+    const folderPath = normalizeWorkspaceFolderPath(workspaceFolder.path)
     const project: Project = {
       id: projectId,
       name: workspaceName.trim(),
       description: workspaceDescription.trim(),
-      color: workspaceColor
+      color: workspaceColor,
+      defaultFolder: folderPath
     }
     const terminalConfig: TerminalConfig = {
       id: createId('terminal'),
       projectId,
       name: resolvedTerminalName.trim(),
       kind: selectedPreset?.id === 'custom' ? customKind : (selectedPreset?.kind ?? 'ai'),
-      cwd: workspaceFolder.path,
+      cwd: folderPath,
       commands: [finalCommand]
     }
 

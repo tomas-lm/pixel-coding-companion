@@ -1,6 +1,7 @@
 import type { SessionKind } from '../../../shared/workspace'
 import { KIND_LABELS } from '../app/sessionDisplay'
 import type { TerminalForm } from '../app/terminalForms'
+import { IconOnlyButton } from './ui/IconButtons'
 
 type TerminalFormModalProps = {
   form: TerminalForm
@@ -51,14 +52,31 @@ export function TerminalFormModal({
         </label>
         <label>
           <span>Folder</span>
-          <div className="input-row">
+          <div className="modal-input-with-trailing-icon">
             <input
               value={form.cwd}
               onChange={(event) => onChange({ ...form, cwd: event.target.value })}
             />
-            <button className="secondary-button" type="button" onClick={onPickFolder}>
-              Pick
-            </button>
+            <IconOnlyButton
+              className="modal-input-trailing-button"
+              label="Choose folder"
+              onClick={onPickFolder}
+              type="button"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width={18}
+                height={18}
+                aria-hidden="true"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 7v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2z" />
+              </svg>
+            </IconOnlyButton>
           </div>
         </label>
         <label>

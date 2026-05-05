@@ -23,6 +23,7 @@ describe('TerminalFormModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Configure terminal' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Choose folder' })).toBeInTheDocument()
     expect(screen.getByDisplayValue('Assistant')).toBeInTheDocument()
   })
 })
