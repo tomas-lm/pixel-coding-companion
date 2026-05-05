@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { VaultConfig, VaultMarkdownFile } from '../../../shared/vault'
+import type { SerializedMarkdownEditorState } from '../markdown/markdownEditorState'
+import type { MarkdownEditorStats } from '../markdown/markdownStats'
+import type { MarkdownTableOfContentsItem } from '../markdown/markdownToc'
+import { MarkdownEditor, type MarkdownEditorHandle } from './MarkdownEditor'
 
 type VaultWorkspacePanelProps = {
   activeVault: VaultConfig | null
+  onDirtyChange: (isDirty: boolean) => void
   onFileSaved: (file: VaultMarkdownFile) => void
   selectedFilePath: string | null
 }
@@ -11,28 +16,36 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error'
 
 export function VaultWorkspacePanel({
   activeVault,
+  onDirtyChange,
   onFileSaved,
   selectedFilePath
 }: VaultWorkspacePanelProps): React.JSX.Element {
+  const editorRef = useRef<MarkdownEditorHandle | null>(null)
+  const editorStatesRef = useRef(new Map<string, SerializedMarkdownEditorState>())
   const [file, setFile] = useState<VaultMarkdownFile | null>(null)
   const [content, setContent] = useState('')
   const [savedContent, setSavedContent] = useState('')
   const [loadState, setLoadState] = useState<LoadState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [stats, setStats] = useState<MarkdownEditorStats>({
+    characters: 0,
+    column: 1,
+    line: 1,
+    words: 0
+  })
+  const [tableOfContents, setTableOfContents] = useState<MarkdownTableOfContentsItem[]>([])
   const isDirty = content !== savedContent
   const selectedFile = file?.path === selectedFilePath ? file : null
+  const activeVaultRootPath = activeVault?.rootPath ?? null
   const title = selectedFile?.name ?? 'Vaults'
   const relativePath = selectedFile?.relativePath ?? activeVault?.rootPath ?? ''
-  const wordCount = useMemo(() => {
-    const words = content.trim().match(/\S+/g)
-    return words?.length ?? 0
-  }, [content])
+  const saveStateLabel = isSaving ? 'Saving...' : isDirty ? 'Unsaved' : 'Saved'
 
   useEffect(() => {
     let mounted = true
 
-    if (!activeVault || !selectedFilePath) {
+    if (!activeVaultRootPath || !selectedFilePath) {
       return () => {
         mounted = false
       }
@@ -45,13 +58,14 @@ export function VaultWorkspacePanel({
       try {
         const nextFile = await window.api.vault.readMarkdownFile({
           filePath: selectedFilePath,
-          rootPath: activeVault.rootPath
+          rootPath: activeVaultRootPath
         })
         if (!mounted) return
         setFile(nextFile)
         setContent(nextFile.content)
         setSavedContent(nextFile.content)
         setLoadState('ready')
+        onDirtyChange(false)
       } catch (loadError) {
         if (!mounted) return
         setFile(null)
@@ -59,6 +73,7 @@ export function VaultWorkspacePanel({
         setSavedContent('')
         setError(loadError instanceof Error ? loadError.message : 'Could not open file.')
         setLoadState('error')
+        onDirtyChange(false)
       }
     }
 
@@ -67,23 +82,41 @@ export function VaultWorkspacePanel({
     return () => {
       mounted = false
     }
-  }, [activeVault, selectedFilePath])
+  }, [activeVaultRootPath, onDirtyChange, selectedFilePath])
+
+  const persistEditorState = (
+    filePath: string,
+    editorState: SerializedMarkdownEditorState
+  ): void => {
+    editorStatesRef.current.set(filePath, editorState)
+  }
+
+  const getPersistedEditorState = (filePath: string): SerializedMarkdownEditorState | undefined => {
+    return editorStatesRef.current.get(filePath)
+  }
+
+  const changeContent = (nextContent: string): void => {
+    setContent(nextContent)
+    onDirtyChange(nextContent !== savedContent)
+  }
 
   const saveFile = async (): Promise<void> => {
-    if (!activeVault || !selectedFile || !isDirty) return
+    const nextContent = editorRef.current?.getValue() ?? content
+    if (!activeVault || !selectedFile || nextContent === savedContent) return
 
     setIsSaving(true)
     setError(null)
 
     try {
       const savedFile = await window.api.vault.saveMarkdownFile({
-        content,
+        content: nextContent,
         filePath: selectedFile.path,
         rootPath: activeVault.rootPath
       })
       setFile(savedFile)
       setContent(savedFile.content)
       setSavedContent(savedFile.content)
+      onDirtyChange(false)
       onFileSaved(savedFile)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not save file.')
@@ -124,7 +157,8 @@ export function VaultWorkspacePanel({
         </div>
         <div className="vault-editor-actions">
           <span className="vault-editor-status">
-            {isDirty ? 'Unsaved' : isSaving ? 'Saving...' : 'Saved'} · {wordCount} words
+            {saveStateLabel} · {stats.words} words · {stats.characters} chars · Ln {stats.line}, Col{' '}
+            {stats.column}
           </span>
           <button
             className="primary-button"
@@ -137,16 +171,78 @@ export function VaultWorkspacePanel({
         </div>
       </header>
 
+      <div className="vault-editor-toolbar" aria-label="Markdown tools">
+        <button type="button" title="Bold" onClick={() => editorRef.current?.toggleBold()}>
+          B
+        </button>
+        <button type="button" title="Italic" onClick={() => editorRef.current?.toggleItalic()}>
+          I
+        </button>
+        <button type="button" title="Link" onClick={() => editorRef.current?.insertLink()}>
+          Link
+        </button>
+        <button type="button" title="Image" onClick={() => editorRef.current?.insertImage()}>
+          Image
+        </button>
+        <button type="button" title="Task list" onClick={() => editorRef.current?.toggleTaskList()}>
+          Task
+        </button>
+        <button type="button" title="Heading 1" onClick={() => editorRef.current?.toggleHeading(1)}>
+          H1
+        </button>
+        <button type="button" title="Heading 2" onClick={() => editorRef.current?.toggleHeading(2)}>
+          H2
+        </button>
+        <div className="vault-editor-mode-toggle" aria-label="Editor mode">
+          <button className="vault-editor-mode-toggle--active" type="button">
+            Raw
+          </button>
+          <button type="button" disabled>
+            Preview
+          </button>
+        </div>
+      </div>
+
       {loadState === 'loading' && <div className="vault-empty-state">Opening file...</div>}
       {error && <div className="vault-error-state">{error}</div>}
 
       {loadState === 'ready' && selectedFile && (
-        <textarea
-          className="vault-temp-editor"
-          value={content}
-          spellCheck={false}
-          onChange={(event) => setContent(event.target.value)}
-        />
+        <div className="vault-editor-body">
+          <MarkdownEditor
+            key={selectedFile.path}
+            ref={editorRef}
+            filePath={selectedFile.path}
+            getInitialState={getPersistedEditorState}
+            initialValue={content}
+            onChange={changeContent}
+            onPersistState={persistEditorState}
+            onSave={saveFile}
+            onStatsChange={setStats}
+            onTableOfContentsChange={setTableOfContents}
+          />
+
+          <aside className="vault-outline" aria-label="Document outline">
+            <div className="vault-outline-header">Outline</div>
+            {tableOfContents.length === 0 ? (
+              <div className="vault-outline-empty">No headings</div>
+            ) : (
+              <ul>
+                {tableOfContents.map((item) => (
+                  <li key={`${item.from}-${item.title}`}>
+                    <button
+                      type="button"
+                      style={{ paddingLeft: `${(item.level - 1) * 10 + 8}px` }}
+                      onClick={() => editorRef.current?.scrollToOffset(item.from)}
+                    >
+                      <span>{item.title}</span>
+                      <small>{item.line}</small>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
+        </div>
       )}
     </section>
   )

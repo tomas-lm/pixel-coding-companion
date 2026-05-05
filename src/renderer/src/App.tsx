@@ -132,6 +132,7 @@ function App(): React.JSX.Element {
     path: string
     vaultId: string
   } | null>(null)
+  const [vaultHasUnsavedChanges, setVaultHasUnsavedChanges] = useState(false)
   const [vaultRefreshKey, setVaultRefreshKey] = useState(0)
 
   useCompletionNotificationSound(
@@ -593,15 +594,30 @@ function App(): React.JSX.Element {
     })
   }
 
+  const changeVaultDirtyState = useCallback((isDirty: boolean): void => {
+    setVaultHasUnsavedChanges(isDirty)
+  }, [])
+
+  const confirmDiscardVaultChanges = (): boolean => {
+    if (!vaultHasUnsavedChanges) return true
+
+    return window.confirm('Discard unsaved changes in the current note?')
+  }
+
   const saveVault = (vault: VaultConfig): void => {
+    if (!confirmDiscardVaultChanges()) return
+
     setVaults((currentVaults) => [...currentVaults, vault])
     setActiveVaultId(vault.id)
     setSelectedVaultFileSelection(
       vault.lastOpenedFilePath ? { path: vault.lastOpenedFilePath, vaultId: vault.id } : null
     )
+    setVaultHasUnsavedChanges(false)
   }
 
   const selectVault = (vaultId: string): void => {
+    if (vaultId !== activeVaultId && !confirmDiscardVaultChanges()) return
+
     const nextVault = vaults.find((vault) => vault.id === vaultId) ?? null
     setActiveVaultId(nextVault?.id ?? null)
     setSelectedVaultFileSelection(
@@ -609,17 +625,21 @@ function App(): React.JSX.Element {
         ? { path: nextVault.lastOpenedFilePath, vaultId: nextVault.id }
         : null
     )
+    setVaultHasUnsavedChanges(false)
   }
 
   const selectVaultFile = (filePath: string): void => {
     if (!activeVault) return
+    if (filePath !== selectedVaultFilePath && !confirmDiscardVaultChanges()) return
 
     setSelectedVaultFileSelection({ path: filePath, vaultId: activeVault.id })
     setVaults((currentVaults) => updateVaultLastOpenedFile(currentVaults, activeVault.id, filePath))
+    setVaultHasUnsavedChanges(false)
   }
 
   const createVaultNote = async (name: string): Promise<void> => {
     if (!activeVault) return
+    if (!confirmDiscardVaultChanges()) return
 
     const file = await window.api.vault.createMarkdownFile({
       name,
@@ -630,6 +650,7 @@ function App(): React.JSX.Element {
       updateVaultLastOpenedFile(currentVaults, activeVault.id, file.path)
     )
     setVaultRefreshKey((currentKey) => currentKey + 1)
+    setVaultHasUnsavedChanges(false)
   }
 
   const handleVaultFileSaved = (file: VaultMarkdownFile): void => {
@@ -639,6 +660,7 @@ function App(): React.JSX.Element {
       updateVaultLastOpenedFile(currentVaults, activeVault.id, file.path)
     )
     setVaultRefreshKey((currentKey) => currentKey + 1)
+    setVaultHasUnsavedChanges(false)
   }
 
   const deletePromptTemplate = (templateId: string): void => {
@@ -841,6 +863,7 @@ function App(): React.JSX.Element {
         <VaultWorkspacePanel
           activeVault={activeVault}
           selectedFilePath={selectedVaultFilePath}
+          onDirtyChange={changeVaultDirtyState}
           onFileSaved={handleVaultFileSaved}
         />
       ) : (

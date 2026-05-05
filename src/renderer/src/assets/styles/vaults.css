@@ -126,7 +126,7 @@
 
 .vault-workspace-panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -199,21 +199,151 @@
   font-size: 12px;
 }
 
-.vault-temp-editor {
-  width: 100%;
-  height: 100%;
+.vault-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   min-height: 0;
-  border: 0;
-  border-radius: 0;
-  padding: 22px 26px 40px;
-  background: transparent;
-  color: var(--ev-c-text-1);
-  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
-  font-size: 14px;
-  line-height: 1.65;
-  resize: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.025);
 }
 
-.vault-temp-editor:focus {
-  outline: none;
+.vault-editor-toolbar button,
+.vault-outline button {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ev-c-text-2);
+  cursor: pointer;
+}
+
+.vault-editor-toolbar button {
+  min-width: 32px;
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.vault-editor-toolbar button:hover,
+.vault-editor-toolbar button:focus-visible,
+.vault-outline button:hover,
+.vault-outline button:focus-visible {
+  border-color: color-mix(in srgb, var(--active-project-color) 40%, transparent);
+  color: var(--ev-c-text-1);
+}
+
+.vault-editor-toolbar button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.vault-editor-mode-toggle {
+  display: flex;
+  gap: 0;
+  margin-left: auto;
+}
+
+.vault-editor-mode-toggle button {
+  border-radius: 0;
+}
+
+.vault-editor-mode-toggle button:first-child {
+  border-radius: 5px 0 0 5px;
+}
+
+.vault-editor-mode-toggle button:last-child {
+  border-radius: 0 5px 5px 0;
+}
+
+.vault-editor-mode-toggle--active {
+  background: color-mix(in srgb, var(--active-project-color) 20%, transparent) !important;
+  color: var(--ev-c-text-1) !important;
+}
+
+.vault-editor-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  min-width: 0;
+  min-height: 0;
+}
+
+.markdown-editor-surface {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.vault-outline {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.vault-outline-header {
+  padding: 12px 12px 8px;
+  color: var(--ev-c-text-1);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.vault-outline-empty {
+  padding: 0 12px;
+  color: var(--ev-c-text-3);
+  font-size: 12px;
+}
+
+.vault-outline ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 8px 12px;
+  list-style: none;
+}
+
+.vault-outline button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-height: 28px;
+  gap: 8px;
+  padding-block: 4px;
+  padding-right: 8px;
+  font-size: 12px;
+  text-align: left;
+}
+
+.vault-outline span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-outline small {
+  color: var(--ev-c-text-3);
+  font-size: 10px;
+}
+
+@media (max-width: 980px) {
+  .vault-editor-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vault-outline {
+    display: none;
+  }
+}
+
+.cm-editor {
+  height: 100%;
+}
+
+.cm-editor .cm-heading {
+  color: var(--ev-c-text-1);
 }
