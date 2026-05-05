@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useCallback, useState, type CSSProperties } from 'react'
 import type { Project, RunningSession, TerminalConfig } from '../../../shared/workspace'
 import type { LayoutResizeTarget } from '../app/layout'
 import {
@@ -8,6 +8,7 @@ import {
   getTerminalDetail,
   isLiveSession
 } from '../app/sessionDisplay'
+import { RailSortableList } from './RailSortableList'
 import { AddButton, IconOnlyButton, RowActionButton } from './ui/IconButtons'
 
 type WorkspaceRailProps = {
@@ -24,6 +25,9 @@ type WorkspaceRailProps = {
     target: LayoutResizeTarget
   ) => void
   onScheduleTerminalHoverCard: (config: TerminalConfig, target: HTMLElement) => void
+  onReorderProjects: (draggedProjectId: string, targetIndex: number) => void
+  onReorderRunning: (draggedSessionId: string, targetIndex: number) => void
+  onReorderTerminals: (draggedConfigId: string, targetIndex: number) => void
   onSelectProject: (projectId: string) => void
   onSelectSession: (sessionId: string) => void
   onStartConfig: (config: TerminalConfig) => void
@@ -45,6 +49,9 @@ export function WorkspaceRail({
   onEditTerminal,
   onResizePointerDown,
   onScheduleTerminalHoverCard,
+  onReorderProjects,
+  onReorderRunning,
+  onReorderTerminals,
   onSelectProject,
   onSelectSession,
   onStartConfig,
@@ -54,8 +61,20 @@ export function WorkspaceRail({
   runningSessions,
   selectedSessionId
 }: WorkspaceRailProps): React.JSX.Element {
+  const [isDragging, setIsDragging] = useState(false)
+
+  const updateDraggingState = useCallback(
+    (isListDragging: boolean): void => {
+      setIsDragging(isListDragging)
+      if (isListDragging) {
+        onClearTerminalHoverCard()
+      }
+    },
+    [onClearTerminalHoverCard]
+  )
+
   return (
-    <aside className="workspace-rail">
+    <aside className={`workspace-rail${isDragging ? ' workspace-rail--dragging' : ''}`}>
       <div className="workspace-rail-scroll">
         <div className="brand-lockup">
           <div className="brand-title-row">
@@ -78,30 +97,44 @@ export function WorkspaceRail({
             {projects.length === 0 && (
               <div className="empty-list-state">No workspaces configured.</div>
             )}
-
-            {projects.map((project) => (
-              <div
-                key={project.id}
-                className={`project-row${project.id === activeProject?.id ? ' project-row--active' : ''}`}
-                style={{ '--project-color': project.color } as CSSProperties}
-              >
-                <button
-                  className="project-item"
-                  type="button"
-                  onClick={() => onSelectProject(project.id)}
-                >
-                  <span className="project-dot" aria-hidden="true" />
-                  <span>{project.name}</span>
-                  <small>{getProjectLiveLabel(project.id, runningSessions)}</small>
-                </button>
-                <RowActionButton
-                  label={`Edit ${project.name}`}
-                  onClick={() => onEditProject(project)}
-                >
-                  ...
-                </RowActionButton>
-              </div>
-            ))}
+            {projects.length > 0 && (
+              <RailSortableList
+                className="drag-reorder-list"
+                items={projects}
+                onDragStateChange={updateDraggingState}
+                onReorder={onReorderProjects}
+                renderItem={(project, _index, sortableArgs) => (
+                  <div
+                    ref={sortableArgs.setNodeRef}
+                    className={`project-row${project.id === activeProject?.id ? ' project-row--active' : ''}`}
+                    style={
+                      {
+                        '--project-color': project.color,
+                        ...sortableArgs.style
+                      } as CSSProperties
+                    }
+                    {...sortableArgs.attributes}
+                    {...sortableArgs.listeners}
+                  >
+                    <button
+                      className="project-item"
+                      type="button"
+                      onClick={() => onSelectProject(project.id)}
+                    >
+                      <span className="project-dot" aria-hidden="true" />
+                      <span>{project.name}</span>
+                      <small>{getProjectLiveLabel(project.id, runningSessions)}</small>
+                    </button>
+                    <RowActionButton
+                      label={`Edit ${project.name}`}
+                      onClick={() => onEditProject(project)}
+                    >
+                      ...
+                    </RowActionButton>
+                  </div>
+                )}
+              />
+            )}
           </div>
         </section>
 
@@ -136,35 +169,51 @@ export function WorkspaceRail({
             {!activeProject && (
               <div className="empty-list-state">Select or create a workspace first.</div>
             )}
-
-            {activeProjectConfigs.map((config) => (
-              <div
-                key={config.id}
-                className="template-row"
-                onBlurCapture={onClearTerminalHoverCard}
-                onFocusCapture={(event) => onScheduleTerminalHoverCard(config, event.currentTarget)}
-                onMouseEnter={(event) => onScheduleTerminalHoverCard(config, event.currentTarget)}
-                onMouseLeave={onClearTerminalHoverCard}
-              >
-                <button
-                  className="template-item"
-                  type="button"
-                  onClick={() => onStartConfig(config)}
-                >
-                  <span className={`kind-badge kind-badge--${config.kind}`}>
-                    {KIND_LABELS[config.kind]}
-                  </span>
-                  <strong>{config.name}</strong>
-                  <small>{getTerminalDetail(config)}</small>
-                </button>
-                <RowActionButton
-                  label={`Configure ${config.name}`}
-                  onClick={() => onEditTerminal(config)}
-                >
-                  ...
-                </RowActionButton>
-              </div>
-            ))}
+            {activeProjectConfigs.length > 0 && (
+              <RailSortableList
+                className="drag-reorder-list"
+                items={activeProjectConfigs}
+                onDragStateChange={updateDraggingState}
+                onReorder={onReorderTerminals}
+                renderItem={(config, _index, sortableArgs) => (
+                  <div
+                    ref={sortableArgs.setNodeRef}
+                    className="template-row"
+                    style={sortableArgs.style}
+                    onBlurCapture={onClearTerminalHoverCard}
+                    onFocusCapture={(event) => {
+                      if (isDragging) return
+                      onScheduleTerminalHoverCard(config, event.currentTarget)
+                    }}
+                    onMouseEnter={(event) => {
+                      if (isDragging) return
+                      onScheduleTerminalHoverCard(config, event.currentTarget)
+                    }}
+                    onMouseLeave={onClearTerminalHoverCard}
+                    {...sortableArgs.attributes}
+                    {...sortableArgs.listeners}
+                  >
+                    <button
+                      className="template-item"
+                      type="button"
+                      onClick={() => onStartConfig(config)}
+                    >
+                      <span className={`kind-badge kind-badge--${config.kind}`}>
+                        {KIND_LABELS[config.kind]}
+                      </span>
+                      <strong>{config.name}</strong>
+                      <small>{getTerminalDetail(config)}</small>
+                    </button>
+                    <RowActionButton
+                      label={`Configure ${config.name}`}
+                      onClick={() => onEditTerminal(config)}
+                    >
+                      ...
+                    </RowActionButton>
+                  </div>
+                )}
+              />
+            )}
           </div>
         </section>
 
@@ -182,45 +231,56 @@ export function WorkspaceRail({
           </div>
 
           <div className="session-list">
-            {activeProjectSessions.map((session) => (
-              <div
-                key={session.id}
-                className={`session-row session-row--${session.status}${
-                  session.id === selectedSessionId ? ' session-row--active' : ''
-                }`}
-              >
-                <button
-                  className="session-item"
-                  type="button"
-                  onClick={() => onSelectSession(session.id)}
-                >
-                  <span className={`kind-badge kind-badge--${session.kind}`}>
-                    {KIND_LABELS[session.kind]}
-                  </span>
-                  <strong>{session.name}</strong>
-                  <small>{getSessionCardDetail(session)}</small>
-                </button>
-                {isLiveSession(session) ? (
-                  <IconOnlyButton
-                    className="session-stop session-stop--live"
-                    label={`Stop ${session.name}`}
-                    onClick={() => onStopSession(session.id)}
+            {activeProjectSessions.length > 0 && (
+              <RailSortableList
+                className="drag-reorder-list"
+                items={activeProjectSessions}
+                onDragStateChange={updateDraggingState}
+                onReorder={onReorderRunning}
+                renderItem={(session, _index, sortableArgs) => (
+                  <div
+                    ref={sortableArgs.setNodeRef}
+                    className={`session-row session-row--${session.status}${
+                      session.id === selectedSessionId ? ' session-row--active' : ''
+                    }`}
+                    style={sortableArgs.style}
+                    {...sortableArgs.attributes}
+                    {...sortableArgs.listeners}
                   >
-                    &#9632;
-                  </IconOnlyButton>
-                ) : (
-                  <button
-                    className="session-stop"
-                    type="button"
-                    aria-label={`Clear ${session.name}`}
-                    title={`Clear ${session.name}`}
-                    onClick={() => onStopSession(session.id)}
-                  >
-                    Clear
-                  </button>
+                    <button
+                      className="session-item"
+                      type="button"
+                      onClick={() => onSelectSession(session.id)}
+                    >
+                      <span className={`kind-badge kind-badge--${session.kind}`}>
+                        {KIND_LABELS[session.kind]}
+                      </span>
+                      <strong>{session.name}</strong>
+                      <small>{getSessionCardDetail(session)}</small>
+                    </button>
+                    {isLiveSession(session) ? (
+                      <IconOnlyButton
+                        className="session-stop session-stop--live"
+                        label={`Stop ${session.name}`}
+                        onClick={() => onStopSession(session.id)}
+                      >
+                        &#9632;
+                      </IconOnlyButton>
+                    ) : (
+                      <button
+                        className="session-stop"
+                        type="button"
+                        aria-label={`Clear ${session.name}`}
+                        title={`Clear ${session.name}`}
+                        onClick={() => onStopSession(session.id)}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 )}
-              </div>
-            ))}
+              />
+            )}
           </div>
         </section>
       </div>

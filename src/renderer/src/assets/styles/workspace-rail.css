@@ -1,16 +1,19 @@
 .workspace-rail {
+  color-scheme: dark;
   height: 100%;
   max-height: 100%;
   overflow: hidden;
 }
 
 .workspace-rail-scroll {
+  color-scheme: dark;
   display: flex;
   flex-direction: column;
   gap: 0;
   height: 100%;
   max-height: 100%;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   padding: 16px;
 }
@@ -273,8 +276,17 @@
 .template-list,
 .session-list {
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding-right: 2px;
+}
+
+.drag-reorder-list {
+  display: grid;
+  grid-auto-rows: max-content;
+  gap: inherit;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .empty-list-state {
@@ -308,10 +320,15 @@
 }
 
 .session-row {
+  position: relative;
   grid-template-columns: minmax(0, 1fr) 44px;
   gap: 0;
   height: 60px;
   align-items: stretch;
+}
+
+.workspace-rail--dragging :is(.project-item, .template-item, .session-item, .row-action-button, .session-stop) {
+  pointer-events: none;
 }
 
 .project-item,

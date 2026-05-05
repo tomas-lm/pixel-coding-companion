@@ -39,6 +39,7 @@ import { getActiveCompanionProgress, getCompanionMessageColor } from './app/comp
 import { primeCompletionSound } from './app/notificationSounds'
 import { getPromptTemplateProjectPath, getPromptTemplateSendStatus } from './app/promptTemplates'
 import type { ProjectForm } from './app/projectForms'
+import { reorderItemsByTargetIndex } from './app/listOrdering'
 import {
   normalizeWorkspaceFolderPath,
   resolvePickFolderDefaultPath,
@@ -358,6 +359,71 @@ function App(): React.JSX.Element {
       runningSessions.find((session) => session.projectId === projectId)?.id ?? null
     )
   }
+
+  const reorderProjects = useCallback(
+    (draggedProjectId: string, targetIndex: number): void => {
+      setProjects((currentProjects) =>
+        reorderItemsByTargetIndex(currentProjects, draggedProjectId, targetIndex)
+      )
+    },
+    [setProjects]
+  )
+
+  const reorderTerminalConfigs = useCallback(
+    (draggedConfigId: string, targetIndex: number): void => {
+      if (!activeProjectId) return
+
+      setTerminalConfigs((currentConfigs) => {
+        const activeConfigs = currentConfigs.filter(
+          (config) => config.projectId === activeProjectId
+        )
+        const reorderedActiveConfigs = reorderItemsByTargetIndex(
+          activeConfigs,
+          draggedConfigId,
+          targetIndex
+        )
+
+        if (reorderedActiveConfigs === activeConfigs) {
+          return currentConfigs
+        }
+
+        let reorderedIndex = 0
+        return currentConfigs.map((config) =>
+          config.projectId === activeProjectId ? reorderedActiveConfigs[reorderedIndex++] : config
+        )
+      })
+    },
+    [activeProjectId, setTerminalConfigs]
+  )
+
+  const reorderRunningSessions = useCallback(
+    (draggedSessionId: string, targetIndex: number): void => {
+      if (!activeProjectId) return
+
+      setRunningSessions((currentSessions) => {
+        const activeSessions = currentSessions.filter(
+          (session) => session.projectId === activeProjectId
+        )
+        const reorderedActiveSessions = reorderItemsByTargetIndex(
+          activeSessions,
+          draggedSessionId,
+          targetIndex
+        )
+
+        if (reorderedActiveSessions === activeSessions) {
+          return currentSessions
+        }
+
+        let reorderedIndex = 0
+        return currentSessions.map((session) =>
+          session.projectId === activeProjectId
+            ? reorderedActiveSessions[reorderedIndex++]
+            : session
+        )
+      })
+    },
+    [activeProjectId]
+  )
 
   const startConfig = (config: TerminalConfig): void => {
     const existingSession = runningSessions.find(
@@ -949,6 +1015,9 @@ function App(): React.JSX.Element {
           onScheduleTerminalHoverCard={scheduleTerminalHoverCard}
           onSelectProject={selectProject}
           onSelectSession={setActiveSessionId}
+          onReorderProjects={reorderProjects}
+          onReorderRunning={reorderRunningSessions}
+          onReorderTerminals={reorderTerminalConfigs}
           onStartConfig={startConfig}
           onStartWorkspace={openStartWorkspace}
           onStopSession={stopSession}
