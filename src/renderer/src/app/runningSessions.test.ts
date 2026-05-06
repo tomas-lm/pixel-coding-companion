@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Project, TerminalConfig } from '../../../shared/workspace'
-import { createRunningSession } from './runningSessions'
+import type { Project, RunningSession, TerminalConfig } from '../../../shared/workspace'
+import { createRunningSession, findReusableSessionForConfig } from './runningSessions'
 
 const project: Project = {
   color: '#4ea1ff',
@@ -62,5 +62,49 @@ describe('running sessions', () => {
         useStartWithPixel: true
       }).startWithPixel
     ).toBe(false)
+  })
+
+  it('reuses live sessions for non-shell configs', () => {
+    const liveSession: RunningSession = {
+      commands: config.commands,
+      configId: config.id,
+      cwd: config.cwd,
+      id: 'session-1',
+      kind: config.kind,
+      lastActivityAt: '2026-05-02T15:00:00.000Z',
+      metadata: config.cwd,
+      name: config.name,
+      projectColor: project.color,
+      projectId: project.id,
+      projectName: project.name,
+      startedAt: '2026-05-02T15:00:00.000Z',
+      status: 'running'
+    }
+
+    expect(findReusableSessionForConfig(config, [liveSession])).toEqual(liveSession)
+  })
+
+  it('does not reuse live sessions for shell configs', () => {
+    const shellConfig: TerminalConfig = {
+      ...config,
+      kind: 'shell'
+    }
+    const liveShellSession: RunningSession = {
+      commands: shellConfig.commands,
+      configId: shellConfig.id,
+      cwd: shellConfig.cwd,
+      id: 'session-2',
+      kind: shellConfig.kind,
+      lastActivityAt: '2026-05-02T15:00:00.000Z',
+      metadata: shellConfig.cwd,
+      name: shellConfig.name,
+      projectColor: project.color,
+      projectId: project.id,
+      projectName: project.name,
+      startedAt: '2026-05-02T15:00:00.000Z',
+      status: 'running'
+    }
+
+    expect(findReusableSessionForConfig(shellConfig, [liveShellSession])).toBeNull()
   })
 })

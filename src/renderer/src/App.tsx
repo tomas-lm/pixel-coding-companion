@@ -45,7 +45,7 @@ import {
   resolvePickFolderDefaultPath,
   workspaceDefaultFolderValidationMessage
 } from './app/workspacePaths'
-import { createRunningSession } from './app/runningSessions'
+import { createRunningSession, findReusableSessionForConfig } from './app/runningSessions'
 import {
   commandsFromText,
   commandsToText,
@@ -426,9 +426,7 @@ function App(): React.JSX.Element {
   )
 
   const startConfig = (config: TerminalConfig): void => {
-    const existingSession = runningSessions.find(
-      (session) => session.configId === config.id && isLiveSession(session)
-    )
+    const existingSession = findReusableSessionForConfig(config, runningSessions)
 
     if (existingSession) {
       setActiveProjectId(existingSession.projectId)
