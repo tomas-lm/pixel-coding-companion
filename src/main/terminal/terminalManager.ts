@@ -1,4 +1,5 @@
 import * as pty from 'node-pty'
+import { basename } from 'path'
 import {
   TERMINAL_CHANNELS,
   type TerminalInputRequest,
@@ -40,12 +41,22 @@ export type TerminalManagerDependencies = {
   contextRegistry: TerminalContextRegistry
   getDefaultShell: () => string
   getPixelCliCommandPaths: () => PixelCliCommandPaths
-  getPtyEnv: (extraEnv?: Record<string, string>) => Record<string, string>
+  getPtyEnv: (extraEnv?: Record<string, string>) => Promise<Record<string, string>>
   getSafeCwd: (cwd?: string) => string
 }
 
 const AUTO_LAUNCH_FALLBACK_DELAY_MS = 7000
 const AUTO_LAUNCH_SUBMIT_DELAY_MS = 180
+
+export function getPtyShellArgs(
+  shellPath: string,
+  platform: NodeJS.Platform = process.platform
+): string[] {
+  if (platform !== 'darwin') return []
+
+  const shellName = basename(shellPath)
+  return shellName === 'zsh' || shellName === 'bash' ? ['--login'] : []
+}
 
 export class TerminalManager {
   private readonly terminals = new Map<TerminalSessionId, ManagedTerminal>()
@@ -85,12 +96,12 @@ export class TerminalManager {
       request.id,
       request.companionContext
     )
-    const terminal = pty.spawn(shellPath, [], {
+    const terminal = pty.spawn(shellPath, getPtyShellArgs(shellPath), {
       name: 'xterm-256color',
       cols: Math.max(request.cols, 2),
       rows: Math.max(request.rows, 2),
       cwd,
-      env: this.dependencies.getPtyEnv({
+      env: await this.dependencies.getPtyEnv({
         ...(request.env ?? {}),
         ...contextEnv
       })

@@ -13,6 +13,7 @@ import { registerVaultIpc } from './ipc/registerVaultIpc'
 import { registerWorkspaceIpc } from './ipc/registerWorkspaceIpc'
 import { isSafeExternalUrl } from './openTarget'
 import { CodexContextTelemetryService } from './terminal/codexContextTelemetry'
+import { getResolvedShellEnvironment } from './terminal/shellEnvironment'
 import { TerminalContextRegistry } from './terminal/terminalContextRegistry'
 import { TerminalManager } from './terminal/terminalManager'
 import { createMainWindow } from './window/createMainWindow'
@@ -68,15 +69,17 @@ function getSafeCwd(cwd?: string): string {
   return app.getPath('home')
 }
 
-function getPtyEnv(extraEnv: Record<string, string> = {}): Record<string, string> {
+async function getPtyEnv(extraEnv: Record<string, string> = {}): Promise<Record<string, string>> {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       (entry): entry is [string, string] => typeof entry[1] === 'string'
     )
   )
+  const shellEnv = await getResolvedShellEnvironment({ getDefaultShell })
 
   const nextEnv: Record<string, string> = {
     ...env,
+    ...shellEnv,
     ...extraEnv,
     TERM: 'xterm-256color',
     COLORTERM: 'truecolor',
