@@ -130,4 +130,8 @@
   .review-list div {
     grid-template-columns: 1fr;
   }
+
+  .start-agent-row {
+    grid-template-columns: 1fr;
+  }
 }

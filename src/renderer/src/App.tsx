@@ -2,13 +2,16 @@ import { useCallback, useState, type CSSProperties } from 'react'
 import type { CompanionBridgeMessage } from '../../shared/companion'
 import type { VaultConfig, VaultMarkdownFile } from '../../shared/vault'
 import type {
+  PixelLauncherAgentId,
   Project,
   PromptTemplate,
+  ResolvedPixelLauncherAgentId,
   RunningSession,
   TerminalConfig,
   WorkspaceCodeEditorSettings,
   WorkspaceFeatureSettings
 } from '../../shared/workspace'
+import { DEFAULT_PIXEL_LAUNCHER_FALLBACK_AGENT_ID } from '../../shared/workspace'
 import {
   ActivitySidebar,
   type ActivitySidebarItem,
@@ -67,7 +70,12 @@ import { useWorkspaceLayout } from './hooks/useWorkspaceLayout'
 const COMPANION_NAME = 'Ghou'
 const PROJECT_COLORS = ['#4ea1ff', '#ef5b5b', '#f7d56f', '#7fe7dc', '#c084fc', '#34d399']
 const MARKDOWN_ARTIFACT_PATTERN = /\.(?:md|markdown)$/i
+const CODEX_START_COMMAND_PATTERN =
+  /^(?:codex|pixel\s+codex|node\s+.+pixel\.mjs['"]?\s+codex)(?:\s|$)/
+const CLAUDE_START_COMMAND_PATTERN =
+  /^(?:claude|pixel\s+claude|node\s+.+pixel\.mjs['"]?\s+claude)(?:\s|$)/
 type StartWorkspaceSelection = {
+  pixelAgent: PixelLauncherAgentId
   projectId: string
   selectedConfigIds: string[]
   startWithPixel: boolean
@@ -104,6 +112,55 @@ function isPathInsideRoot(rootPath: string, filePath: string): boolean {
   )
 }
 
+function detectPixelLauncherAgent(command: string): ResolvedPixelLauncherAgentId | null {
+  const trimmedCommand = command.trim()
+
+  if (CLAUDE_START_COMMAND_PATTERN.test(trimmedCommand)) return 'claude'
+  if (CODEX_START_COMMAND_PATTERN.test(trimmedCommand)) return 'codex'
+
+  return null
+}
+
+function isPixelAgentCommand(command: string, pixelAgent: PixelLauncherAgentId): boolean {
+  const detectedAgent = detectPixelLauncherAgent(command)
+
+  if (pixelAgent === 'auto') return detectedAgent !== null
+  return detectedAgent === pixelAgent
+}
+
+function detectConfigPixelAgent(config: TerminalConfig): ResolvedPixelLauncherAgentId | null {
+  if (config.kind !== 'ai') return null
+
+  for (const command of config.commands) {
+    const detectedAgent = detectPixelLauncherAgent(command)
+    if (detectedAgent) return detectedAgent
+  }
+
+  return null
+}
+
+function supportsPixelAgent(config: TerminalConfig, pixelAgent: PixelLauncherAgentId): boolean {
+  return (
+    config.kind === 'ai' &&
+    config.commands.some((command) => isPixelAgentCommand(command, pixelAgent))
+  )
+}
+
+function getSupportedPixelAgent(
+  config: TerminalConfig,
+  preferredAgent: PixelLauncherAgentId
+): PixelLauncherAgentId {
+  if (preferredAgent === 'auto') {
+    return supportsPixelAgent(config, 'auto') ? 'auto' : DEFAULT_PIXEL_LAUNCHER_FALLBACK_AGENT_ID
+  }
+  if (supportsPixelAgent(config, preferredAgent)) return preferredAgent
+
+  const detectedAgent = detectConfigPixelAgent(config)
+  if (detectedAgent) return detectedAgent
+
+  return preferredAgent
+}
+
 function App(): React.JSX.Element {
   const [runningSessions, setRunningSessions] = useState<RunningSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
@@ -119,12 +176,14 @@ function App(): React.JSX.Element {
     codeEditorSettings,
     configLoaded,
     featureSettings,
+    pixelLauncherSettings,
     promptTemplates,
     projects,
     setActiveProjectId,
     setActiveVaultId,
     setCodeEditorSettings,
     setFeatureSettings,
+    setPixelLauncherSettings,
     setPromptTemplates,
     setProjects,
     setTerminalConfigs,
@@ -233,7 +292,9 @@ function App(): React.JSX.Element {
     STARTER_COMPANION_IDS.includes(companion.id as (typeof STARTER_COMPANION_IDS)[number])
   )
   const selectedStartPixelConfigs = selectedStartConfigs.filter(
-    (config) => config.kind === 'ai' && config.commands.length > 0
+    (config) =>
+      Boolean(startSelection?.startWithPixel) &&
+      Boolean(startSelection && supportsPixelAgent(config, startSelection.pixelAgent))
   )
   const selectedStartPixelLabel = selectedStartPixelConfigs.length === 1 ? 'terminal' : 'terminals'
   const activitySidebarItems: ActivitySidebarItem[] = [
@@ -435,9 +496,11 @@ function App(): React.JSX.Element {
     }
 
     const project = projects.find((candidate) => candidate.id === config.projectId) ?? null
+    const pixelAgent = getSupportedPixelAgent(config, pixelLauncherSettings.preferredAgent)
     const session = createRunningSession(config, project, {
       fallbackProjectColor: PROJECT_COLORS[0],
-      useStartWithPixel: config.kind === 'ai'
+      pixelAgent,
+      useStartWithPixel: supportsPixelAgent(config, pixelAgent)
     })
     setRunningSessions((currentSessions) => [...currentSessions, session])
     setActiveProjectId(config.projectId)
@@ -453,6 +516,7 @@ function App(): React.JSX.Element {
       .map((config) => config.id)
 
     setStartSelection({
+      pixelAgent: pixelLauncherSettings.preferredAgent,
       projectId: activeProject.id,
       selectedConfigIds,
       startWithPixel: true
@@ -510,6 +574,17 @@ function App(): React.JSX.Element {
     )
   }
 
+  const changeStartPixelAgent = (pixelAgent: PixelLauncherAgentId): void => {
+    setStartSelection((currentSelection) =>
+      currentSelection
+        ? {
+            ...currentSelection,
+            pixelAgent
+          }
+        : currentSelection
+    )
+  }
+
   const startSelectedWorkspaceConfigs = (): void => {
     if (!startSelection) return
 
@@ -525,7 +600,9 @@ function App(): React.JSX.Element {
         const project = projects.find((candidate) => candidate.id === config.projectId) ?? null
         return createRunningSession(config, project, {
           fallbackProjectColor: PROJECT_COLORS[0],
-          useStartWithPixel: startSelection.startWithPixel
+          pixelAgent: startSelection.pixelAgent,
+          useStartWithPixel:
+            startSelection.startWithPixel && supportsPixelAgent(config, startSelection.pixelAgent)
         })
       })
     const firstExistingSession = runningSessions.find(
@@ -533,6 +610,9 @@ function App(): React.JSX.Element {
     )
 
     setStartSelection(null)
+    if (startSelection.startWithPixel) {
+      setPixelLauncherSettings({ preferredAgent: startSelection.pixelAgent })
+    }
 
     if (sessionsToStart.length > 0) {
       setRunningSessions((currentSessions) => [...currentSessions, ...sessionsToStart])
@@ -888,6 +968,7 @@ function App(): React.JSX.Element {
       codeEditorSettings,
       layout,
       featureSettings,
+      pixelLauncherSettings,
       promptTemplates,
       terminalThemeId
     })
@@ -1110,12 +1191,14 @@ function App(): React.JSX.Element {
         <StartWorkspaceModal
           configs={startProjectConfigs}
           liveConfigIds={startProjectLiveConfigIds}
+          pixelAgent={startSelection.pixelAgent}
           project={startProject}
           selectedConfigIds={startSelection.selectedConfigIds}
           selectedCount={selectedStartConfigs.length}
           selectedPixelConfigCount={selectedStartPixelConfigs.length}
           selectedPixelLabel={selectedStartPixelLabel}
           startWithPixel={startSelection.startWithPixel}
+          onChangePixelAgent={changeStartPixelAgent}
           onClose={() => setStartSelection(null)}
           onSelectCategory={selectStartCategory}
           onStartSelected={startSelectedWorkspaceConfigs}

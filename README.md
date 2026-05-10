@@ -286,7 +286,7 @@ session when you want the dev app to close.
 5. Mark AI agent terminals as `AI`.
 6. Configure project change roots if your agents edit nested repositories.
 7. Click `Start Project`.
-8. Keep `Start with Pixel` enabled for selected Codex terminals.
+8. Keep `Start with Pixel` enabled for selected Claude Code or Codex terminals.
 
 Example project layout:
 
@@ -300,18 +300,22 @@ ProjectX
 Each project owns its configured terminals, even if multiple projects reuse the same
 folder. This keeps `/dev` assistant terminals separate across projects.
 
-## Pixel Codex Launcher
+## Pixel Agent Launcher
 
-For Codex terminals, set the configured terminal command to `codex` or any normal Codex
-command such as:
+For Claude Code or Codex terminals, set the configured terminal command to `claude`,
+`codex`, or a normal agent command such as:
 
 ```bash
+claude
 codex --yolo
 ```
 
-When `Start with Pixel` is enabled, Pixel Companion automatically launches that as:
+When `Start with Pixel` is enabled, Pixel Companion can auto-detect whether each selected
+terminal launches Claude Code or Codex. If a command cannot be identified, the launcher
+falls back to Claude Code. Matching commands launch as:
 
 ```bash
+pixel claude
 pixel codex --yolo
 ```
 
@@ -320,8 +324,19 @@ from this repo, expose the `pixel` command with:
 
 ```bash
 pnpm link
+pixel claude
 pixel codex
 ```
+
+`pixel claude` installs and refreshes the Claude Code hook configuration before
+launching Claude Code:
+
+- writes Pixel Companion hooks to `~/.claude/settings.json`;
+- verifies the local `pixel-companion` MCP server through Claude Code's MCP CLI;
+- injects Ghou's companion contract on Claude Code startup, resume, `/clear`, and
+  compaction recovery;
+- records prompt start, finish, failure, and needs-input events so Ghou can react even
+  when the bridge report is missed.
 
 `pixel codex` installs and refreshes the Codex hook configuration before launching
 Codex:

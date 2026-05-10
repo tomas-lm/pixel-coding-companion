@@ -193,6 +193,7 @@ export class TerminalManager {
           wrapCommandWithPixel(
             command,
             request.startWithPixel,
+            request.pixelAgent,
             this.dependencies.getPixelCliCommandPaths()
           )
         )

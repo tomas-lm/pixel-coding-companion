@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
@@ -11,9 +11,13 @@ import { fileURLToPath } from 'node:url'
 const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(scriptDir, '..')
 const hookScriptPath = path.join(scriptDir, 'pixel-companion-hook.mjs')
+const mcpScriptPath = path.join(scriptDir, 'pixel-companion-mcp.mjs')
 const CODEX_DIR = path.join(os.homedir(), '.codex')
 const CODEX_CONFIG_PATH = path.join(CODEX_DIR, 'config.toml')
 const CODEX_HOOKS_PATH = path.join(CODEX_DIR, 'hooks.json')
+const CLAUDE_DIR = path.join(os.homedir(), '.claude')
+const CLAUDE_SETTINGS_PATH = path.join(CLAUDE_DIR, 'settings.json')
+const CLAUDE_MCP_SERVER_NAME = 'pixel-companion'
 const PIXEL_HOOK_SCRIPT_MARKER = 'pixel-companion-hook.mjs'
 
 function printUsage() {
@@ -21,13 +25,17 @@ function printUsage() {
 
 Usage:
   pixel codex [...codex args]
+  pixel claude [...claude args]
 
 Commands:
   codex    Launch Codex with Pixel Companion hooks enabled.
+  claude   Launch Claude Code with Pixel Companion hooks enabled.
 
 Examples:
   pixel codex
   pixel codex --yolo
+  pixel claude
+  pixel claude --dangerously-skip-permissions
 `)
 }
 
@@ -135,6 +143,16 @@ async function readCodexHooksConfig() {
   }
 }
 
+async function readClaudeSettingsConfig() {
+  try {
+    const settingsConfig = JSON.parse(await readFile(CLAUDE_SETTINGS_PATH, 'utf8'))
+    return settingsConfig && typeof settingsConfig === 'object' ? settingsConfig : { hooks: {} }
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { hooks: {} }
+    throw error
+  }
+}
+
 async function ensureCodexHooks() {
   if (!existsSync(hookScriptPath)) {
     throw new Error(`Pixel Companion hook script was not found at ${hookScriptPath}`)
@@ -184,6 +202,129 @@ async function ensureCodexHooks() {
   }
 }
 
+async function ensureClaudeHooks() {
+  if (!existsSync(hookScriptPath)) {
+    throw new Error(`Pixel Companion hook script was not found at ${hookScriptPath}`)
+  }
+
+  let settingsConfig = await readClaudeSettingsConfig()
+
+  settingsConfig = upsertPixelHook(settingsConfig, 'SessionStart', {
+    matcher: 'startup|resume|clear|compact',
+    hooks: [
+      {
+        type: 'command',
+        command: createHookCommand('claude-session-start'),
+        timeout: 10,
+        statusMessage: 'Loading Pixel Companion context'
+      }
+    ]
+  })
+  settingsConfig = upsertPixelHook(settingsConfig, 'UserPromptSubmit', {
+    hooks: [
+      {
+        type: 'command',
+        command: createHookCommand('claude-user-prompt-submit'),
+        timeout: 10,
+        statusMessage: 'Notifying Pixel Companion'
+      }
+    ]
+  })
+  settingsConfig = upsertPixelHook(settingsConfig, 'Stop', {
+    hooks: [
+      {
+        type: 'command',
+        command: createHookCommand('claude-stop'),
+        timeout: 10,
+        statusMessage: 'Updating Pixel Companion'
+      }
+    ]
+  })
+  settingsConfig = upsertPixelHook(settingsConfig, 'StopFailure', {
+    hooks: [
+      {
+        type: 'command',
+        command: createHookCommand('claude-stop-failure'),
+        timeout: 10,
+        statusMessage: 'Updating Pixel Companion'
+      }
+    ]
+  })
+  settingsConfig = upsertPixelHook(settingsConfig, 'Notification', {
+    matcher: 'permission_prompt|idle_prompt|elicitation_dialog',
+    hooks: [
+      {
+        type: 'command',
+        command: createHookCommand('claude-notification'),
+        timeout: 10,
+        statusMessage: 'Updating Pixel Companion'
+      }
+    ]
+  })
+
+  await mkdir(CLAUDE_DIR, { recursive: true })
+  await writeFile(CLAUDE_SETTINGS_PATH, `${JSON.stringify(settingsConfig, null, 2)}\n`, 'utf8')
+
+  return {
+    hooksPath: CLAUDE_SETTINGS_PATH
+  }
+}
+
+function runClaudeMcpCommand(args) {
+  return spawnSync('claude', args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 10000
+  })
+}
+
+function summarizeCommandFailure(result) {
+  if (result.error) return result.error.message
+
+  const output = `${result.stderr ?? ''}${result.stdout ?? ''}`.trim()
+  return output || `exit ${result.status ?? 'unknown'}`
+}
+
+function ensureClaudeMcpServer() {
+  if (!existsSync(mcpScriptPath)) {
+    throw new Error(`Pixel Companion MCP script was not found at ${mcpScriptPath}`)
+  }
+
+  const current = runClaudeMcpCommand(['mcp', 'get', CLAUDE_MCP_SERVER_NAME])
+  const existingOutput = `${current.stdout ?? ''}${current.stderr ?? ''}`
+
+  if (current.status === 0 && existingOutput.includes(mcpScriptPath)) {
+    return {
+      configured: false
+    }
+  }
+
+  if (current.status === 0) {
+    runClaudeMcpCommand(['mcp', 'remove', CLAUDE_MCP_SERVER_NAME])
+  }
+
+  const added = runClaudeMcpCommand([
+    'mcp',
+    'add',
+    '--transport',
+    'stdio',
+    '--scope',
+    'user',
+    CLAUDE_MCP_SERVER_NAME,
+    '--',
+    'node',
+    mcpScriptPath
+  ])
+
+  if (added.status !== 0) {
+    throw new Error(summarizeCommandFailure(added))
+  }
+
+  return {
+    configured: true
+  }
+}
+
 async function runCodex(args) {
   try {
     const result = await ensureCodexHooks()
@@ -223,6 +364,53 @@ async function runCodex(args) {
   })
 }
 
+async function runClaude(args) {
+  try {
+    const result = await ensureClaudeHooks()
+    process.stderr.write(`Pixel Companion: installed Claude Code hooks at ${result.hooksPath}.\n`)
+  } catch (error) {
+    process.stderr.write(
+      `Pixel Companion: could not install Claude Code hooks (${error instanceof Error ? error.message : String(error)}). Launching Claude Code anyway.\n`
+    )
+  }
+
+  try {
+    const result = ensureClaudeMcpServer()
+    const configuredLabel = result.configured ? 'configured' : 'verified'
+    process.stderr.write(`Pixel Companion: ${configuredLabel} Claude Code MCP server.\n`)
+  } catch (error) {
+    process.stderr.write(
+      `Pixel Companion: could not configure Claude Code MCP (${error instanceof Error ? error.message : String(error)}). Launching Claude Code anyway.\n`
+    )
+  }
+
+  const child = spawn('claude', args, {
+    env: {
+      ...process.env,
+      PIXEL_COMPANION_CLI_REPO: repoRoot,
+      PIXEL_COMPANION_HOOK_SCRIPT: hookScriptPath,
+      PIXEL_COMPANION_MCP_SCRIPT: mcpScriptPath,
+      PIXEL_COMPANION_START_WITH_PIXEL: '1',
+      PIXEL_COMPANION_WRAPPED_CLI: 'claude'
+    },
+    stdio: 'inherit'
+  })
+
+  child.on('error', (error) => {
+    process.stderr.write(`Pixel Companion: failed to launch claude (${error.message}).\n`)
+    process.exit(1)
+  })
+
+  child.on('exit', (code, signal) => {
+    if (signal) {
+      process.kill(process.pid, signal)
+      return
+    }
+
+    process.exit(code ?? 0)
+  })
+}
+
 const [command, ...args] = process.argv.slice(2)
 
 if (!command || command === '--help' || command === '-h') {
@@ -232,6 +420,8 @@ if (!command || command === '--help' || command === '-h') {
 
 if (command === 'codex') {
   await runCodex(args)
+} else if (command === 'claude') {
+  await runClaude(args)
 } else {
   process.stderr.write(`Pixel Companion: unknown command "${command}".\n\n`)
   printUsage()

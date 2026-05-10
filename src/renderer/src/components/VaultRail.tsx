@@ -421,7 +421,7 @@ export function VaultRail({
         <div className="brand-lockup">
           <div className="brand-title-row">
             <strong>Pixel Companion</strong>
-            <span className="brand-version">V1.0.0</span>
+            <span className="brand-version">v1.0.0</span>
           </div>
         </div>
 

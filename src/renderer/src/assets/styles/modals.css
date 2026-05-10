@@ -207,6 +207,13 @@
   background: color-mix(in srgb, var(--active-project-color) 10%, rgba(255, 255, 255, 0.04));
 }
 
+.start-agent-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
 .start-agent-toggle {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
@@ -230,6 +237,64 @@
 .start-agent-toggle strong {
   color: var(--ev-c-text-1);
   font-size: 13px;
+}
+
+.start-agent-picker {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  min-width: 0;
+}
+
+.start-agent-picker span {
+  color: var(--ev-c-text-2);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.start-agent-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  width: max-content;
+  max-width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 3px;
+  background: rgba(6, 8, 12, 0.36);
+}
+
+.start-agent-segmented__option {
+  min-width: 0;
+  min-height: 28px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 9px;
+  color: var(--ev-c-text-2);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.start-agent-segmented__option:hover:not(:disabled),
+.start-agent-segmented__option:focus-visible {
+  color: var(--ev-c-text-1);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.start-agent-segmented__option[aria-checked='true'] {
+  color: var(--ev-c-text-1);
+  background: color-mix(in srgb, var(--active-project-color) 34%, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--active-project-color) 18%, transparent);
+}
+
+.start-agent-segmented__option:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .start-agent-toggle small,

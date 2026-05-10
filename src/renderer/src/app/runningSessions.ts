@@ -1,9 +1,15 @@
-import type { Project, RunningSession, TerminalConfig } from '../../../shared/workspace'
+import type {
+  PixelLauncherAgentId,
+  Project,
+  RunningSession,
+  TerminalConfig
+} from '../../../shared/workspace'
 
 type CreateRunningSessionOptions = {
   fallbackProjectColor: string
   id?: string
   now?: string
+  pixelAgent?: PixelLauncherAgentId
   useStartWithPixel?: boolean
 }
 
@@ -35,6 +41,7 @@ export function createRunningSession(
     fallbackProjectColor,
     id = createId('session'),
     now = new Date().toISOString(),
+    pixelAgent,
     useStartWithPixel = false
   }: CreateRunningSessionOptions
 ): RunningSession {
@@ -45,6 +52,7 @@ export function createRunningSession(
     projectId: config.projectId,
     configId: config.id,
     name: config.name,
+    ...(startWithPixel && pixelAgent ? { pixelAgent } : {}),
     startWithPixel,
     projectColor: project?.color ?? fallbackProjectColor,
     projectName: project?.name ?? 'Unknown project',

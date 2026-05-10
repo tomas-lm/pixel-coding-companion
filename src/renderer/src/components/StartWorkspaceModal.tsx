@@ -1,9 +1,16 @@
-import type { Project, TerminalConfig } from '../../../shared/workspace'
+import {
+  PIXEL_LAUNCHER_AGENT_OPTIONS,
+  type PixelLauncherAgentId,
+  type Project,
+  type TerminalConfig
+} from '../../../shared/workspace'
 import { KIND_LABELS, getTerminalDetail } from '../app/sessionDisplay'
 
 type StartWorkspaceModalProps = {
   configs: TerminalConfig[]
   liveConfigIds: Set<string>
+  pixelAgent: PixelLauncherAgentId
+  onChangePixelAgent: (pixelAgent: PixelLauncherAgentId) => void
   onClose: () => void
   onSelectCategory: (category: 'all' | 'ai' | 'run') => void
   onStartSelected: () => void
@@ -17,6 +24,11 @@ type StartWorkspaceModalProps = {
   startWithPixel: boolean
 }
 
+function getCompactAgentLabel(option: (typeof PIXEL_LAUNCHER_AGENT_OPTIONS)[number]): string {
+  if (option.id === 'claude') return 'Claude'
+  return option.label
+}
+
 export function StartWorkspaceModal({
   configs,
   liveConfigIds,
@@ -25,6 +37,8 @@ export function StartWorkspaceModal({
   onStartSelected,
   onToggleConfig,
   onToggleStartWithPixel,
+  onChangePixelAgent,
+  pixelAgent,
   project,
   selectedConfigIds,
   selectedCount,
@@ -32,6 +46,14 @@ export function StartWorkspaceModal({
   selectedPixelLabel,
   startWithPixel
 }: StartWorkspaceModalProps): React.JSX.Element {
+  const selectedAgentLabel =
+    PIXEL_LAUNCHER_AGENT_OPTIONS.find((option) => option.id === pixelAgent)?.label ??
+    PIXEL_LAUNCHER_AGENT_OPTIONS[0].label
+  const agentWarning =
+    pixelAgent === 'auto'
+      ? 'Keep this on so Pixel can auto-detect Claude Code or Codex launch commands.'
+      : `Keep this on for ${selectedAgentLabel} terminals if you want companion context and XP fallback to work.`
+
   return (
     <div className="modal-backdrop">
       <section className="modal modal--wide" aria-label={`Start ${project.name}`}>
@@ -66,19 +88,42 @@ export function StartWorkspaceModal({
         </div>
 
         <div className="start-agent-instruction-panel">
-          <label className="start-agent-toggle">
-            <input type="checkbox" checked={startWithPixel} onChange={onToggleStartWithPixel} />
-            <span>
-              <strong>Start with Pixel</strong>
-              <small>
-                Launches supported AI terminals through Pixel instead of injecting a prompt.
-              </small>
-            </span>
-          </label>
+          <div className="start-agent-row">
+            <label className="start-agent-toggle">
+              <input type="checkbox" checked={startWithPixel} onChange={onToggleStartWithPixel} />
+              <span>
+                <strong>Start with Pixel</strong>
+                <small>
+                  Launches supported AI terminals through Pixel instead of injecting a prompt.
+                </small>
+              </span>
+            </label>
+            <div className="start-agent-picker">
+              <span>Agent</span>
+              <div
+                className="start-agent-segmented"
+                role="radiogroup"
+                aria-label="Pixel launcher agent"
+              >
+                {PIXEL_LAUNCHER_AGENT_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    className="start-agent-segmented__option"
+                    type="button"
+                    role="radio"
+                    aria-checked={option.id === pixelAgent}
+                    disabled={!startWithPixel}
+                    onClick={() => onChangePixelAgent(option.id as PixelLauncherAgentId)}
+                  >
+                    {getCompactAgentLabel(option)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           <p className="start-agent-warning">
-            Keep this on for Codex terminals if you want companion hooks and XP fallback to work. It
-            applies to {selectedPixelConfigCount} selected AI {selectedPixelLabel} with launch
-            commands.
+            {agentWarning} It applies to {selectedPixelConfigCount} selected AI {selectedPixelLabel}{' '}
+            with matching launch commands.
           </p>
         </div>
 

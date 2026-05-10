@@ -105,16 +105,30 @@ function isPixelHookEnabled() {
   return process.env.PIXEL_COMPANION_START_WITH_PIXEL === '1'
 }
 
-async function buildSessionStartResponse(hookInput) {
+function getWrappedCli(command) {
+  if (command.startsWith('claude-')) return 'claude'
+  if (command.startsWith('codex-')) return 'codex'
+  return process.env.PIXEL_COMPANION_WRAPPED_CLI ?? 'codex'
+}
+
+function getAgentName(command) {
+  return getWrappedCli(command) === 'claude' ? 'Claude Code' : 'Codex'
+}
+
+function getEventCommand(command) {
+  return command.replace(/^(?:codex|claude)-/, '')
+}
+
+async function buildSessionStartResponse(hookInput, agentName) {
   const context = await readBoundContext(projectContextOptions)
   const terminalName = getSessionLabel(context, hookInput)
   const projectName = getProjectLabel(context)
   const additionalContext = [
     '[Pixel Companion setup]',
     'This is startup context, not a user task.',
-    `You are running inside Pixel Companion terminal "${terminalName}" for "${projectName}".`,
+    `You are ${agentName}, running inside Pixel Companion terminal "${terminalName}" for "${projectName}".`,
     `Active companion: ${COMPANION_NAME}. ${getCompanionVoiceGuidance()}`,
-    'Use the pixel-companion MCP companion_report tool when meaningful work starts, finishes, fails, or needs user input.',
+    `Use the pixel-companion MCP companion_report tool when meaningful work starts, finishes, fails, or needs user input. Set agentName to "${agentName}" when reporting.`,
     'If context was reset or cleared, use companion_get_profile to recover the active companion personality and reporting contract.',
     `Write ${COMPANION_NAME} messages as natural user-facing speech. Match the user language and communication style.`,
     'Do not mention MCP, tool calls, schemas, hooks, or internal reporting unless the user is debugging Pixel Companion.'
@@ -129,15 +143,15 @@ async function buildSessionStartResponse(hookInput) {
   }
 }
 
-async function handleUserPromptSubmit(hookInput) {
+async function handleUserPromptSubmit(hookInput, agentName) {
   const context = await readBoundContext(projectContextOptions)
   const sessionLabel = getSessionLabel(context, hookInput)
   const promptPreview = truncate(hookInput.prompt, 280)
   const message = await createMessage({
-    agentName: 'Codex',
+    agentName,
     cliState: 'working',
-    codexSessionId: hookInput.session_id,
-    codexTurnId: hookInput.turn_id,
+    codexSessionId: agentName === 'Codex' ? hookInput.session_id : undefined,
+    codexTurnId: agentName === 'Codex' ? hookInput.turn_id : undefined,
     cwd: hookInput.cwd,
     details: promptPreview ? `Prompt: ${promptPreview}` : undefined,
     eventType: 'started',
@@ -146,7 +160,7 @@ async function handleUserPromptSubmit(hookInput) {
     projectId: context.projectId,
     projectName: context.projectName,
     sessionName: context.terminalName,
-    summary: `Codex started working in ${sessionLabel}.`,
+    summary: `${agentName} started working in ${sessionLabel}.`,
     title: sessionLabel
   })
 
@@ -159,25 +173,25 @@ async function handleUserPromptSubmit(hookInput) {
       hookEventName: 'UserPromptSubmit',
       additionalContext: [
         `Pixel Companion is watching this turn in "${sessionLabel}".`,
-        `When work finishes, speak through ${COMPANION_NAME} with companion_report using natural user-facing language.`,
+        `When work finishes, speak through ${COMPANION_NAME} with companion_report using natural user-facing language and agentName "${agentName}".`,
         'Do not mention hooks or internal reporting unless the user is debugging Pixel Companion.'
       ].join(' ')
     }
   }
 }
 
-async function handleStop(hookInput) {
+async function handleStop(hookInput, agentName) {
   const context = await readBoundContext(projectContextOptions)
   const sessionLabel = getSessionLabel(context, hookInput)
   const assistantMessage = truncate(hookInput.last_assistant_message, 420)
   const summary = assistantMessage
-    ? `Codex finished in ${sessionLabel}. ${assistantMessage}`
-    : `Codex finished a turn in ${sessionLabel}.`
+    ? `${agentName} finished in ${sessionLabel}. ${assistantMessage}`
+    : `${agentName} finished a turn in ${sessionLabel}.`
   const message = await createMessage({
-    agentName: 'Codex',
+    agentName,
     cliState: 'done',
-    codexSessionId: hookInput.session_id,
-    codexTurnId: hookInput.turn_id,
+    codexSessionId: agentName === 'Codex' ? hookInput.session_id : undefined,
+    codexTurnId: agentName === 'Codex' ? hookInput.turn_id : undefined,
     cwd: hookInput.cwd,
     details: assistantMessage,
     eventType: 'finished',
@@ -204,6 +218,67 @@ async function handleStop(hookInput) {
   }
 }
 
+async function handleStopFailure(hookInput, agentName) {
+  const context = await readBoundContext(projectContextOptions)
+  const sessionLabel = getSessionLabel(context, hookInput)
+  const error = truncate(
+    hookInput.error_details ?? hookInput.last_assistant_message ?? hookInput.error,
+    420
+  )
+  const message = await createMessage({
+    agentName,
+    cliState: 'error',
+    cwd: hookInput.cwd,
+    details: error || undefined,
+    eventType: 'failed',
+    hookEventName: hookInput.hook_event_name ?? 'StopFailure',
+    projectColor: context.projectColor,
+    projectId: context.projectId,
+    projectName: context.projectName,
+    sessionName: context.terminalName,
+    summary: error
+      ? `${agentName} failed in ${sessionLabel}. ${error}`
+      : `${agentName} failed in ${sessionLabel}.`,
+    title: sessionLabel
+  })
+
+  await writeMessage(message)
+  await updateCompanionProgress(message, { ...xpAwardOptions, suppressFallbackFinal: true })
+
+  return {
+    continue: true
+  }
+}
+
+async function handleNotification(hookInput, agentName) {
+  const context = await readBoundContext(projectContextOptions)
+  const sessionLabel = getSessionLabel(context, hookInput)
+  const notification = truncate(hookInput.message ?? hookInput.title, 320)
+  const message = await createMessage({
+    agentName,
+    cliState: 'waiting_input',
+    cwd: hookInput.cwd,
+    details: notification || undefined,
+    eventType: 'needs_input',
+    hookEventName: hookInput.hook_event_name ?? 'Notification',
+    projectColor: context.projectColor,
+    projectId: context.projectId,
+    projectName: context.projectName,
+    sessionName: context.terminalName,
+    summary: notification
+      ? `${agentName} needs attention in ${sessionLabel}. ${notification}`
+      : `${agentName} needs attention in ${sessionLabel}.`,
+    title: sessionLabel
+  })
+
+  await writeMessage(message)
+  await updateCompanionProgress(message, xpAwardOptions)
+
+  return {
+    continue: true
+  }
+}
+
 async function handleEvent(command) {
   const hookInput = await readHookInput()
 
@@ -213,9 +288,14 @@ async function handleEvent(command) {
     }
   }
 
-  if (command === 'codex-session-start') return buildSessionStartResponse(hookInput)
-  if (command === 'codex-user-prompt-submit') return handleUserPromptSubmit(hookInput)
-  if (command === 'codex-stop') return handleStop(hookInput)
+  const agentName = getAgentName(command)
+  const eventCommand = getEventCommand(command)
+
+  if (eventCommand === 'session-start') return buildSessionStartResponse(hookInput, agentName)
+  if (eventCommand === 'user-prompt-submit') return handleUserPromptSubmit(hookInput, agentName)
+  if (eventCommand === 'stop') return handleStop(hookInput, agentName)
+  if (eventCommand === 'stop-failure') return handleStopFailure(hookInput, agentName)
+  if (eventCommand === 'notification') return handleNotification(hookInput, agentName)
 
   return {
     continue: true,

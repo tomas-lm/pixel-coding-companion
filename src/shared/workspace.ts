@@ -26,6 +26,19 @@ export const DEFAULT_TERMINAL_THEME_ID: TerminalThemeId = 'catppuccin_mocha'
 
 export type SessionKind = 'ai' | 'shell' | 'dev_server' | 'logs' | 'test' | 'custom'
 
+export const PIXEL_LAUNCHER_AGENT_OPTIONS = [
+  { id: 'auto', label: 'Auto' },
+  { id: 'claude', label: 'Claude Code' },
+  { id: 'codex', label: 'Codex' }
+] as const
+
+export type PixelLauncherAgentId = (typeof PIXEL_LAUNCHER_AGENT_OPTIONS)[number]['id']
+
+export type ResolvedPixelLauncherAgentId = Exclude<PixelLauncherAgentId, 'auto'>
+
+export const DEFAULT_PIXEL_LAUNCHER_AGENT_ID: PixelLauncherAgentId = 'auto'
+export const DEFAULT_PIXEL_LAUNCHER_FALLBACK_AGENT_ID: ResolvedPixelLauncherAgentId = 'claude'
+
 export type ProjectChangeRoot = {
   id: string
   path: string
@@ -71,6 +84,10 @@ export type WorkspaceCodeEditorSettings = {
   preferredEditor: CodeEditorId
 }
 
+export type WorkspacePixelLauncherSettings = {
+  preferredAgent: PixelLauncherAgentId
+}
+
 export type RunningSessionStatus = 'starting' | 'running' | 'done' | 'error'
 
 export type RunningSession = {
@@ -79,6 +96,7 @@ export type RunningSession = {
   configId: string
   name: string
   autoLaunchInstruction?: string
+  pixelAgent?: PixelLauncherAgentId
   startWithPixel?: boolean
   projectColor: string
   projectName: string
@@ -103,6 +121,7 @@ export type WorkspaceConfig = {
   layout?: WorkspaceLayout
   featureSettings?: WorkspaceFeatureSettings
   codeEditorSettings?: WorkspaceCodeEditorSettings
+  pixelLauncherSettings?: WorkspacePixelLauncherSettings
   promptTemplates?: PromptTemplate[]
   activeVaultId?: string
   vaults?: VaultConfig[]

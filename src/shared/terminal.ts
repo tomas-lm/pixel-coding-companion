@@ -1,7 +1,7 @@
 import type { CompanionBridgeApi } from './companion'
 import type { ClipboardApi, SystemApi } from './system'
 import type { VaultApi } from './vault'
-import type { ViewApi, WorkspaceApi } from './workspace'
+import type { PixelLauncherAgentId, ViewApi, WorkspaceApi } from './workspace'
 
 export const TERMINAL_CHANNELS = {
   start: 'terminal:start',
@@ -25,6 +25,7 @@ export type TerminalStartRequest = {
   cwd?: string
   commands?: string[]
   env?: Record<string, string>
+  pixelAgent?: PixelLauncherAgentId
   startWithPixel?: boolean
   suppressCommandExitMarker?: boolean
 }

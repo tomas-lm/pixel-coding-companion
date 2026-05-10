@@ -2,6 +2,7 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import type {
   WorkspaceCodeEditorSettings,
   WorkspaceFeatureSettings,
+  WorkspacePixelLauncherSettings,
   PromptTemplate,
   Project,
   TerminalConfig,
@@ -21,6 +22,10 @@ import {
   DEFAULT_WORKSPACE_FEATURE_SETTINGS,
   normalizeWorkspaceFeatureSettings
 } from '../app/workspaceFeatureSettings'
+import {
+  DEFAULT_WORKSPACE_PIXEL_LAUNCHER_SETTINGS,
+  normalizeWorkspacePixelLauncherSettings
+} from '../app/workspacePixelLauncherSettings'
 
 type UseWorkspaceConfigOptions = {
   applyTerminalTheme: (themeId?: unknown) => TerminalThemeId
@@ -35,12 +40,14 @@ type UseWorkspaceConfigResult = {
   codeEditorSettings: WorkspaceCodeEditorSettings
   configLoaded: boolean
   featureSettings: WorkspaceFeatureSettings
+  pixelLauncherSettings: WorkspacePixelLauncherSettings
   projects: Project[]
   promptTemplates: PromptTemplate[]
   setActiveProjectId: Dispatch<SetStateAction<string | null>>
   setActiveVaultId: Dispatch<SetStateAction<string | null>>
   setCodeEditorSettings: Dispatch<SetStateAction<WorkspaceCodeEditorSettings>>
   setFeatureSettings: Dispatch<SetStateAction<WorkspaceFeatureSettings>>
+  setPixelLauncherSettings: Dispatch<SetStateAction<WorkspacePixelLauncherSettings>>
   setPromptTemplates: Dispatch<SetStateAction<PromptTemplate[]>>
   setProjects: Dispatch<SetStateAction<Project[]>>
   setTerminalConfigs: Dispatch<SetStateAction<TerminalConfig[]>>
@@ -65,6 +72,8 @@ export function useWorkspaceConfig({
   const [codeEditorSettings, setCodeEditorSettings] = useState<WorkspaceCodeEditorSettings>(
     DEFAULT_WORKSPACE_CODE_EDITOR_SETTINGS
   )
+  const [pixelLauncherSettings, setPixelLauncherSettings] =
+    useState<WorkspacePixelLauncherSettings>(DEFAULT_WORKSPACE_PIXEL_LAUNCHER_SETTINGS)
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [activeVaultId, setActiveVaultId] = useState<string | null>(null)
   const [configLoaded, setConfigLoaded] = useState(false)
@@ -86,6 +95,9 @@ export function useWorkspaceConfig({
           setVaults(normalizedVaults)
           setFeatureSettings(normalizeWorkspaceFeatureSettings(config.featureSettings))
           setCodeEditorSettings(normalizeWorkspaceCodeEditorSettings(config.codeEditorSettings))
+          setPixelLauncherSettings(
+            normalizeWorkspacePixelLauncherSettings(config.pixelLauncherSettings)
+          )
           setActiveProjectId(
             normalizedProjects.find((project) => project.id === config.activeProjectId)?.id ??
               normalizedProjects[0]?.id ??
@@ -121,6 +133,7 @@ export function useWorkspaceConfig({
         codeEditorSettings,
         featureSettings,
         layout,
+        pixelLauncherSettings,
         promptTemplates,
         terminalThemeId,
         vaults
@@ -135,6 +148,7 @@ export function useWorkspaceConfig({
     configLoaded,
     featureSettings,
     layout,
+    pixelLauncherSettings,
     projects,
     promptTemplates,
     terminalConfigs,
@@ -147,6 +161,7 @@ export function useWorkspaceConfig({
     activeVaultId,
     codeEditorSettings,
     featureSettings,
+    pixelLauncherSettings,
     configLoaded,
     promptTemplates,
     projects,
@@ -154,6 +169,7 @@ export function useWorkspaceConfig({
     setActiveVaultId,
     setCodeEditorSettings,
     setFeatureSettings,
+    setPixelLauncherSettings,
     setPromptTemplates,
     setProjects,
     setTerminalConfigs,

@@ -68,7 +68,11 @@ export function shouldTrackCodexContext(request: TerminalStartRequest): boolean 
       const trimmedCommand = command.trim()
       return (
         isCodexCommand(trimmedCommand) ||
-        Boolean(request.startWithPixel && /^codex(?:\s|$)/.test(trimmedCommand))
+        Boolean(
+          request.startWithPixel &&
+          request.pixelAgent === 'codex' &&
+          /^codex(?:\s|$)/.test(trimmedCommand)
+        )
       )
     })
   )

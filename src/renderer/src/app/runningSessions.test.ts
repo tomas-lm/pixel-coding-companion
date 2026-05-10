@@ -25,6 +25,7 @@ describe('running sessions', () => {
         fallbackProjectColor: '#ffffff',
         id: 'session-1',
         now: '2026-05-02T15:00:00.000Z',
+        pixelAgent: 'claude',
         useStartWithPixel: true
       })
     ).toEqual({
@@ -36,6 +37,7 @@ describe('running sessions', () => {
       lastActivityAt: '2026-05-02T15:00:00.000Z',
       metadata: '/repo',
       name: 'Assistant',
+      pixelAgent: 'claude',
       projectColor: '#4ea1ff',
       projectId: 'project-1',
       projectName: 'Pixel',
@@ -106,5 +108,17 @@ describe('running sessions', () => {
     }
 
     expect(findReusableSessionForConfig(shellConfig, [liveShellSession])).toBeNull()
+  })
+
+  it('does not keep a Pixel agent when Start with Pixel is disabled', () => {
+    expect(
+      createRunningSession(config, project, {
+        fallbackProjectColor: '#ffffff',
+        id: 'session-1',
+        now: '2026-05-02T15:00:00.000Z',
+        pixelAgent: 'claude',
+        useStartWithPixel: false
+      }).pixelAgent
+    ).toBeUndefined()
   })
 })

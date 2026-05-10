@@ -17,6 +17,8 @@ describe('StartWorkspaceModal', () => {
           }
         ]}
         liveConfigIds={new Set()}
+        pixelAgent="auto"
+        onChangePixelAgent={vi.fn()}
         onClose={vi.fn()}
         onSelectCategory={vi.fn()}
         onStartSelected={vi.fn()}
@@ -32,6 +34,8 @@ describe('StartWorkspaceModal', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Start Pixel' })).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'Pixel launcher agent' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Auto' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('Assistant')).toBeInTheDocument()
     expect(screen.getByText('1 selected')).toBeInTheDocument()
   })

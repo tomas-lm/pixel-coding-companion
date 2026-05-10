@@ -51,6 +51,7 @@ function isCodexContextCandidate(session: RunningSession): boolean {
   return Boolean(
     session.commands.some(isCodexSessionCommand) ||
     (session.startWithPixel &&
+      session.pixelAgent === 'codex' &&
       session.commands.some((command) => /^codex(?:\s|$)/.test(command.trim())))
   )
 }
@@ -313,6 +314,7 @@ export function TerminalPane({
           rows: terminal.rows,
           cwd: session.cwd || undefined,
           commands: session.commands,
+          pixelAgent: session.pixelAgent,
           startWithPixel: session.startWithPixel,
           suppressCommandExitMarker: Boolean(
             session.autoLaunchInstruction || session.startWithPixel
@@ -382,6 +384,7 @@ export function TerminalPane({
     session.projectColor,
     session.projectId,
     session.projectName,
+    session.pixelAgent,
     session.startWithPixel
   ])
 

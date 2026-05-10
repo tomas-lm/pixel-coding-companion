@@ -121,6 +121,7 @@ describe('codexContextTelemetry', () => {
         cols: 80,
         commands: ['codex'],
         id: 'pixel-codex',
+        pixelAgent: 'codex',
         rows: 24,
         startWithPixel: true
       })
