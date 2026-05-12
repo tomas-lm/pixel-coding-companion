@@ -31,7 +31,7 @@
     "dev": "npm run build:native:dictation && electron-vite dev",
     "dev:isolated": "npm run build:native:dictation && PIXEL_COMPANION_APP_NAME='Pixel Companion Dev' PIXEL_COMPANION_APP_ID='dev.tomasmuniz.pixel-coding-companion.dev' PIXEL_COMPANION_USER_DATA_DIR='pixel-coding-companion-dev' PIXEL_COMPANION_DATA_DIR=\"$HOME/Library/Application Support/pixel-coding-companion-dev\" electron-vite dev",
     "build:dev-unpack": "npm run build:native:dictation && npm run build && electron-builder --dir -c.productName='Pixel Companion Dev' -c.appId='dev.tomasmuniz.pixel-coding-companion.dev' -c.directories.output=dist-dev",
-    "open:dev-packaged": "PIXEL_COMPANION_APP_NAME='Pixel Companion Dev' PIXEL_COMPANION_APP_ID='dev.tomasmuniz.pixel-coding-companion.dev' PIXEL_COMPANION_USER_DATA_DIR='pixel-coding-companion-dev' PIXEL_COMPANION_DATA_DIR=\"$HOME/Library/Application Support/pixel-coding-companion-dev\" \"dist-dev/mac-arm64/Pixel Companion Dev.app/Contents/MacOS/Pixel Companion Dev\"",
+    "open:dev-packaged": "mkdir -p \"$HOME/Library/Logs/Pixel Companion\" && open -n -W --stdout \"$HOME/Library/Logs/Pixel Companion/dev-packaged.out.log\" --stderr \"$HOME/Library/Logs/Pixel Companion/dev-packaged.err.log\" --env PIXEL_COMPANION_APP_NAME='Pixel Companion Dev' --env PIXEL_COMPANION_APP_ID='dev.tomasmuniz.pixel-coding-companion.dev' --env PIXEL_COMPANION_USER_DATA_DIR='pixel-coding-companion-dev' --env PIXEL_COMPANION_DATA_DIR=\"$HOME/Library/Application Support/pixel-coding-companion-dev\" \"dist-dev/mac-arm64/Pixel Companion Dev.app\"",
     "dev:packaged": "npm run build:dev-unpack && npm run open:dev-packaged",
     "open:stable": "open -n 'dist/mac-arm64/Pixel Companion.app'",
     "mcp": "node scripts/pixel-companion-mcp.mjs",

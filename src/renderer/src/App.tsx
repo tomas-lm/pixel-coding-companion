@@ -48,6 +48,7 @@ import {
 import { getActiveCompanionProgress, getCompanionMessageColor } from './app/companionSelectors'
 import {
   listDictationAudioInputDevices,
+  requestDictationAudioInputAccess,
   startWavCapture,
   type DictationAudioInputDevice,
   type WavCapture
@@ -300,20 +301,42 @@ function App(): React.JSX.Element {
 
   const requestDictationMicrophonePermission =
     useCallback(async (): Promise<DictationMicrophonePermissionSnapshot> => {
+      let captureRequestError: unknown = null
+
+      try {
+        await requestDictationAudioInputAccess()
+      } catch (error) {
+        captureRequestError = error
+      }
+
       if (typeof window.api.dictation.requestMicrophonePermission !== 'function') {
         const permission: DictationMicrophonePermissionSnapshot = {
-          canPrompt: false,
-          message: 'Restart Pixel to enable the macOS microphone permission request.',
-          status: 'unknown'
+          canPrompt: captureRequestError === null,
+          message:
+            captureRequestError instanceof Error
+              ? captureRequestError.message
+              : 'Restart Pixel to enable the macOS microphone permission request.',
+          status: captureRequestError === null ? 'granted' : 'unknown'
         }
         setDictationMicrophonePermission(permission)
+        refreshDictationAudioInputDevices()
         return permission
       }
 
-      const permission = await window.api.dictation.requestMicrophonePermission()
-      setDictationMicrophonePermission(permission)
+      const permission =
+        captureRequestError === null
+          ? await window.api.dictation.getMicrophonePermission()
+          : await window.api.dictation.requestMicrophonePermission()
+      const nextPermission =
+        captureRequestError instanceof Error && permission.status !== 'granted'
+          ? {
+              ...permission,
+              message: captureRequestError.message
+            }
+          : permission
+      setDictationMicrophonePermission(nextPermission)
       refreshDictationAudioInputDevices()
-      return permission
+      return nextPermission
     }, [refreshDictationAudioInputDevices])
 
   useEffect(() => {

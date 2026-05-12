@@ -76,6 +76,11 @@ export async function startWavCapture({
   throw new Error('This Electron build does not expose microphone recording APIs.')
 }
 
+export async function requestDictationAudioInputAccess(): Promise<void> {
+  const stream = await openPreferredAudioStream(null)
+  stopStream(stream)
+}
+
 function startMediaRecorderCapture(stream: MediaStream): WavCapture {
   const mimeType = getSupportedRecorderMimeType()
   const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
