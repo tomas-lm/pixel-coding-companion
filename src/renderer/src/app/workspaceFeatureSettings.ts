@@ -3,6 +3,7 @@ import type { WorkspaceFeatureSettings } from '../../../shared/workspace'
 
 export const DEFAULT_WORKSPACE_FEATURE_SETTINGS: WorkspaceFeatureSettings = {
   keepLastDictationAudioSample: false,
+  localTranscriberAudioInputDeviceId: null,
   localTranscriberEnabled: false,
   localTranscriberShortcut: 'control-option-hold',
   playSoundsUponFinishing: false
@@ -20,6 +21,10 @@ export function normalizeWorkspaceFeatureSettings(value: unknown): WorkspaceFeat
       typeof settings.keepLastDictationAudioSample === 'boolean'
         ? settings.keepLastDictationAudioSample
         : DEFAULT_WORKSPACE_FEATURE_SETTINGS.keepLastDictationAudioSample,
+    localTranscriberAudioInputDeviceId:
+      typeof settings.localTranscriberAudioInputDeviceId === 'string'
+        ? settings.localTranscriberAudioInputDeviceId
+        : DEFAULT_WORKSPACE_FEATURE_SETTINGS.localTranscriberAudioInputDeviceId,
     localTranscriberEnabled:
       typeof settings.localTranscriberEnabled === 'boolean'
         ? settings.localTranscriberEnabled

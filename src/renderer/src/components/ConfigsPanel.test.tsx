@@ -8,6 +8,7 @@ afterEach(cleanup)
 
 const featureSettings: WorkspaceFeatureSettings = {
   keepLastDictationAudioSample: false,
+  localTranscriberAudioInputDeviceId: null,
   localTranscriberEnabled: false,
   localTranscriberShortcut: 'control-option-hold',
   playSoundsUponFinishing: false
@@ -48,6 +49,7 @@ describe('ConfigsPanel', () => {
 
     expect(onChangeFeatureSettings).toHaveBeenCalledWith({
       keepLastDictationAudioSample: false,
+      localTranscriberAudioInputDeviceId: null,
       localTranscriberEnabled: false,
       localTranscriberShortcut: 'control-option-hold',
       playSoundsUponFinishing: true

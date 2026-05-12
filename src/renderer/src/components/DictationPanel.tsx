@@ -6,12 +6,15 @@ import {
   type DictationSnapshot
 } from '../../../shared/dictation'
 import type { WorkspaceFeatureSettings } from '../../../shared/workspace'
+import type { DictationAudioInputDevice } from '../app/dictationCapture'
 
 type DictationPanelProps = {
+  audioInputDevices: DictationAudioInputDevice[]
   dictationSnapshot?: DictationSnapshot | null
   featureSettings: WorkspaceFeatureSettings
   onChangeFeatureSettings: (featureSettings: WorkspaceFeatureSettings) => void
   onInstallParakeet: () => void
+  onRefreshAudioInputs: () => void
   onTestDictation: () => void
 }
 
@@ -36,10 +39,12 @@ function formatBytes(bytes: number): string {
 }
 
 export function DictationPanel({
+  audioInputDevices,
   dictationSnapshot,
   featureSettings,
   onChangeFeatureSettings,
   onInstallParakeet,
+  onRefreshAudioInputs,
   onTestDictation
 }: DictationPanelProps): React.JSX.Element {
   const dictationBackendLabel = dictationSnapshot?.backend.label ?? 'Local backend'
@@ -62,11 +67,25 @@ export function DictationPanel({
       : model.requiredBytesLabel
   const canRunDictationTest =
     featureSettings.localTranscriberEnabled && Boolean(dictationSnapshot?.backend.ready)
+  const defaultAudioInputLabel =
+    audioInputDevices.find((device) => device.isDefault)?.label ?? 'System default microphone'
+  const selectedAudioInputIsMissing =
+    Boolean(featureSettings.localTranscriberAudioInputDeviceId) &&
+    !audioInputDevices.some(
+      (device) => device.deviceId === featureSettings.localTranscriberAudioInputDeviceId
+    )
 
   const updateShortcut = (shortcutId: DictationShortcutId): void => {
     onChangeFeatureSettings({
       ...featureSettings,
       localTranscriberShortcut: shortcutId
+    })
+  }
+
+  const updateAudioInput = (deviceId: string): void => {
+    onChangeFeatureSettings({
+      ...featureSettings,
+      localTranscriberAudioInputDeviceId: deviceId || null
     })
   }
 
@@ -145,6 +164,36 @@ export function DictationPanel({
               )
             })}
           </div>
+        </section>
+
+        <section className="dictation-config" aria-labelledby="dictation-microphone-title">
+          <div className="dictation-config__section-header">
+            <h2 id="dictation-microphone-title">Microphone</h2>
+            <button className="secondary-button" type="button" onClick={onRefreshAudioInputs}>
+              Refresh inputs
+            </button>
+          </div>
+
+          <select
+            className="dictation-config__select"
+            aria-label="Dictation microphone"
+            value={featureSettings.localTranscriberAudioInputDeviceId ?? ''}
+            onChange={(event) => updateAudioInput(event.currentTarget.value)}
+          >
+            <option value="">{defaultAudioInputLabel}</option>
+            {selectedAudioInputIsMissing ? (
+              <option value={featureSettings.localTranscriberAudioInputDeviceId ?? ''}>
+                Selected microphone
+              </option>
+            ) : null}
+            {audioInputDevices
+              .filter((device) => !device.isDefault && device.deviceId)
+              .map((device) => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {device.label}
+                </option>
+              ))}
+          </select>
         </section>
 
         <section className="dictation-config" aria-labelledby="dictation-model-title">

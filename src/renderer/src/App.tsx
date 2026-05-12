@@ -45,7 +45,12 @@ import {
   getCompanionStageForLevel
 } from './companions/companionRegistry'
 import { getActiveCompanionProgress, getCompanionMessageColor } from './app/companionSelectors'
-import { startWavCapture, type WavCapture } from './app/dictationCapture'
+import {
+  listDictationAudioInputDevices,
+  startWavCapture,
+  type DictationAudioInputDevice,
+  type WavCapture
+} from './app/dictationCapture'
 import { insertDictationTranscript } from './app/dictationInsertion'
 import { primeCompletionSound } from './app/notificationSounds'
 import { getPromptTemplateProjectPath, getPromptTemplateSendStatus } from './app/promptTemplates'
@@ -241,16 +246,42 @@ function App(): React.JSX.Element {
   const [vaultHasUnsavedChanges, setVaultHasUnsavedChanges] = useState(false)
   const [vaultRefreshKey, setVaultRefreshKey] = useState(0)
   const [dictationSnapshot, setDictationSnapshot] = useState<DictationSnapshot | null>(null)
+  const [dictationAudioInputDevices, setDictationAudioInputDevices] = useState<
+    DictationAudioInputDevice[]
+  >([])
   const [recentDictationInsertionTarget, setRecentDictationInsertionTarget] =
     useState<DictationInsertTarget | null>(null)
   const dictationInsertionTimerRef = useRef<number | null>(null)
   const dictationCaptureRef = useRef<WavCapture | null>(null)
   const dictationCaptureStartRef = useRef<Promise<WavCapture> | null>(null)
+  const featureSettingsRef = useRef(featureSettings)
 
   useCompletionNotificationSound(
     companionBridgeState.messages,
     featureSettings.playSoundsUponFinishing
   )
+
+  useEffect(() => {
+    featureSettingsRef.current = featureSettings
+  }, [featureSettings])
+
+  const refreshDictationAudioInputDevices = useCallback((): void => {
+    void listDictationAudioInputDevices()
+      .then(setDictationAudioInputDevices)
+      .catch(() => setDictationAudioInputDevices([]))
+  }, [])
+
+  useEffect(() => {
+    refreshDictationAudioInputDevices()
+
+    const mediaDevices = navigator.mediaDevices
+    if (!mediaDevices?.addEventListener) return
+
+    mediaDevices.addEventListener('devicechange', refreshDictationAudioInputDevices)
+    return () => {
+      mediaDevices.removeEventListener('devicechange', refreshDictationAudioInputDevices)
+    }
+  }, [refreshDictationAudioInputDevices])
 
   useEffect(() => {
     let mounted = true
@@ -279,17 +310,21 @@ function App(): React.JSX.Element {
   useEffect(() => {
     return window.api.dictation.onCaptureCommand((command) => {
       if (command.type === 'start') {
-        const captureStart = startWavCapture()
+        const captureStart = startWavCapture({
+          preferredDeviceId: featureSettingsRef.current.localTranscriberAudioInputDeviceId
+        })
         dictationCaptureStartRef.current = captureStart
         void captureStart
           .then((capture) => {
             if (dictationCaptureStartRef.current !== captureStart) return
 
             dictationCaptureRef.current = capture
+            refreshDictationAudioInputDevices()
           })
           .catch((error: unknown) => {
             if (dictationCaptureStartRef.current !== captureStart) return
             dictationCaptureStartRef.current = null
+            refreshDictationAudioInputDevices()
             void window.api.dictation.completeCapture({
               ok: false,
               reason:
@@ -318,15 +353,17 @@ function App(): React.JSX.Element {
 
       void capturePromise
         .then((resolvedCapture) => resolvedCapture.stop())
-        .then(({ audioData, sampleRate }) =>
-          window.api.dictation.completeCapture({
+        .then(({ audioData, sampleRate }) => {
+          refreshDictationAudioInputDevices()
+          return window.api.dictation.completeCapture({
             audioData,
             mimeType: 'audio/wav',
             ok: true,
             sampleRate
           })
-        )
+        })
         .catch((error: unknown) => {
+          refreshDictationAudioInputDevices()
           void window.api.dictation.completeCapture({
             ok: false,
             reason:
@@ -334,7 +371,7 @@ function App(): React.JSX.Element {
           })
         })
     })
-  }, [])
+  }, [refreshDictationAudioInputDevices])
 
   useEffect(() => {
     if (!configLoaded) return
@@ -1327,10 +1364,12 @@ function App(): React.JSX.Element {
         />
       ) : activeActivityItemId === 'dictation' ? (
         <DictationPanel
+          audioInputDevices={dictationAudioInputDevices}
           dictationSnapshot={dictationSnapshot}
           featureSettings={featureSettings}
           onChangeFeatureSettings={changeFeatureSettings}
           onInstallParakeet={installParakeetModel}
+          onRefreshAudioInputs={refreshDictationAudioInputDevices}
           onTestDictation={() => {
             void window.api.dictation.testTranscription()
           }}

@@ -9,6 +9,7 @@ afterEach(cleanup)
 
 const featureSettings: WorkspaceFeatureSettings = {
   keepLastDictationAudioSample: false,
+  localTranscriberAudioInputDeviceId: null,
   localTranscriberEnabled: false,
   localTranscriberShortcut: 'control-option-hold',
   playSoundsUponFinishing: false
@@ -44,10 +45,23 @@ function renderDictationPanel(
 ): ReturnType<typeof render> {
   return render(
     <DictationPanel
+      audioInputDevices={[
+        {
+          deviceId: 'default',
+          isDefault: true,
+          label: 'Default - MacBook Air Microphone'
+        },
+        {
+          deviceId: 'macbook-mic',
+          isDefault: false,
+          label: 'MacBook Air Microphone'
+        }
+      ]}
       dictationSnapshot={dictationSnapshot}
       featureSettings={featureSettings}
       onChangeFeatureSettings={vi.fn()}
       onInstallParakeet={vi.fn()}
+      onRefreshAudioInputs={vi.fn()}
       onTestDictation={vi.fn()}
       {...overrides}
     />
@@ -61,6 +75,7 @@ describe('DictationPanel', () => {
     expect(screen.getByRole('heading', { name: 'Dictation' })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Enable local transcriber' })).not.toBeChecked()
     expect(screen.getByRole('radiogroup', { name: 'Dictation bind' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Dictation microphone' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Download Parakeet (~461 MB)' })).toBeInTheDocument()
   })
 
@@ -73,6 +88,7 @@ describe('DictationPanel', () => {
 
     expect(onChangeFeatureSettings).toHaveBeenCalledWith({
       keepLastDictationAudioSample: false,
+      localTranscriberAudioInputDeviceId: null,
       localTranscriberEnabled: true,
       localTranscriberShortcut: 'control-option-hold',
       playSoundsUponFinishing: false
@@ -88,8 +104,27 @@ describe('DictationPanel', () => {
 
     expect(onChangeFeatureSettings).toHaveBeenCalledWith({
       keepLastDictationAudioSample: false,
+      localTranscriberAudioInputDeviceId: null,
       localTranscriberEnabled: false,
       localTranscriberShortcut: 'option-shift-hold',
+      playSoundsUponFinishing: false
+    })
+  })
+
+  it('updates the dictation microphone', () => {
+    const onChangeFeatureSettings = vi.fn()
+
+    renderDictationPanel({ onChangeFeatureSettings })
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Dictation microphone' }), {
+      target: { value: 'macbook-mic' }
+    })
+
+    expect(onChangeFeatureSettings).toHaveBeenCalledWith({
+      keepLastDictationAudioSample: false,
+      localTranscriberAudioInputDeviceId: 'macbook-mic',
+      localTranscriberEnabled: false,
+      localTranscriberShortcut: 'control-option-hold',
       playSoundsUponFinishing: false
     })
   })

@@ -13,12 +13,14 @@ describe('workspaceFeatureSettings', () => {
     expect(
       normalizeWorkspaceFeatureSettings({
         keepLastDictationAudioSample: true,
+        localTranscriberAudioInputDeviceId: 'mic-1',
         localTranscriberEnabled: true,
         localTranscriberShortcut: 'option-shift-hold',
         playSoundsUponFinishing: true
       })
     ).toEqual({
       keepLastDictationAudioSample: true,
+      localTranscriberAudioInputDeviceId: 'mic-1',
       localTranscriberEnabled: true,
       localTranscriberShortcut: 'option-shift-hold',
       playSoundsUponFinishing: true
@@ -29,12 +31,14 @@ describe('workspaceFeatureSettings', () => {
     expect(
       normalizeWorkspaceFeatureSettings({
         keepLastDictationAudioSample: 'yes',
+        localTranscriberAudioInputDeviceId: 42,
         localTranscriberEnabled: 'yes',
         localTranscriberShortcut: 'fn',
         playSoundsUponFinishing: 'yes'
       })
     ).toEqual({
       keepLastDictationAudioSample: false,
+      localTranscriberAudioInputDeviceId: null,
       localTranscriberEnabled: false,
       localTranscriberShortcut: 'control-option-hold',
       playSoundsUponFinishing: false

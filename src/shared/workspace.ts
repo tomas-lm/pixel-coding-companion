@@ -79,6 +79,7 @@ export type PromptTemplate = {
 
 export type WorkspaceFeatureSettings = {
   keepLastDictationAudioSample: boolean
+  localTranscriberAudioInputDeviceId: string | null
   localTranscriberEnabled: boolean
   localTranscriberShortcut: DictationShortcutId
   playSoundsUponFinishing: boolean
