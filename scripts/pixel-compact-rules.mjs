@@ -268,16 +268,12 @@ export function extractShellCommandFromHookInput(hookInput) {
 export function buildNoisyCommandHookResponse(hookInput) {
   const command = extractShellCommandFromHookInput(hookInput)
   if (!command) {
-    return {
-      continue: true
-    }
+    return {}
   }
 
   const classification = classifyNoisyCommand(command)
   if (!classification.matched) {
-    return {
-      continue: true
-    }
+    return {}
   }
 
   const message = [
@@ -287,9 +283,6 @@ export function buildNoisyCommandHookResponse(hookInput) {
   ].join(' ')
 
   return {
-    continue: true,
-    decision: 'block',
-    reason: message,
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',

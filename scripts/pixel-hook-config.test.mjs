@@ -35,8 +35,7 @@ describe('pixel hook config', () => {
 
     expect(next.hooks.PreToolUse).toHaveLength(2)
     expect(next.hooks.PreToolUse[0].hooks[0].command).toBe('echo user-hook')
-    expect(next.hooks.PreToolUse[1].matcher).toContain('exec_command')
-    expect(next.hooks.PreToolUse[1].matcher).toContain('functions\\.exec_command')
+    expect(next.hooks.PreToolUse[1].matcher).toBe('Bash')
     expect(next.hooks.PreToolUse[1].hooks[0].command).toContain('codex-pre-tool-use')
   })
 

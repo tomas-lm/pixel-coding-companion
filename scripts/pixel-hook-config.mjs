@@ -3,8 +3,7 @@
 import { shellQuote } from './pixel-compact-rules.mjs'
 
 export const PIXEL_HOOK_SCRIPT_MARKER = 'pixel-companion-hook.mjs'
-export const CODEX_SHELL_TOOL_MATCHER =
-  'Bash|Shell|shell|Terminal|terminal|exec_command|functions\\.exec_command'
+export const CODEX_SHELL_TOOL_MATCHER = 'Bash'
 
 export function ensureCodexHooksFeature(contents) {
   const normalizedContents = contents.replace(/\r\n/g, '\n')

@@ -84,15 +84,30 @@ describe('pixel compact command rules', () => {
     ).toBeNull()
   })
 
-  it('builds a Codex and Claude compatible deny response for noisy shell commands', () => {
+  it('builds a hook-specific deny response for noisy shell commands', () => {
     const response = buildNoisyCommandHookResponse({
       tool_name: 'exec_command',
       tool_input: { cmd: 'npm test' }
     })
 
-    expect(response.decision).toBe('block')
-    expect(response.reason).toContain('pixel run --compact --')
+    expect(response).not.toHaveProperty('continue')
+    expect(response).not.toHaveProperty('decision')
     expect(response.hookSpecificOutput.permissionDecision).toBe('deny')
     expect(response.hookSpecificOutput.permissionDecisionReason).toContain('pixel run --compact --')
+  })
+
+  it('returns an empty allow response for safe or unrelated hook input', () => {
+    expect(
+      buildNoisyCommandHookResponse({
+        tool_name: 'Bash',
+        tool_input: { command: 'git status --short' }
+      })
+    ).toEqual({})
+    expect(
+      buildNoisyCommandHookResponse({
+        tool_name: 'Read',
+        tool_input: { file_path: 'README.md' }
+      })
+    ).toEqual({})
   })
 })
