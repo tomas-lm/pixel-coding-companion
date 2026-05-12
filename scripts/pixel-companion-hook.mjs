@@ -12,6 +12,7 @@ import {
   shouldSuppressFallbackFinalMessage,
   updateCompanionProgress
 } from './companion-xp-awards.mjs'
+import { buildNoisyCommandHookResponse } from './pixel-compact-rules.mjs'
 const dataDir = getDefaultDataDir()
 const {
   eventsPath,
@@ -293,6 +294,7 @@ async function handleEvent(command) {
 
   if (eventCommand === 'session-start') return buildSessionStartResponse(hookInput, agentName)
   if (eventCommand === 'user-prompt-submit') return handleUserPromptSubmit(hookInput, agentName)
+  if (eventCommand === 'pre-tool-use') return buildNoisyCommandHookResponse(hookInput)
   if (eventCommand === 'stop') return handleStop(hookInput, agentName)
   if (eventCommand === 'stop-failure') return handleStopFailure(hookInput, agentName)
   if (eventCommand === 'notification') return handleNotification(hookInput, agentName)
