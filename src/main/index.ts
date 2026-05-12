@@ -6,6 +6,7 @@ import icon from '../../resources/icon.png?asset'
 import { registerAppMenu, sendLayoutReset } from './appMenu'
 import { CompanionBridgeStore } from './companion/companionBridgeStore'
 import { CompanionStoreService } from './companion/companionStoreService'
+import { DictationManager } from './dictation/dictationManager'
 import { registerCompanionIpc } from './ipc/registerCompanionIpc'
 import { registerSystemIpc } from './ipc/registerSystemIpc'
 import { registerTerminalIpc } from './ipc/registerTerminalIpc'
@@ -54,6 +55,7 @@ const companionStoreService = new CompanionStoreService(
   getCompanionStoreStatePath
 )
 const workspaceStore = new WorkspaceStore(getWorkspaceConfigPath)
+const dictationManager = new DictationManager()
 
 app.setName(APP_NAME)
 // Keep persisted workspace data independent from the display name shown by macOS.
@@ -134,7 +136,7 @@ function registerMainWindowMenu(mainWindow: BrowserWindow): void {
 }
 
 function createWindow(): void {
-  createMainWindow({
+  const mainWindow = createMainWindow({
     appName: APP_NAME,
     icon,
     isDev: is.dev,
@@ -145,6 +147,7 @@ function createWindow(): void {
     },
     registerMenu: registerMainWindowMenu
   })
+  dictationManager.attachWindow(mainWindow)
 }
 
 // This method will be called when Electron has finished
@@ -175,6 +178,7 @@ app.whenReady().then(() => {
   registerVaultIpc()
   registerCompanionIpc(companionBridgeStore, companionStoreService)
   registerSystemIpc()
+  dictationManager.registerIpc()
 
   createWindow()
 

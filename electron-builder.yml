@@ -28,6 +28,7 @@ mac:
   extendInfo:
     NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    NSMicrophoneUsageDescription: Pixel Companion uses the microphone only for local dictation when you enable the local transcriber.
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}

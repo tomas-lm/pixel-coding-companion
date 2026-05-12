@@ -1,6 +1,8 @@
 import type { WorkspaceFeatureSettings } from '../../../shared/workspace'
 
 export const DEFAULT_WORKSPACE_FEATURE_SETTINGS: WorkspaceFeatureSettings = {
+  keepLastDictationAudioSample: false,
+  localTranscriberEnabled: false,
   playSoundsUponFinishing: false
 }
 
@@ -12,6 +14,14 @@ export function normalizeWorkspaceFeatureSettings(value: unknown): WorkspaceFeat
   const settings = value as Partial<Record<keyof WorkspaceFeatureSettings, unknown>>
 
   return {
+    keepLastDictationAudioSample:
+      typeof settings.keepLastDictationAudioSample === 'boolean'
+        ? settings.keepLastDictationAudioSample
+        : DEFAULT_WORKSPACE_FEATURE_SETTINGS.keepLastDictationAudioSample,
+    localTranscriberEnabled:
+      typeof settings.localTranscriberEnabled === 'boolean'
+        ? settings.localTranscriberEnabled
+        : DEFAULT_WORKSPACE_FEATURE_SETTINGS.localTranscriberEnabled,
     playSoundsUponFinishing:
       typeof settings.playSoundsUponFinishing === 'boolean'
         ? settings.playSoundsUponFinishing

@@ -126,3 +126,52 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(23, 25, 29, 0.88);
 }
+
+.dictation-indicator {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  bottom: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(360px, calc(100vw - 48px));
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: rgba(12, 15, 20, 0.92);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.36);
+  color: var(--ev-c-text-1);
+  transform: translateX(-50%);
+}
+
+.dictation-indicator strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.dictation-indicator__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #34d399;
+}
+
+.dictation-indicator--recording .dictation-indicator__dot {
+  background: #ef5b5b;
+  box-shadow: 0 0 0 6px rgba(239, 91, 91, 0.14);
+}
+
+.dictation-indicator--transcribing .dictation-indicator__dot,
+.dictation-indicator--inserting .dictation-indicator__dot {
+  background: #f7d56f;
+}
+
+.dictation-indicator--error .dictation-indicator__dot {
+  background: #ef5b5b;
+}

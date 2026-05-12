@@ -14,6 +14,13 @@ import {
   type WorkspaceChangesResult
 } from '../shared/system'
 import {
+  DICTATION_CHANNELS,
+  type DictationInsertRequest,
+  type DictationInsertionResult,
+  type DictationSettings,
+  type DictationSnapshot
+} from '../shared/dictation'
+import {
   TERMINAL_CHANNELS,
   type CompanionApi,
   type TerminalCommandExitEvent,
@@ -57,6 +64,29 @@ const api: CompanionApi = {
     writeText: (text: string): void => {
       clipboard.writeText(text)
     }
+  },
+  dictation: {
+    completeInsertion: (result: DictationInsertionResult): void => {
+      ipcRenderer.send(DICTATION_CHANNELS.completeInsertion, result)
+    },
+    loadSnapshot: (): Promise<DictationSnapshot> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.loadSnapshot),
+    onInsertTranscript: (callback: (request: DictationInsertRequest) => void) => {
+      const listener = (_: Electron.IpcRendererEvent, request: DictationInsertRequest): void =>
+        callback(request)
+      ipcRenderer.on(DICTATION_CHANNELS.insertTranscript, listener)
+      return () => ipcRenderer.removeListener(DICTATION_CHANNELS.insertTranscript, listener)
+    },
+    onState: (callback: (snapshot: DictationSnapshot) => void) => {
+      const listener = (_: Electron.IpcRendererEvent, snapshot: DictationSnapshot): void =>
+        callback(snapshot)
+      ipcRenderer.on(DICTATION_CHANNELS.state, listener)
+      return () => ipcRenderer.removeListener(DICTATION_CHANNELS.state, listener)
+    },
+    testTranscription: (): Promise<DictationSnapshot> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.testTranscription),
+    updateSettings: (settings: DictationSettings): Promise<DictationSnapshot> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.updateSettings, settings)
   },
   system: {
     checkCodeEditor: (request: CodeEditorCheckRequest): Promise<CodeEditorCheckResult> =>

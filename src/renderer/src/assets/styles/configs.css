@@ -72,6 +72,97 @@
   font-weight: 700;
 }
 
+.feature-toggle--flat {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.feature-toggle--flat:hover,
+.feature-toggle--flat:focus-within {
+  background: transparent;
+}
+
+.dictation-config {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 520px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.dictation-config__status,
+.dictation-config__meta,
+.dictation-config__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dictation-config__status > div,
+.dictation-config__meta {
+  min-width: 0;
+}
+
+.dictation-config span,
+.dictation-config p {
+  color: var(--ev-c-text-2);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dictation-config strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ev-c-text-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.dictation-config p {
+  margin: 0;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.dictation-config__pill {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #f7d56f;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dictation-config__pill--ready {
+  color: #34d399;
+}
+
+.dictation-config__pill--failed,
+.dictation-config__pill--unsupported {
+  color: #ef5b5b;
+}
+
+.dictation-config__actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.dictation-config__error {
+  color: #ef5b5b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .code-editor-config {
   display: grid;
   gap: 10px;

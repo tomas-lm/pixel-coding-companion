@@ -1,5 +1,6 @@
-import { useCallback, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import type { CompanionBridgeMessage } from '../../shared/companion'
+import type { DictationInsertRequest, DictationSnapshot } from '../../shared/dictation'
 import type { VaultConfig, VaultMarkdownFile } from '../../shared/vault'
 import type {
   PixelLauncherAgentId,
@@ -39,6 +40,7 @@ import {
   getCompanionStageForLevel
 } from './companions/companionRegistry'
 import { getActiveCompanionProgress, getCompanionMessageColor } from './app/companionSelectors'
+import { insertDictationTranscript } from './app/dictationInsertion'
 import { primeCompletionSound } from './app/notificationSounds'
 import { getPromptTemplateProjectPath, getPromptTemplateSendStatus } from './app/promptTemplates'
 import type { ProjectForm } from './app/projectForms'
@@ -161,6 +163,16 @@ function getSupportedPixelAgent(
   return preferredAgent
 }
 
+function getDictationIndicatorLabel(snapshot: DictationSnapshot): string {
+  if (snapshot.state === 'recording') return 'Recording'
+  if (snapshot.state === 'transcribing') return 'Transcribing'
+  if (snapshot.state === 'inserting') return 'Inserting transcript'
+  if (snapshot.state === 'error') return snapshot.error ?? 'Dictation failed'
+  if (snapshot.lastInsertionTarget === 'clipboard') return 'Transcript copied'
+
+  return 'Dictation ready'
+}
+
 function App(): React.JSX.Element {
   const [runningSessions, setRunningSessions] = useState<RunningSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
@@ -217,11 +229,41 @@ function App(): React.JSX.Element {
   } | null>(null)
   const [vaultHasUnsavedChanges, setVaultHasUnsavedChanges] = useState(false)
   const [vaultRefreshKey, setVaultRefreshKey] = useState(0)
+  const [dictationSnapshot, setDictationSnapshot] = useState<DictationSnapshot | null>(null)
 
   useCompletionNotificationSound(
     companionBridgeState.messages,
     featureSettings.playSoundsUponFinishing
   )
+
+  useEffect(() => {
+    let mounted = true
+
+    void window.api.dictation.loadSnapshot().then((snapshot) => {
+      if (mounted) setDictationSnapshot(snapshot)
+    })
+    const unsubscribe = window.api.dictation.onState(setDictationSnapshot)
+
+    return () => {
+      mounted = false
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!configLoaded) return
+
+    void window.api.dictation
+      .updateSettings({
+        enabled: featureSettings.localTranscriberEnabled,
+        keepLastAudioSample: featureSettings.keepLastDictationAudioSample
+      })
+      .then(setDictationSnapshot)
+  }, [
+    configLoaded,
+    featureSettings.keepLastDictationAudioSample,
+    featureSettings.localTranscriberEnabled
+  ])
 
   const changeFeatureSettings = useCallback(
     (nextFeatureSettings: WorkspaceFeatureSettings): void => {
@@ -954,6 +996,36 @@ function App(): React.JSX.Element {
     })
   }
 
+  const completeDictationInsertion = useCallback(
+    (request: DictationInsertRequest, target: 'clipboard' | 'pixel_text' | 'terminal'): void => {
+      window.api.dictation.completeInsertion({
+        ok: true,
+        target,
+        transcriptId: request.transcriptId
+      })
+    },
+    []
+  )
+
+  const handleDictationInsert = useCallback(
+    (request: DictationInsertRequest): void => {
+      const text = request.transcript.text
+      const target = insertDictationTranscript(text, {
+        terminalSessionId:
+          activeSession && isLiveSession(activeSession) ? activeSession.id : undefined,
+        writeClipboard: window.api.clipboard.writeText,
+        writeTerminal: window.api.terminal.write
+      })
+      completeDictationInsertion(request, target)
+    },
+    [activeSession, completeDictationInsertion]
+  )
+
+  useEffect(
+    () => window.api.dictation.onInsertTranscript(handleDictationInsert),
+    [handleDictationInsert]
+  )
+
   const completeOnboarding = async ({
     project,
     terminalConfig
@@ -1055,6 +1127,9 @@ function App(): React.JSX.Element {
   const selectedSessionId = activeSession?.id ?? null
   const promptSendStatus = getPromptTemplateSendStatus(activeSession)
   const promptProjectPath = getPromptTemplateProjectPath(activeSession, activeProjectConfigs)
+  const shouldShowDictationIndicator =
+    dictationSnapshot !== null &&
+    (dictationSnapshot.state !== 'idle' || dictationSnapshot.lastInsertionTarget === 'clipboard')
 
   return (
     <main className="app-shell" style={activeStyle}>
@@ -1139,9 +1214,13 @@ function App(): React.JSX.Element {
       ) : activeActivityItemId === 'configs' ? (
         <ConfigsPanel
           codeEditorSettings={codeEditorSettings}
+          dictationSnapshot={dictationSnapshot}
           featureSettings={featureSettings}
           onChangeCodeEditorSettings={changeCodeEditorSettings}
           onChangeFeatureSettings={changeFeatureSettings}
+          onTestDictation={() => {
+            void window.api.dictation.testTranscription()
+          }}
           onSelectTerminalTheme={applyTerminalTheme}
           terminalThemeId={terminalThemeId}
         />
@@ -1186,6 +1265,17 @@ function App(): React.JSX.Element {
           <small>{terminalHoverCard.path}</small>
         </div>
       )}
+
+      {shouldShowDictationIndicator && dictationSnapshot ? (
+        <div
+          className={`dictation-indicator dictation-indicator--${dictationSnapshot.state}`}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="dictation-indicator__dot" aria-hidden="true" />
+          <strong>{getDictationIndicatorLabel(dictationSnapshot)}</strong>
+        </div>
+      ) : null}
 
       {startSelection && startProject && (
         <StartWorkspaceModal

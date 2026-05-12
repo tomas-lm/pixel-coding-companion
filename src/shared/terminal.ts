@@ -1,4 +1,5 @@
 import type { CompanionBridgeApi } from './companion'
+import type { DictationApi } from './dictation'
 import type { ClipboardApi, SystemApi } from './system'
 import type { VaultApi } from './vault'
 import type { PixelLauncherAgentId, ViewApi, WorkspaceApi } from './workspace'
@@ -109,6 +110,7 @@ export type TerminalApi = {
 export type CompanionApi = {
   companion: CompanionBridgeApi
   clipboard: ClipboardApi
+  dictation: DictationApi
   system: SystemApi
   terminal: TerminalApi
   vault: VaultApi
