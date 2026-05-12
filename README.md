@@ -39,32 +39,33 @@ terminal-based agents such as Claude Code, Cursor CLI, Roo Code, or custom comma
 
 ## Install Status
 
-There is no public `.dmg`, `.zip`, or Homebrew formula yet.
-
-The current recommended path is to build the stable desktop app locally from source.
-That gives you a normal `Pixel Companion.app` build. It is not the same thing as running
-the development server.
+Public release downloads are being prepared. Until a `.dmg`, `.AppImage`, `.deb`, or
+Windows installer is attached to GitHub Releases, build Pixel locally from source.
 
 Important:
 
 - `git clone` downloads source code only.
 - The compiled app is generated locally into `dist/`.
 - `pnpm dev` is only for people changing Pixel's source code.
-- For normal usage today, use `pnpm build:unpack` and `pnpm open:stable`.
+- macOS is the primary supported platform today.
+- Linux and Windows targets exist, but should be treated as experimental until they are
+  tested on release machines.
 
-## Quick Start
+## Choose Your Platform
 
-Follow these steps to build and run Pixel Companion today.
+Use the path for your operating system. All paths require Node.js 22 or newer and pnpm.
 
-### Step 1: Install Prerequisites
+### macOS Path
 
-On macOS, the easiest path is Homebrew:
+This is the recommended path today.
+
+Step 1: Install prerequisites with Homebrew:
 
 ```bash
 brew install git node pnpm
 ```
 
-Then confirm the tools are available:
+Step 2: Confirm the tools:
 
 ```bash
 git --version
@@ -72,21 +73,7 @@ node --version
 pnpm --version
 ```
 
-Pixel expects Node.js 22 or newer. If `node --version` prints an older major version,
-upgrade Node before continuing.
-
-You also need at least one local coding agent installed if you want Pixel to launch AI
-terminals. Codex is the best-supported path today:
-
-```bash
-codex --version
-```
-
-If you use another tool, make sure its command works in your normal terminal first.
-
-### Step 2: Clone The Repository
-
-Choose where you keep local projects, then clone Pixel:
+Step 3: Clone Pixel:
 
 ```bash
 mkdir -p ~/dev
@@ -95,39 +82,159 @@ git clone https://github.com/tomas-lm/pixel-coding-companion.git
 cd pixel-coding-companion
 ```
 
-### Step 3: Install Dependencies
+Step 4: Install dependencies:
 
 ```bash
 pnpm install
 ```
 
-This installs Electron, React, TypeScript, and the native terminal dependencies Pixel
-needs to run local terminal sessions.
-
-### Step 4: Build The Stable App
+Step 5: Build the stable macOS app:
 
 ```bash
 pnpm build:unpack
 ```
 
-This runs typechecks, builds the Electron app, and creates the local desktop bundle:
-
-```text
-dist/mac-arm64/Pixel Companion.app
-```
-
-### Step 5: Open Pixel Companion
+Step 6: Open the app:
 
 ```bash
 pnpm open:stable
 ```
 
-This opens the compiled app from `dist/mac-arm64/Pixel Companion.app`.
+The generated app lives here:
+
+```text
+dist/mac-arm64/Pixel Companion.app
+```
 
 If macOS blocks the app because it is not notarized, right-click `Pixel Companion.app`,
 choose `Open`, then confirm. Local builds can trigger Gatekeeper warnings.
 
-### Step 6: Complete The First Setup
+To create a distributable `.dmg` instead of only an unpacked app:
+
+```bash
+pnpm build:mac
+```
+
+The `.dmg` appears in `dist/`.
+
+### Linux Path
+
+Linux builds are experimental.
+
+Step 1: Install prerequisites. On Ubuntu or Debian:
+
+```bash
+sudo apt update
+sudo apt install -y git curl build-essential python3
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+corepack enable
+corepack prepare pnpm@latest --activate
+```
+
+For Fedora, Arch, or another distro, install Git, Node.js 22+, pnpm, Python 3, and build
+tools using your distro package manager.
+
+Step 2: Confirm the tools:
+
+```bash
+git --version
+node --version
+pnpm --version
+```
+
+Step 3: Clone Pixel:
+
+```bash
+mkdir -p ~/dev
+cd ~/dev
+git clone https://github.com/tomas-lm/pixel-coding-companion.git
+cd pixel-coding-companion
+```
+
+Step 4: Install dependencies:
+
+```bash
+pnpm install
+```
+
+Step 5: Build Linux artifacts:
+
+```bash
+pnpm build:linux
+```
+
+Electron Builder writes Linux artifacts into `dist/`, including AppImage, `.deb`, and
+snap targets when the local system supports them.
+
+Step 6: Run the AppImage:
+
+```bash
+chmod +x dist/*.AppImage
+./dist/*.AppImage
+```
+
+If AppImage complains about FUSE, install your distro's FUSE compatibility package, then
+run the AppImage again.
+
+### Windows Path
+
+Windows builds are experimental.
+
+Step 1: Install:
+
+- Git for Windows: <https://git-scm.com/download/win>
+- Node.js 22 or newer: <https://nodejs.org/>
+
+Step 2: Open PowerShell and enable pnpm:
+
+```powershell
+corepack enable
+corepack prepare pnpm@latest --activate
+```
+
+Step 3: Confirm the tools:
+
+```powershell
+git --version
+node --version
+pnpm --version
+```
+
+Step 4: Clone Pixel:
+
+```powershell
+mkdir $HOME\dev
+cd $HOME\dev
+git clone https://github.com/tomas-lm/pixel-coding-companion.git
+cd pixel-coding-companion
+```
+
+Step 5: Install dependencies:
+
+```powershell
+pnpm install
+```
+
+Step 6: Build the Windows installer:
+
+```powershell
+pnpm build:win
+```
+
+The installer appears in `dist/` with a name like:
+
+```text
+pixel-coding-companion-1.0.0-setup.exe
+```
+
+Step 7: Run the installer from `dist/`.
+
+## First App Setup
+
+After Pixel opens, the setup flow is the same on every platform.
+
+### Step 1: Complete The First Setup
 
 When Pixel opens for the first time:
 
@@ -140,7 +247,7 @@ When Pixel opens for the first time:
 
 Pixel creates your first project and one configured terminal.
 
-### Step 7: Start Your Project
+### Step 2: Start Your Project
 
 After setup:
 
@@ -153,7 +260,7 @@ With `Start with Pixel` enabled, Pixel can launch supported AI terminals through
 local launcher so the companion can follow session lifecycle events and surface useful
 status updates.
 
-### Step 8: Add A Vault
+### Step 3: Add A Vault
 
 Vaults keep Markdown notes near your agent work.
 
@@ -165,9 +272,12 @@ Vaults keep Markdown notes near your agent work.
 Pixel Vaults are intentionally lightweight. They are built for reading, writing, and
 keeping project context close while coding.
 
-### Step 9: Update Pixel Later
+### Step 4: Update Pixel Later
 
-To update your local app after new commits land on GitHub:
+To update your local app after new commits land on GitHub, pull the latest source and
+rerun the build command for your platform.
+
+macOS:
 
 ```bash
 cd ~/dev/pixel-coding-companion
@@ -175,6 +285,24 @@ git pull
 pnpm install
 pnpm build:unpack
 pnpm open:stable
+```
+
+Linux:
+
+```bash
+cd ~/dev/pixel-coding-companion
+git pull
+pnpm install
+pnpm build:linux
+```
+
+Windows:
+
+```powershell
+cd $HOME\dev\pixel-coding-companion
+git pull
+pnpm install
+pnpm build:win
 ```
 
 ## Daily Workflow
