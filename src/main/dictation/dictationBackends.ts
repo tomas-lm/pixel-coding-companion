@@ -4,17 +4,23 @@ import type {
   DictationModelInstallSnapshot,
   DictationTranscript
 } from '../../shared/dictation'
+import type { NativeDictationRuntime } from './nativeDictationRuntime'
 
 export type DictationBackend = {
   readonly id: DictationBackendId
   getStatus: () => DictationBackendStatus
-  transcribe: (input: { startedAt: number; stoppedAt: number }) => Promise<DictationTranscript>
+  transcribe: (input: {
+    audioFilePath?: string
+    startedAt: number
+    stoppedAt: number
+  }) => Promise<DictationTranscript>
 }
 
 type ParakeetCoreMlBackendOptions = {
   getModelSnapshot: () => DictationModelInstallSnapshot
   hasRuntime?: () => boolean
   platform?: NodeJS.Platform
+  runtime?: NativeDictationRuntime
 }
 
 export function getBackendStatus(
@@ -110,15 +116,18 @@ export class ParakeetCoreMlBackend implements DictationBackend {
   private readonly getModelSnapshot: () => DictationModelInstallSnapshot
   private readonly hasRuntime: () => boolean
   private readonly platform: NodeJS.Platform
+  private readonly runtime: NativeDictationRuntime | undefined
 
   constructor({
     getModelSnapshot,
-    hasRuntime = () => false,
-    platform = process.platform
+    hasRuntime,
+    platform = process.platform,
+    runtime
   }: ParakeetCoreMlBackendOptions) {
     this.getModelSnapshot = getModelSnapshot
-    this.hasRuntime = hasRuntime
+    this.hasRuntime = hasRuntime ?? (() => Boolean(runtime?.isAvailable()))
     this.platform = platform
+    this.runtime = runtime
   }
 
   getStatus(): DictationBackendStatus {
@@ -159,7 +168,7 @@ export class ParakeetCoreMlBackend implements DictationBackend {
         id: this.id,
         label: 'Parakeet CoreML',
         message:
-          'Parakeet model is installed. Pixel still needs the native Core ML runtime before it can transcribe real audio.',
+          'Parakeet model is installed. Pixel still needs the native helper binary. Run npm run build:native:dictation.',
         ready: false,
         status: 'runtime_missing'
       }
@@ -174,9 +183,32 @@ export class ParakeetCoreMlBackend implements DictationBackend {
     }
   }
 
-  async transcribe(): Promise<DictationTranscript> {
-    throw new Error(
-      'Real Parakeet transcription is not available until the native Core ML runtime is bundled.'
-    )
+  async transcribe({
+    audioFilePath,
+    startedAt,
+    stoppedAt
+  }: {
+    audioFilePath?: string
+    startedAt: number
+    stoppedAt: number
+  }): Promise<DictationTranscript> {
+    const model = this.getModelSnapshot()
+    if (!audioFilePath) throw new Error('Pixel did not receive microphone audio to transcribe.')
+    if (!this.runtime) throw new Error('Pixel dictation native runtime is not configured.')
+    if (model.status !== 'installed' || !model.installPath) {
+      throw new Error('Parakeet model is not installed.')
+    }
+
+    const result = await this.runtime.transcribe({
+      audioFilePath,
+      modelPath: model.installPath
+    })
+
+    return {
+      backend: this.id,
+      durationMs: result.durationMs ?? Math.max(0, stoppedAt - startedAt),
+      language: result.language,
+      text: result.text?.trim() ?? ''
+    }
   }
 }

@@ -45,6 +45,7 @@ import {
   getCompanionStageForLevel
 } from './companions/companionRegistry'
 import { getActiveCompanionProgress, getCompanionMessageColor } from './app/companionSelectors'
+import { startWavCapture, type WavCapture } from './app/dictationCapture'
 import { insertDictationTranscript } from './app/dictationInsertion'
 import { primeCompletionSound } from './app/notificationSounds'
 import { getPromptTemplateProjectPath, getPromptTemplateSendStatus } from './app/promptTemplates'
@@ -243,6 +244,8 @@ function App(): React.JSX.Element {
   const [recentDictationInsertionTarget, setRecentDictationInsertionTarget] =
     useState<DictationInsertTarget | null>(null)
   const dictationInsertionTimerRef = useRef<number | null>(null)
+  const dictationCaptureRef = useRef<WavCapture | null>(null)
+  const dictationCaptureStartRef = useRef<Promise<WavCapture> | null>(null)
 
   useCompletionNotificationSound(
     companionBridgeState.messages,
@@ -268,7 +271,69 @@ function App(): React.JSX.Element {
       if (dictationInsertionTimerRef.current !== null) {
         window.clearTimeout(dictationInsertionTimerRef.current)
       }
+      void dictationCaptureRef.current?.stop()
+      void dictationCaptureStartRef.current?.then((capture) => capture.stop())
     }
+  }, [])
+
+  useEffect(() => {
+    return window.api.dictation.onCaptureCommand((command) => {
+      if (command.type === 'start') {
+        const captureStart = startWavCapture()
+        dictationCaptureStartRef.current = captureStart
+        void captureStart
+          .then((capture) => {
+            if (dictationCaptureStartRef.current !== captureStart) return
+
+            dictationCaptureRef.current = capture
+          })
+          .catch((error: unknown) => {
+            if (dictationCaptureStartRef.current !== captureStart) return
+            dictationCaptureStartRef.current = null
+            void window.api.dictation.completeCapture({
+              ok: false,
+              reason:
+                error instanceof Error
+                  ? error.message
+                  : 'Could not start microphone capture for dictation.'
+            })
+          })
+        return
+      }
+
+      const capture = dictationCaptureRef.current
+      const pendingCapture = dictationCaptureStartRef.current
+      dictationCaptureRef.current = null
+      dictationCaptureStartRef.current = null
+      if (!capture && !pendingCapture) {
+        void window.api.dictation.completeCapture({
+          ok: false,
+          reason: 'Microphone capture was not active.'
+        })
+        return
+      }
+
+      const capturePromise = capture ? Promise.resolve(capture) : pendingCapture
+      if (!capturePromise) return
+
+      void capturePromise
+        .then((resolvedCapture) => resolvedCapture.stop())
+        .then(({ audioData, sampleRate }) =>
+          window.api.dictation.completeCapture({
+            audioData,
+            mimeType: 'audio/wav',
+            ok: true,
+            sampleRate
+          })
+        )
+        .catch((error: unknown) => {
+          void window.api.dictation.completeCapture({
+            ok: false,
+            reason:
+              error instanceof Error ? error.message : 'Could not finish microphone recording.'
+          })
+        })
+    })
   }, [])
 
   useEffect(() => {

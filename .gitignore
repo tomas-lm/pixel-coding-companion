@@ -1,6 +1,8 @@
 node_modules
 dist
 out
+native/**/.build
+resources/native/pixel-dictation-helper
 .DS_Store
 .eslintcache
 *.log*

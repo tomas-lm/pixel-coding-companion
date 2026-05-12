@@ -41,15 +41,21 @@ function createController(backend = createBackend()): {
   controller: DictationController
   emittedSnapshots: DictationSnapshot[]
   insertionRequests: DictationInsertRequest[]
+  requestCaptureStart: ReturnType<typeof vi.fn>
+  requestCaptureStop: ReturnType<typeof vi.fn>
   setNow: (value: number) => void
 } {
   let now = 1000
   const emittedSnapshots: DictationSnapshot[] = []
   const insertionRequests: DictationInsertRequest[] = []
+  const requestCaptureStart = vi.fn()
+  const requestCaptureStop = vi.fn()
   const controller = new DictationController({
     backend,
     emitSnapshot: (snapshot) => emittedSnapshots.push(snapshot),
     now: () => now,
+    requestCaptureStart,
+    requestCaptureStop,
     requestInsertion: (request) => insertionRequests.push(request)
   })
 
@@ -57,6 +63,8 @@ function createController(backend = createBackend()): {
     controller,
     emittedSnapshots,
     insertionRequests,
+    requestCaptureStart,
+    requestCaptureStop,
     setNow: (value) => {
       now = value
     }
@@ -75,6 +83,7 @@ describe('DictationController', () => {
     await controller.startRecording()
     setNow(1800)
     await controller.stopRecording()
+    await controller.completeRecording({ audioFilePath: '/tmp/pixel-dictation.wav' })
 
     expect(emittedSnapshots.map((snapshot) => snapshot.state)).toEqual([
       'idle',
@@ -141,10 +150,26 @@ describe('DictationController', () => {
     })
     await controller.startRecording()
     await controller.stopRecording()
+    await controller.completeRecording({ audioFilePath: '/tmp/pixel-dictation.wav' })
 
     expect(controller.getSnapshot()).toMatchObject({
       error: 'Microphone permission denied.',
       state: 'error'
     })
+  })
+
+  it('requests renderer microphone capture on start and stop', async () => {
+    const { controller, requestCaptureStart, requestCaptureStop } = createController()
+
+    controller.updateSettings({
+      enabled: true,
+      keepLastAudioSample: false,
+      shortcutId: 'control-option-hold'
+    })
+    await controller.startRecording()
+    await controller.stopRecording()
+
+    expect(requestCaptureStart).toHaveBeenCalledOnce()
+    expect(requestCaptureStop).toHaveBeenCalledOnce()
   })
 })

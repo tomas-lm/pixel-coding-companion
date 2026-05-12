@@ -15,6 +15,8 @@ import {
 } from '../shared/system'
 import {
   DICTATION_CHANNELS,
+  type DictationCaptureCommand,
+  type DictationCaptureResult,
   type DictationInsertRequest,
   type DictationInsertionResult,
   type DictationSettings,
@@ -66,6 +68,8 @@ const api: CompanionApi = {
     }
   },
   dictation: {
+    completeCapture: (result: DictationCaptureResult): Promise<DictationSnapshot> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.completeCapture, result),
     completeInsertion: (result: DictationInsertionResult): void => {
       ipcRenderer.send(DICTATION_CHANNELS.completeInsertion, result)
     },
@@ -73,6 +77,12 @@ const api: CompanionApi = {
       ipcRenderer.invoke(DICTATION_CHANNELS.installModel),
     loadSnapshot: (): Promise<DictationSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.loadSnapshot),
+    onCaptureCommand: (callback: (command: DictationCaptureCommand) => void) => {
+      const listener = (_: Electron.IpcRendererEvent, command: DictationCaptureCommand): void =>
+        callback(command)
+      ipcRenderer.on(DICTATION_CHANNELS.captureCommand, listener)
+      return () => ipcRenderer.removeListener(DICTATION_CHANNELS.captureCommand, listener)
+    },
     onInsertTranscript: (callback: (request: DictationInsertRequest) => void) => {
       const listener = (_: Electron.IpcRendererEvent, request: DictationInsertRequest): void =>
         callback(request)

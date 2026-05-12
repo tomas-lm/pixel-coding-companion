@@ -1,4 +1,6 @@
 export const DICTATION_CHANNELS = {
+  captureCommand: 'dictation:capture-command',
+  completeCapture: 'dictation:complete-capture',
   completeInsertion: 'dictation:complete-insertion',
   installModel: 'dictation:install-model',
   insertTranscript: 'dictation:insert-transcript',
@@ -83,6 +85,22 @@ export type DictationTranscript = {
   text: string
 }
 
+export type DictationCaptureCommand = {
+  type: 'start' | 'stop'
+}
+
+export type DictationCaptureResult =
+  | {
+      audioData: ArrayBuffer
+      mimeType: 'audio/wav'
+      ok: true
+      sampleRate: number
+    }
+  | {
+      ok: false
+      reason: string
+    }
+
 export type DictationModelInstallStatus =
   | 'checking'
   | 'downloading'
@@ -128,9 +146,11 @@ export type DictationSnapshot = {
 }
 
 export type DictationApi = {
+  completeCapture: (result: DictationCaptureResult) => Promise<DictationSnapshot>
   completeInsertion: (result: DictationInsertionResult) => void
   installModel: () => Promise<DictationSnapshot>
   loadSnapshot: () => Promise<DictationSnapshot>
+  onCaptureCommand: (callback: (command: DictationCaptureCommand) => void) => () => void
   onInsertTranscript: (callback: (request: DictationInsertRequest) => void) => () => void
   onState: (callback: (snapshot: DictationSnapshot) => void) => () => void
   testTranscription: () => Promise<DictationSnapshot>

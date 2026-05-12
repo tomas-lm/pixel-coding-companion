@@ -56,6 +56,8 @@ const companionStoreService = new CompanionStoreService(
 )
 const workspaceStore = new WorkspaceStore(getWorkspaceConfigPath)
 const dictationManager = new DictationManager({
+  getAppPath: () => app.getAppPath(),
+  getResourcesPath: () => process.resourcesPath,
   getUserDataPath: () => app.getPath('userData')
 })
 

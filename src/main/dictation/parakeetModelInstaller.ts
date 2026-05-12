@@ -12,11 +12,12 @@ const HF_REPO_ID = 'FluidInference/parakeet-tdt-0.6b-v3-coreml'
 const HF_REVISION = 'main'
 const MODEL_DIR_NAME = 'parakeet-tdt-0.6b-v3-coreml'
 const MODEL_MANIFEST_FILE = 'pixel-install-manifest.json'
+const MODEL_MANIFEST_REQUIRED_ROOTS_VERSION = 2
 const REQUIRED_MODEL_ROOTS = [
   'Preprocessor.mlmodelc',
   'Encoder.mlmodelc',
   'Decoder.mlmodelc',
-  'JointDecision.mlmodelc'
+  'JointDecisionv3.mlmodelc'
 ]
 const REQUIRED_VOCAB_FILE = 'parakeet_vocab.json'
 const DOWNLOAD_PROGRESS_EMIT_INTERVAL_MS = 150
@@ -35,6 +36,7 @@ export type ParakeetModelFile = {
 type ParakeetModelManifest = {
   downloadedAt: string
   files: ParakeetModelFile[]
+  requiredRootsVersion: number
   repoId: string
   revision: string
   totalBytes: number
@@ -250,6 +252,7 @@ export class ParakeetModelInstaller {
 
   private isManifestComplete(manifest: ParakeetModelManifest): boolean {
     if (manifest.repoId !== HF_REPO_ID || manifest.revision !== HF_REVISION) return false
+    if (manifest.requiredRootsVersion !== MODEL_MANIFEST_REQUIRED_ROOTS_VERSION) return false
 
     return manifest.files.every((file) =>
       this.hasCompleteFile(this.resolveModelFilePath(file.path), file.size)
@@ -292,6 +295,7 @@ export class ParakeetModelInstaller {
     const manifest: ParakeetModelManifest = {
       downloadedAt: new Date().toISOString(),
       files,
+      requiredRootsVersion: MODEL_MANIFEST_REQUIRED_ROOTS_VERSION,
       repoId: HF_REPO_ID,
       revision: HF_REVISION,
       totalBytes

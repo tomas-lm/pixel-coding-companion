@@ -36,7 +36,14 @@ type DictationControllerDependencies = {
   emitSnapshot: (snapshot: DictationSnapshot) => void
   getModelSnapshot?: () => DictationModelInstallSnapshot
   now?: () => number
+  requestCaptureStart?: () => void
+  requestCaptureStop?: () => void
   requestInsertion: (request: DictationInsertRequest) => void
+  testRecordingMs?: number
+}
+
+type DictationRecordingInput = {
+  audioFilePath: string
 }
 
 export class DictationController {
@@ -44,26 +51,36 @@ export class DictationController {
   private readonly emitSnapshot: (snapshot: DictationSnapshot) => void
   private readonly getModelSnapshot: () => DictationModelInstallSnapshot
   private readonly now: () => number
+  private readonly requestCaptureStart: () => void
+  private readonly requestCaptureStop: () => void
   private readonly requestInsertion: (request: DictationInsertRequest) => void
+  private readonly testRecordingMs: number
   private error: string | undefined
   private lastInsertionTarget: DictationSnapshot['lastInsertionTarget']
   private lastTranscript: DictationTranscript | undefined
   private recordingStartedAt = 0
   private settings = DEFAULT_DICTATION_SETTINGS
   private state: DictationState = 'idle'
+  private testRecordingTimer: NodeJS.Timeout | null = null
 
   constructor({
     backend,
     emitSnapshot,
     getModelSnapshot = () => DEFAULT_MODEL_INSTALL_SNAPSHOT,
     now = () => Date.now(),
-    requestInsertion
+    requestCaptureStart = () => {},
+    requestCaptureStop = () => {},
+    requestInsertion,
+    testRecordingMs = 3000
   }: DictationControllerDependencies) {
     this.backend = backend
     this.emitSnapshot = emitSnapshot
     this.getModelSnapshot = getModelSnapshot
     this.now = now
+    this.requestCaptureStart = requestCaptureStart
+    this.requestCaptureStop = requestCaptureStop
     this.requestInsertion = requestInsertion
+    this.testRecordingMs = testRecordingMs
   }
 
   getSnapshot(): DictationSnapshot {
@@ -109,17 +126,27 @@ export class DictationController {
     this.error = undefined
     this.recordingStartedAt = this.now()
     this.setState('recording')
+    this.requestCaptureStart()
     return this.getSnapshot()
   }
 
   async stopRecording(): Promise<DictationSnapshot> {
     if (this.state !== 'recording') return this.getSnapshot()
 
-    const stoppedAt = this.now()
+    this.clearTestRecordingTimer()
     this.setState('transcribing')
+    this.requestCaptureStop()
+    return this.getSnapshot()
+  }
+
+  async completeRecording({ audioFilePath }: DictationRecordingInput): Promise<DictationSnapshot> {
+    if (this.state !== 'transcribing') return this.getSnapshot()
+
+    const stoppedAt = this.now()
 
     try {
       const transcript = await this.backend.transcribe({
+        audioFilePath,
         startedAt: this.recordingStartedAt,
         stoppedAt
       })
@@ -140,8 +167,22 @@ export class DictationController {
   }
 
   async testTranscription(): Promise<DictationSnapshot> {
-    await this.startRecording()
-    return this.stopRecording()
+    const snapshot = await this.startRecording()
+    if (snapshot.state === 'recording') {
+      this.clearTestRecordingTimer()
+      this.testRecordingTimer = setTimeout(() => {
+        this.testRecordingTimer = null
+        void this.stopRecording()
+      }, this.testRecordingMs)
+    }
+
+    return snapshot
+  }
+
+  failRecording(reason: string): DictationSnapshot {
+    this.clearTestRecordingTimer()
+    this.setState('error', reason)
+    return this.getSnapshot()
   }
 
   updateSettings(settings: DictationSettings): DictationSnapshot {
@@ -151,6 +192,7 @@ export class DictationController {
       shortcutId: settings.shortcutId
     }
     if (!this.settings.enabled && this.state !== 'idle') {
+      this.clearTestRecordingTimer()
       this.setState('idle')
     } else {
       this.emitSnapshot(this.getSnapshot())
@@ -167,5 +209,12 @@ export class DictationController {
     this.state = state
     this.error = error
     this.emitSnapshot(this.getSnapshot())
+  }
+
+  private clearTestRecordingTimer(): void {
+    if (!this.testRecordingTimer) return
+
+    clearTimeout(this.testRecordingTimer)
+    this.testRecordingTimer = null
   }
 }
