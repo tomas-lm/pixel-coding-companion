@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   DictationBackendStatus,
   DictationInsertRequest,
@@ -7,6 +7,10 @@ import type {
 } from '../../shared/dictation'
 import { DictationController } from './dictationController'
 import type { DictationBackend } from './dictationBackends'
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 function readyStatus(): DictationBackendStatus {
   return {
@@ -37,7 +41,10 @@ function createBackend({
   }
 }
 
-function createController(backend = createBackend()): {
+function createController(
+  backend = createBackend(),
+  options: { minRecordingMs?: number } = {}
+): {
   controller: DictationController
   emittedSnapshots: DictationSnapshot[]
   insertionRequests: DictationInsertRequest[]
@@ -56,7 +63,8 @@ function createController(backend = createBackend()): {
     now: () => now,
     requestCaptureStart,
     requestCaptureStop,
-    requestInsertion: (request) => insertionRequests.push(request)
+    requestInsertion: (request) => insertionRequests.push(request),
+    minRecordingMs: options.minRecordingMs ?? 0
   })
 
   return {
@@ -170,6 +178,31 @@ describe('DictationController', () => {
     await controller.stopRecording()
 
     expect(requestCaptureStart).toHaveBeenCalledOnce()
+    expect(requestCaptureStop).toHaveBeenCalledOnce()
+  })
+
+  it('waits for minimum audio before stopping a fresh recording', async () => {
+    vi.useFakeTimers()
+    const { controller, requestCaptureStop, setNow } = createController(createBackend(), {
+      minRecordingMs: 900
+    })
+
+    controller.updateSettings({
+      enabled: true,
+      keepLastAudioSample: false,
+      shortcutId: 'control-option-hold'
+    })
+    await controller.startRecording()
+    setNow(1200)
+    await controller.stopRecording()
+
+    expect(controller.getSnapshot().state).toBe('recording')
+    expect(requestCaptureStop).not.toHaveBeenCalled()
+
+    setNow(1900)
+    await vi.advanceTimersByTimeAsync(700)
+
+    expect(controller.getSnapshot().state).toBe('transcribing')
     expect(requestCaptureStop).toHaveBeenCalledOnce()
   })
 })

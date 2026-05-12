@@ -21,6 +21,7 @@ const DEFAULT_DICTATION_SETTINGS: DictationSettings = {
   keepLastAudioSample: false,
   shortcutId: 'control-option-hold'
 }
+const DEFAULT_MIN_RECORDING_MS = 900
 
 const DEFAULT_MODEL_INSTALL_SNAPSHOT: DictationModelInstallSnapshot = {
   downloadedBytes: 0,
@@ -39,6 +40,7 @@ type DictationControllerDependencies = {
   requestCaptureStart?: () => void
   requestCaptureStop?: () => void
   requestInsertion: (request: DictationInsertRequest) => void
+  minRecordingMs?: number
   testRecordingMs?: number
 }
 
@@ -54,6 +56,7 @@ export class DictationController {
   private readonly requestCaptureStart: () => void
   private readonly requestCaptureStop: () => void
   private readonly requestInsertion: (request: DictationInsertRequest) => void
+  private readonly minRecordingMs: number
   private readonly testRecordingMs: number
   private error: string | undefined
   private lastInsertionTarget: DictationSnapshot['lastInsertionTarget']
@@ -61,6 +64,7 @@ export class DictationController {
   private recordingStartedAt = 0
   private settings = DEFAULT_DICTATION_SETTINGS
   private state: DictationState = 'idle'
+  private pendingStopTimer: NodeJS.Timeout | null = null
   private testRecordingTimer: NodeJS.Timeout | null = null
 
   constructor({
@@ -71,6 +75,7 @@ export class DictationController {
     requestCaptureStart = () => {},
     requestCaptureStop = () => {},
     requestInsertion,
+    minRecordingMs = DEFAULT_MIN_RECORDING_MS,
     testRecordingMs = 3000
   }: DictationControllerDependencies) {
     this.backend = backend
@@ -80,6 +85,7 @@ export class DictationController {
     this.requestCaptureStart = requestCaptureStart
     this.requestCaptureStop = requestCaptureStop
     this.requestInsertion = requestInsertion
+    this.minRecordingMs = minRecordingMs
     this.testRecordingMs = testRecordingMs
   }
 
@@ -124,6 +130,7 @@ export class DictationController {
     if (this.state !== 'idle' && this.state !== 'error') return this.getSnapshot()
 
     this.error = undefined
+    this.clearPendingStopTimer()
     this.recordingStartedAt = this.now()
     this.setState('recording')
     this.requestCaptureStart()
@@ -134,6 +141,16 @@ export class DictationController {
     if (this.state !== 'recording') return this.getSnapshot()
 
     this.clearTestRecordingTimer()
+    const elapsedMs = Math.max(0, this.now() - this.recordingStartedAt)
+    if (elapsedMs < this.minRecordingMs) {
+      this.clearPendingStopTimer()
+      this.pendingStopTimer = setTimeout(() => {
+        this.pendingStopTimer = null
+        void this.stopRecording()
+      }, this.minRecordingMs - elapsedMs)
+      return this.getSnapshot()
+    }
+
     this.setState('transcribing')
     this.requestCaptureStop()
     return this.getSnapshot()
@@ -180,6 +197,7 @@ export class DictationController {
   }
 
   failRecording(reason: string): DictationSnapshot {
+    this.clearPendingStopTimer()
     this.clearTestRecordingTimer()
     this.setState('error', reason)
     return this.getSnapshot()
@@ -192,6 +210,7 @@ export class DictationController {
       shortcutId: settings.shortcutId
     }
     if (!this.settings.enabled && this.state !== 'idle') {
+      this.clearPendingStopTimer()
       this.clearTestRecordingTimer()
       this.setState('idle')
     } else {
@@ -216,5 +235,12 @@ export class DictationController {
 
     clearTimeout(this.testRecordingTimer)
     this.testRecordingTimer = null
+  }
+
+  private clearPendingStopTimer(): void {
+    if (!this.pendingStopTimer) return
+
+    clearTimeout(this.pendingStopTimer)
+    this.pendingStopTimer = null
   }
 }

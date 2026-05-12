@@ -17,6 +17,22 @@ function applyZoomDelta(mainWindow: BrowserWindow, delta: number): void {
   mainWindow.webContents.setZoomLevel(nextZoomLevel)
 }
 
+function isMediaPermission(permission: string): boolean {
+  return permission === 'media' || permission === 'microphone'
+}
+
+function registerWindowPermissions(mainWindow: BrowserWindow): void {
+  const windowSession = mainWindow.webContents.session
+
+  windowSession.setPermissionCheckHandler((webContents, permission) => {
+    if (!isMediaPermission(permission)) return false
+    return webContents === mainWindow.webContents
+  })
+  windowSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    callback(isMediaPermission(permission) && webContents === mainWindow.webContents)
+  })
+}
+
 export function createMainWindow(options: CreateMainWindowOptions): BrowserWindow {
   const platformWindowConfig = getPlatformWindowConfig()
   const mainWindow = new BrowserWindow({
@@ -33,6 +49,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
   })
 
   platformWindowConfig.applyAfterCreate?.(mainWindow)
+  registerWindowPermissions(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.setTitle(options.appName)
