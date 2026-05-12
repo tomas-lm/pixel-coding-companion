@@ -13,6 +13,11 @@ import type {
 import { DICTATION_CHANNELS } from '../../shared/dictation'
 import { DictationController } from './dictationController'
 import { ParakeetCoreMlBackend, type DictationBackend } from './dictationBackends'
+import {
+  getMicrophonePermissionSnapshot,
+  openMicrophonePrivacySettings,
+  requestMicrophonePermission
+} from './dictationPermissions'
 import { ModifierHoldShortcut, type ModifierHoldKeyEvent } from './modifierHoldShortcut'
 import { NativeDictationRuntime } from './nativeDictationRuntime'
 import { ParakeetModelInstaller } from './parakeetModelInstaller'
@@ -102,6 +107,9 @@ export class DictationManager {
     ipcMain.handle(DICTATION_CHANNELS.completeCapture, (_, result: DictationCaptureResult) =>
       this.completeCapture(result)
     )
+    ipcMain.handle(DICTATION_CHANNELS.getMicrophonePermission, () =>
+      getMicrophonePermissionSnapshot()
+    )
     ipcMain.handle(DICTATION_CHANNELS.installModel, async () => {
       await this.modelInstaller.install()
       const snapshot = this.controller.getSnapshot()
@@ -112,9 +120,15 @@ export class DictationManager {
     ipcMain.handle(DICTATION_CHANNELS.updateSettings, (_, settings: DictationSettings) =>
       this.controller.updateSettings(settings)
     )
+    ipcMain.handle(DICTATION_CHANNELS.requestMicrophonePermission, () =>
+      requestMicrophonePermission()
+    )
     ipcMain.handle(DICTATION_CHANNELS.testTranscription, () => this.controller.testTranscription())
     ipcMain.on(DICTATION_CHANNELS.completeInsertion, (_, result: DictationInsertionResult) => {
       this.controller.reportInsertion(result)
+    })
+    ipcMain.on(DICTATION_CHANNELS.openMicrophoneSettings, () => {
+      openMicrophonePrivacySettings()
     })
   }
 

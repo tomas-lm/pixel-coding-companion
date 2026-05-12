@@ -119,6 +119,7 @@
 .dictation-config__pill--downloading,
 .dictation-config__pill--checking,
 .dictation-config__pill--installing,
+.dictation-config__pill--not-determined,
 .dictation-config__pill--runtime_missing {
   color: #f7d56f;
 }
@@ -127,7 +128,14 @@
   color: #34d399;
 }
 
+.dictation-config__pill--granted {
+  color: #34d399;
+}
+
 .dictation-config__pill--failed,
+.dictation-config__pill--denied,
+.dictation-config__pill--restricted,
+.dictation-config__pill--unknown,
 .dictation-config__pill--unsupported {
   color: #ef5b5b;
 }

@@ -59,9 +59,14 @@ function renderDictationPanel(
       ]}
       dictationSnapshot={dictationSnapshot}
       featureSettings={featureSettings}
+      microphonePermission={{ canPrompt: false, status: 'granted' }}
       onChangeFeatureSettings={vi.fn()}
       onInstallParakeet={vi.fn()}
+      onOpenMicrophoneSettings={vi.fn()}
       onRefreshAudioInputs={vi.fn()}
+      onRequestMicrophonePermission={vi
+        .fn()
+        .mockResolvedValue({ canPrompt: false, status: 'granted' })}
       onTestDictation={vi.fn()}
       {...overrides}
     />
@@ -76,6 +81,7 @@ describe('DictationPanel', () => {
     expect(screen.getByRole('checkbox', { name: 'Enable local transcriber' })).not.toBeChecked()
     expect(screen.getByRole('radiogroup', { name: 'Dictation bind' })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Dictation microphone' })).toBeInTheDocument()
+    expect(screen.getByText('Allowed')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Download Parakeet (~461 MB)' })).toBeInTheDocument()
   })
 
@@ -93,6 +99,35 @@ describe('DictationPanel', () => {
       localTranscriberShortcut: 'control-option-hold',
       playSoundsUponFinishing: false
     })
+  })
+
+  it('requests microphone permission from the dictation tab', () => {
+    const onRequestMicrophonePermission = vi
+      .fn()
+      .mockResolvedValue({ canPrompt: false, status: 'granted' })
+
+    renderDictationPanel({ onRequestMicrophonePermission })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Allow microphone' }))
+
+    expect(onRequestMicrophonePermission).toHaveBeenCalledOnce()
+  })
+
+  it('opens macOS microphone settings when permission is blocked', () => {
+    const onOpenMicrophoneSettings = vi.fn()
+
+    renderDictationPanel({
+      microphonePermission: {
+        canPrompt: false,
+        message: 'Microphone access is blocked in macOS Privacy settings.',
+        status: 'denied'
+      },
+      onOpenMicrophoneSettings
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open macOS settings' }))
+
+    expect(onOpenMicrophoneSettings).toHaveBeenCalledOnce()
   })
 
   it('updates the dictation bind', () => {

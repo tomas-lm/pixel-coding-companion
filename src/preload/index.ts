@@ -19,6 +19,7 @@ import {
   type DictationCaptureResult,
   type DictationInsertRequest,
   type DictationInsertionResult,
+  type DictationMicrophonePermissionSnapshot,
   type DictationSettings,
   type DictationSnapshot
 } from '../shared/dictation'
@@ -73,6 +74,8 @@ const api: CompanionApi = {
     completeInsertion: (result: DictationInsertionResult): void => {
       ipcRenderer.send(DICTATION_CHANNELS.completeInsertion, result)
     },
+    getMicrophonePermission: (): Promise<DictationMicrophonePermissionSnapshot> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.getMicrophonePermission),
     installModel: (): Promise<DictationSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.installModel),
     loadSnapshot: (): Promise<DictationSnapshot> =>
@@ -95,6 +98,11 @@ const api: CompanionApi = {
       ipcRenderer.on(DICTATION_CHANNELS.state, listener)
       return () => ipcRenderer.removeListener(DICTATION_CHANNELS.state, listener)
     },
+    openMicrophoneSettings: (): void => {
+      ipcRenderer.send(DICTATION_CHANNELS.openMicrophoneSettings)
+    },
+    requestMicrophonePermission: (): Promise<DictationMicrophonePermissionSnapshot> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.requestMicrophonePermission),
     testTranscription: (): Promise<DictationSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.testTranscription),
     updateSettings: (settings: DictationSettings): Promise<DictationSnapshot> =>

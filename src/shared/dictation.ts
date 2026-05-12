@@ -2,9 +2,12 @@ export const DICTATION_CHANNELS = {
   captureCommand: 'dictation:capture-command',
   completeCapture: 'dictation:complete-capture',
   completeInsertion: 'dictation:complete-insertion',
+  getMicrophonePermission: 'dictation:get-microphone-permission',
   installModel: 'dictation:install-model',
   insertTranscript: 'dictation:insert-transcript',
   loadSnapshot: 'dictation:load-snapshot',
+  openMicrophoneSettings: 'dictation:open-microphone-settings',
+  requestMicrophonePermission: 'dictation:request-microphone-permission',
   state: 'dictation:state',
   testTranscription: 'dictation:test-transcription',
   updateSettings: 'dictation:update-settings'
@@ -78,6 +81,20 @@ export type DictationSettings = {
   shortcutId: DictationShortcutId
 }
 
+export type DictationMicrophonePermissionStatus =
+  | 'denied'
+  | 'granted'
+  | 'not-determined'
+  | 'restricted'
+  | 'unknown'
+  | 'unsupported'
+
+export type DictationMicrophonePermissionSnapshot = {
+  canPrompt: boolean
+  message?: string
+  status: DictationMicrophonePermissionStatus
+}
+
 export type DictationTranscript = {
   backend: DictationBackendId
   durationMs: number
@@ -148,11 +165,14 @@ export type DictationSnapshot = {
 export type DictationApi = {
   completeCapture: (result: DictationCaptureResult) => Promise<DictationSnapshot>
   completeInsertion: (result: DictationInsertionResult) => void
+  getMicrophonePermission: () => Promise<DictationMicrophonePermissionSnapshot>
   installModel: () => Promise<DictationSnapshot>
   loadSnapshot: () => Promise<DictationSnapshot>
   onCaptureCommand: (callback: (command: DictationCaptureCommand) => void) => () => void
   onInsertTranscript: (callback: (request: DictationInsertRequest) => void) => () => void
   onState: (callback: (snapshot: DictationSnapshot) => void) => () => void
+  openMicrophoneSettings: () => void
+  requestMicrophonePermission: () => Promise<DictationMicrophonePermissionSnapshot>
   testTranscription: () => Promise<DictationSnapshot>
   updateSettings: (settings: DictationSettings) => Promise<DictationSnapshot>
 }

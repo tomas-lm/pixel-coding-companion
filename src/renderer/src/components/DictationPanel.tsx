@@ -2,6 +2,7 @@ import {
   DICTATION_SHORTCUT_OPTIONS,
   PARAKEET_COREML_MODEL_DOWNLOAD_SIZE_LABEL,
   PARAKEET_COREML_MODEL_URL,
+  type DictationMicrophonePermissionSnapshot,
   type DictationShortcutId,
   type DictationSnapshot
 } from '../../../shared/dictation'
@@ -12,9 +13,12 @@ type DictationPanelProps = {
   audioInputDevices: DictationAudioInputDevice[]
   dictationSnapshot?: DictationSnapshot | null
   featureSettings: WorkspaceFeatureSettings
+  microphonePermission: DictationMicrophonePermissionSnapshot | null
   onChangeFeatureSettings: (featureSettings: WorkspaceFeatureSettings) => void
   onInstallParakeet: () => void
+  onOpenMicrophoneSettings: () => void
   onRefreshAudioInputs: () => void
+  onRequestMicrophonePermission: () => Promise<DictationMicrophonePermissionSnapshot>
   onTestDictation: () => void
 }
 
@@ -38,13 +42,29 @@ function formatBytes(bytes: number): string {
   return `${(mib / 1024).toFixed(1)} GB`
 }
 
+function getMicrophonePermissionLabel(
+  permission: DictationMicrophonePermissionSnapshot | null
+): string {
+  if (!permission) return 'Checking'
+  if (permission.status === 'granted') return 'Allowed'
+  if (permission.status === 'not-determined') return 'Needs access'
+  if (permission.status === 'denied') return 'Blocked'
+  if (permission.status === 'restricted') return 'Restricted'
+  if (permission.status === 'unsupported') return 'System'
+
+  return 'Unknown'
+}
+
 export function DictationPanel({
   audioInputDevices,
   dictationSnapshot,
   featureSettings,
+  microphonePermission,
   onChangeFeatureSettings,
   onInstallParakeet,
+  onOpenMicrophoneSettings,
   onRefreshAudioInputs,
+  onRequestMicrophonePermission,
   onTestDictation
 }: DictationPanelProps): React.JSX.Element {
   const dictationBackendLabel = dictationSnapshot?.backend.label ?? 'Local backend'
@@ -69,6 +89,7 @@ export function DictationPanel({
     featureSettings.localTranscriberEnabled && Boolean(dictationSnapshot?.backend.ready)
   const defaultAudioInputLabel =
     audioInputDevices.find((device) => device.isDefault)?.label ?? 'System default microphone'
+  const microphonePermissionLabel = getMicrophonePermissionLabel(microphonePermission)
   const selectedAudioInputIsMissing =
     Boolean(featureSettings.localTranscriberAudioInputDeviceId) &&
     !audioInputDevices.some(
@@ -169,9 +190,13 @@ export function DictationPanel({
         <section className="dictation-config" aria-labelledby="dictation-microphone-title">
           <div className="dictation-config__section-header">
             <h2 id="dictation-microphone-title">Microphone</h2>
-            <button className="secondary-button" type="button" onClick={onRefreshAudioInputs}>
-              Refresh inputs
-            </button>
+            <small
+              className={`dictation-config__pill dictation-config__pill--${
+                microphonePermission?.status ?? 'checking'
+              }`}
+            >
+              {microphonePermissionLabel}
+            </small>
           </div>
 
           <select
@@ -194,6 +219,29 @@ export function DictationPanel({
                 </option>
               ))}
           </select>
+
+          <div className="dictation-config__actions">
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => void onRequestMicrophonePermission()}
+            >
+              Allow microphone
+            </button>
+            <button className="secondary-button" type="button" onClick={onRefreshAudioInputs}>
+              Refresh inputs
+            </button>
+            {microphonePermission?.status === 'denied' ||
+            microphonePermission?.status === 'restricted' ? (
+              <button className="secondary-button" type="button" onClick={onOpenMicrophoneSettings}>
+                Open macOS settings
+              </button>
+            ) : null}
+          </div>
+
+          {microphonePermission?.message ? (
+            <small className="dictation-config__notice">{microphonePermission.message}</small>
+          ) : null}
         </section>
 
         <section className="dictation-config" aria-labelledby="dictation-model-title">

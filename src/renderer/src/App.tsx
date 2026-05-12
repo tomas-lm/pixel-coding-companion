@@ -3,6 +3,7 @@ import type { CompanionBridgeMessage } from '../../shared/companion'
 import type {
   DictationInsertRequest,
   DictationInsertTarget,
+  DictationMicrophonePermissionSnapshot,
   DictationSnapshot
 } from '../../shared/dictation'
 import type { VaultConfig, VaultMarkdownFile } from '../../shared/vault'
@@ -249,6 +250,8 @@ function App(): React.JSX.Element {
   const [dictationAudioInputDevices, setDictationAudioInputDevices] = useState<
     DictationAudioInputDevice[]
   >([])
+  const [dictationMicrophonePermission, setDictationMicrophonePermission] =
+    useState<DictationMicrophonePermissionSnapshot | null>(null)
   const [recentDictationInsertionTarget, setRecentDictationInsertionTarget] =
     useState<DictationInsertTarget | null>(null)
   const dictationInsertionTimerRef = useRef<number | null>(null)
@@ -271,7 +274,50 @@ function App(): React.JSX.Element {
       .catch(() => setDictationAudioInputDevices([]))
   }, [])
 
+  const refreshDictationMicrophonePermission = useCallback((): void => {
+    if (typeof window.api.dictation.getMicrophonePermission !== 'function') {
+      queueMicrotask(() => {
+        setDictationMicrophonePermission({
+          canPrompt: false,
+          message: 'Restart Pixel to enable the macOS microphone permission check.',
+          status: 'unknown'
+        })
+      })
+      return
+    }
+
+    void window.api.dictation
+      .getMicrophonePermission()
+      .then(setDictationMicrophonePermission)
+      .catch(() =>
+        setDictationMicrophonePermission({
+          canPrompt: false,
+          message: 'Pixel could not read microphone permission status.',
+          status: 'unknown'
+        })
+      )
+  }, [])
+
+  const requestDictationMicrophonePermission =
+    useCallback(async (): Promise<DictationMicrophonePermissionSnapshot> => {
+      if (typeof window.api.dictation.requestMicrophonePermission !== 'function') {
+        const permission: DictationMicrophonePermissionSnapshot = {
+          canPrompt: false,
+          message: 'Restart Pixel to enable the macOS microphone permission request.',
+          status: 'unknown'
+        }
+        setDictationMicrophonePermission(permission)
+        return permission
+      }
+
+      const permission = await window.api.dictation.requestMicrophonePermission()
+      setDictationMicrophonePermission(permission)
+      refreshDictationAudioInputDevices()
+      return permission
+    }, [refreshDictationAudioInputDevices])
+
   useEffect(() => {
+    refreshDictationMicrophonePermission()
     refreshDictationAudioInputDevices()
 
     const mediaDevices = navigator.mediaDevices
@@ -281,7 +327,7 @@ function App(): React.JSX.Element {
     return () => {
       mediaDevices.removeEventListener('devicechange', refreshDictationAudioInputDevices)
     }
-  }, [refreshDictationAudioInputDevices])
+  }, [refreshDictationAudioInputDevices, refreshDictationMicrophonePermission])
 
   useEffect(() => {
     let mounted = true
@@ -310,8 +356,14 @@ function App(): React.JSX.Element {
   useEffect(() => {
     return window.api.dictation.onCaptureCommand((command) => {
       if (command.type === 'start') {
-        const captureStart = startWavCapture({
-          preferredDeviceId: featureSettingsRef.current.localTranscriberAudioInputDeviceId
+        const captureStart = requestDictationMicrophonePermission().then((permission) => {
+          if (permission.status !== 'granted' && permission.status !== 'unsupported') {
+            throw new Error(permission.message ?? 'Pixel does not have microphone permission.')
+          }
+
+          return startWavCapture({
+            preferredDeviceId: featureSettingsRef.current.localTranscriberAudioInputDeviceId
+          })
         })
         dictationCaptureStartRef.current = captureStart
         void captureStart
@@ -371,7 +423,7 @@ function App(): React.JSX.Element {
           })
         })
     })
-  }, [refreshDictationAudioInputDevices])
+  }, [refreshDictationAudioInputDevices, requestDictationMicrophonePermission])
 
   useEffect(() => {
     if (!configLoaded) return
@@ -1365,11 +1417,18 @@ function App(): React.JSX.Element {
       ) : activeActivityItemId === 'dictation' ? (
         <DictationPanel
           audioInputDevices={dictationAudioInputDevices}
+          microphonePermission={dictationMicrophonePermission}
           dictationSnapshot={dictationSnapshot}
           featureSettings={featureSettings}
           onChangeFeatureSettings={changeFeatureSettings}
           onInstallParakeet={installParakeetModel}
+          onOpenMicrophoneSettings={() => {
+            if (typeof window.api.dictation.openMicrophoneSettings === 'function') {
+              window.api.dictation.openMicrophoneSettings()
+            }
+          }}
           onRefreshAudioInputs={refreshDictationAudioInputDevices}
+          onRequestMicrophonePermission={requestDictationMicrophonePermission}
           onTestDictation={() => {
             void window.api.dictation.testTranscription()
           }}
