@@ -60,18 +60,38 @@ describe('pixel compact command rules', () => {
     ).toBe('git diff')
     expect(
       extractShellCommandFromHookInput({
+        tool_name: 'exec_command',
+        tool_input: { cmd: 'git log --oneline' }
+      })
+    ).toBe('git log --oneline')
+    expect(
+      extractShellCommandFromHookInput({
+        tool_name: 'functions.exec_command',
+        arguments: JSON.stringify({ cmd: 'pnpm test' })
+      })
+    ).toBe('pnpm test')
+    expect(
+      extractShellCommandFromHookInput({
+        tool: 'shell',
+        input: 'git diff'
+      })
+    ).toBe('git diff')
+    expect(
+      extractShellCommandFromHookInput({
         tool_name: 'Read',
         tool_input: { file_path: 'README.md' }
       })
     ).toBeNull()
   })
 
-  it('builds a deny response for noisy Bash commands', () => {
+  it('builds a Codex and Claude compatible deny response for noisy shell commands', () => {
     const response = buildNoisyCommandHookResponse({
-      tool_name: 'Bash',
-      tool_input: { command: 'npm test' }
+      tool_name: 'exec_command',
+      tool_input: { cmd: 'npm test' }
     })
 
+    expect(response.decision).toBe('block')
+    expect(response.reason).toContain('pixel run --compact --')
     expect(response.hookSpecificOutput.permissionDecision).toBe('deny')
     expect(response.hookSpecificOutput.permissionDecisionReason).toContain('pixel run --compact --')
   })

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 
 const SHELL_OPERATOR_PATTERN = /(?:^|[\s;&|()<>])(?:&&|\|\||[;|()<>])(?:$|\s)/
+const SHELL_TOOL_NAME_PATTERN = /^(?:bash|shell|terminal|exec_command|functions\.exec_command)$/i
 
 export function shellQuote(value) {
   return `'${String(value).replaceAll("'", "'\\''")}'`
@@ -194,33 +195,74 @@ export function buildCompactRerunCommand(command) {
   return `pixel run --compact -- ${tokens.map(shellQuote).join(' ')}`
 }
 
+function parseJsonObject(value) {
+  if (typeof value !== 'string') return null
+
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function extractCommandFromCandidate(candidate, allowRawString = false) {
+  if (!candidate) return null
+
+  if (typeof candidate === 'string') {
+    const parsed = parseJsonObject(candidate)
+    if (parsed) return extractCommandFromCandidate(parsed, allowRawString)
+    return allowRawString && candidate.trim() ? candidate.trim() : null
+  }
+
+  if (typeof candidate !== 'object') return null
+
+  const command =
+    candidate.command ??
+    candidate.cmd ??
+    candidate.bash_command ??
+    candidate.shell_command ??
+    candidate.script
+
+  if (typeof command === 'string' && command.trim()) return command.trim()
+
+  return null
+}
+
 export function extractShellCommandFromHookInput(hookInput) {
   const toolName =
     hookInput?.tool_name ??
     hookInput?.toolName ??
+    (typeof hookInput?.tool === 'string' ? hookInput.tool : undefined) ??
     hookInput?.tool?.name ??
     hookInput?.tool?.tool_name ??
-    hookInput?.tool_call?.name
+    hookInput?.tool_call?.name ??
+    hookInput?.name
 
-  if (toolName && !/^bash$|^shell$|^terminal$/i.test(String(toolName))) {
+  if (toolName && !SHELL_TOOL_NAME_PATTERN.test(String(toolName))) {
     return null
   }
 
-  const toolInput =
-    hookInput?.tool_input ??
-    hookInput?.toolInput ??
-    hookInput?.input ??
-    hookInput?.tool?.input ??
-    hookInput?.tool_call?.input
+  const toolInputCandidates = [
+    hookInput?.tool_input,
+    hookInput?.toolInput,
+    hookInput?.input,
+    hookInput?.tool?.input,
+    hookInput?.tool_call?.input,
+    hookInput?.arguments,
+    hookInput?.args,
+    hookInput?.params,
+    hookInput?.parameters,
+    hookInput?.tool?.arguments,
+    hookInput?.tool_call?.arguments
+  ]
 
-  const command =
-    toolInput?.command ??
-    toolInput?.cmd ??
-    hookInput?.command ??
-    hookInput?.bash_command ??
-    hookInput?.shell_command
+  for (const candidate of toolInputCandidates) {
+    const command = extractCommandFromCandidate(candidate, Boolean(toolName))
+    if (command) return command
+  }
 
-  return typeof command === 'string' && command.trim() ? command.trim() : null
+  return extractCommandFromCandidate(hookInput)
 }
 
 export function buildNoisyCommandHookResponse(hookInput) {

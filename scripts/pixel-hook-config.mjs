@@ -3,6 +3,8 @@
 import { shellQuote } from './pixel-compact-rules.mjs'
 
 export const PIXEL_HOOK_SCRIPT_MARKER = 'pixel-companion-hook.mjs'
+export const CODEX_SHELL_TOOL_MATCHER =
+  'Bash|Shell|shell|Terminal|terminal|exec_command|functions\\.exec_command'
 
 export function ensureCodexHooksFeature(contents) {
   const normalizedContents = contents.replace(/\r\n/g, '\n')
@@ -106,7 +108,11 @@ export function applyCodexPixelHooks(hooksConfig, hookScriptPath) {
   nextConfig = upsertPixelHook(
     nextConfig,
     'PreToolUse',
-    hookGroup(command('pre-tool-use'), 'Bash', 'Checking Pixel compact-output rules')
+    hookGroup(
+      command('pre-tool-use'),
+      CODEX_SHELL_TOOL_MATCHER,
+      'Checking Pixel compact-output rules'
+    )
   )
   nextConfig = upsertPixelHook(
     nextConfig,
