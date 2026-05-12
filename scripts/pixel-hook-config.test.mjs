@@ -7,12 +7,13 @@ import {
 
 describe('pixel hook config', () => {
   it('enables the Codex hooks feature without clobbering other settings', () => {
-    expect(ensureCodexHooksFeature('model = "gpt-5.5"\n')).toContain(
-      '[features]\ncodex_hooks = true'
-    )
+    expect(ensureCodexHooksFeature('model = "gpt-5.5"\n')).toContain('[features]\nhooks = true')
     expect(ensureCodexHooksFeature('[features]\ncodex_hooks = false\n')).toBe(
-      '[features]\ncodex_hooks = true\n'
+      '[features]\nhooks = true\n'
     )
+    expect(
+      ensureCodexHooksFeature('[features]\ncodex_hooks = true\nhooks = false\nplugins = true\n')
+    ).toBe('[features]\nhooks = true\nplugins = true\n')
   })
 
   it('adds Codex filter hooks while preserving non-Pixel hooks and avoiding duplicates', () => {

@@ -12,7 +12,7 @@ export function ensureCodexHooksFeature(contents) {
 
   if (featuresIndex === -1) {
     const prefix = normalizedContents.trim().length > 0 ? `${normalizedContents.trimEnd()}\n\n` : ''
-    return `${prefix}[features]\ncodex_hooks = true\n`
+    return `${prefix}[features]\nhooks = true\n`
   }
 
   let sectionEndIndex = lines.length
@@ -23,18 +23,31 @@ export function ensureCodexHooksFeature(contents) {
     }
   }
 
-  const flagIndex = lines.findIndex(
-    (line, index) =>
-      index > featuresIndex && index < sectionEndIndex && /^\s*codex_hooks\s*=/.test(line)
-  )
+  const beforeSection = lines.slice(0, featuresIndex + 1)
+  const section = lines.slice(featuresIndex + 1, sectionEndIndex)
+  const afterSection = lines.slice(sectionEndIndex)
+  const nextSection = []
+  let hooksFlagFound = false
 
-  if (flagIndex === -1) {
-    lines.splice(featuresIndex + 1, 0, 'codex_hooks = true')
-  } else {
-    lines[flagIndex] = 'codex_hooks = true'
+  for (const line of section) {
+    if (/^\s*codex_hooks\s*=/.test(line)) continue
+
+    if (/^\s*hooks\s*=/.test(line)) {
+      if (!hooksFlagFound) {
+        nextSection.push('hooks = true')
+        hooksFlagFound = true
+      }
+      continue
+    }
+
+    nextSection.push(line)
   }
 
-  return `${lines.join('\n').trimEnd()}\n`
+  if (!hooksFlagFound) {
+    nextSection.unshift('hooks = true')
+  }
+
+  return `${[...beforeSection, ...nextSection, ...afterSection].join('\n').trimEnd()}\n`
 }
 
 export function createHookCommand(hookScriptPath, command) {

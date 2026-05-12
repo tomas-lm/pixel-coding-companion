@@ -14,6 +14,7 @@ asarUnpack:
   - node_modules/node-pty/**
   - scripts/**
 win:
+  icon: build/icon.ico
   executableName: pixel-coding-companion
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
@@ -21,6 +22,7 @@ nsis:
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
 mac:
+  icon: build/icon.icns
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
@@ -30,7 +32,7 @@ mac:
 dmg:
   artifactName: ${name}-${version}.${ext}
 linux:
-  icon: icon.png
+  icon: build/icon.png
   target:
     - AppImage
     - snap

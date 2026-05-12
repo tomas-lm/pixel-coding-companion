@@ -230,15 +230,79 @@ Useful contributions include:
 - adding safe launcher support;
 - explaining what Pixel should show for that agent's lifecycle.
 
-## Requirements
+## Installation
 
-- macOS for the primary supported experience.
+Pixel Companion has three supported ways to run. Pick the one that matches your goal:
+
+| Goal | Use this |
+| --- | --- |
+| Install Pixel like a normal desktop app | Download a packaged release |
+| Test the latest `main` branch as a real app | Build the stable app locally |
+| Work on Pixel's source code | Run development mode |
+
+The GitHub source-code download is not the compiled app. If you click `Code` ->
+`Download ZIP` or run `git clone`, you get the source files only. Generated build
+folders such as `dist/` and `out/` are ignored and are not committed to the repository.
+
+### Option 1: Download A Packaged App
+
+This is the recommended path for normal users once release artifacts are available.
+
+1. Open the GitHub Releases page:
+   <https://github.com/tomas-lm/pixel-coding-companion/releases>
+2. Open the latest release.
+3. Download the macOS app artifact, usually a `.dmg`, `.zip`, or `.app` package.
+4. Open the download and move `Pixel Companion.app` to `/Applications`.
+5. Launch `Pixel Companion`.
+
+If the Releases page does not contain a downloadable app artifact yet, use Option 2
+below. Do not use `pnpm dev` as the normal installation path; it is only for working on
+Pixel's source code.
+
+If macOS blocks a local or unsigned build, right-click `Pixel Companion.app`, choose
+`Open`, then confirm. This can happen for non-notarized builds.
+
+### Option 2: Build The Stable App Locally From Source
+
+Use this when you want the current `main` branch as a real packaged app, or when a
+GitHub Release artifact is not available yet.
+
+Requirements:
+
+- macOS for the primary supported desktop app.
 - Node.js 22 or newer.
 - pnpm.
-- A local AI CLI such as Codex, Claude Code, Cursor CLI, Roo Code, or another
-  terminal-based agent.
+- A local AI CLI for agent terminals, such as Codex, Claude Code, Cursor CLI, Roo Code,
+  or another terminal-based agent.
 
-## Local Development
+Build and open the stable app:
+
+```bash
+git clone https://github.com/tomas-lm/pixel-coding-companion.git
+cd pixel-coding-companion
+pnpm install
+pnpm build:unpack
+pnpm open:stable
+```
+
+This generates and opens:
+
+```text
+dist/mac-arm64/Pixel Companion.app
+```
+
+That app uses the normal Pixel Companion data directory:
+
+```text
+~/Library/Application Support/pixel-coding-companion
+```
+
+This is the right local build for day-to-day Pixel usage. It is not the hot-reload
+development window.
+
+### Option 3: Run Development Mode
+
+Use development mode only when changing Pixel Companion itself.
 
 ```bash
 git clone https://github.com/tomas-lm/pixel-coding-companion.git
@@ -247,12 +311,9 @@ pnpm install
 pnpm dev
 ```
 
-The app stores local workspace and companion data in the OS application data directory.
-On macOS, that is usually:
-
-```text
-~/Library/Application Support/pixel-coding-companion
-```
+`pnpm dev` opens an Electron development window with the Vite dev server and hot reload.
+It is useful for coding, but it is not the packaged desktop app that normal users should
+install.
 
 ### Stable Work Window Plus Dev Window
 
@@ -279,7 +340,8 @@ session when you want the dev app to close.
 
 ## Basic App Setup
 
-1. Start the app with `pnpm dev`.
+1. Start the app from a packaged release or with `pnpm build:unpack` and
+   `pnpm open:stable`. Use `pnpm dev` only when developing Pixel itself.
 2. Create a project from the left panel.
 3. Add configured terminals for that project.
 4. Set each terminal folder and command.
@@ -341,7 +403,7 @@ launching Claude Code:
 `pixel codex` installs and refreshes the Codex hook configuration before launching
 Codex:
 
-- enables `codex_hooks = true` in `~/.codex/config.toml`;
+- enables `hooks = true` in `~/.codex/config.toml`;
 - writes Pixel Companion hooks to `~/.codex/hooks.json`;
 - injects Ghou's companion contract on Codex startup, resume, and `/clear`;
 - records prompt start/finish events so Ghou can receive XP even when the bridge report
@@ -423,10 +485,14 @@ checks so higher-level companions feel harder to fake.
 ## Scripts
 
 ```bash
+pnpm dev
+pnpm dev:isolated
 pnpm lint
 pnpm typecheck
 pnpm build
+pnpm build:unpack
 pnpm build:mac
+pnpm open:stable
 ```
 
 ## Project Docs
