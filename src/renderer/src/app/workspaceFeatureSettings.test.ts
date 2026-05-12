@@ -14,11 +14,13 @@ describe('workspaceFeatureSettings', () => {
       normalizeWorkspaceFeatureSettings({
         keepLastDictationAudioSample: true,
         localTranscriberEnabled: true,
+        localTranscriberShortcut: 'option-shift-hold',
         playSoundsUponFinishing: true
       })
     ).toEqual({
       keepLastDictationAudioSample: true,
       localTranscriberEnabled: true,
+      localTranscriberShortcut: 'option-shift-hold',
       playSoundsUponFinishing: true
     })
   })
@@ -28,11 +30,13 @@ describe('workspaceFeatureSettings', () => {
       normalizeWorkspaceFeatureSettings({
         keepLastDictationAudioSample: 'yes',
         localTranscriberEnabled: 'yes',
+        localTranscriberShortcut: 'fn',
         playSoundsUponFinishing: 'yes'
       })
     ).toEqual({
       keepLastDictationAudioSample: false,
       localTranscriberEnabled: false,
+      localTranscriberShortcut: 'control-option-hold',
       playSoundsUponFinishing: false
     })
   })

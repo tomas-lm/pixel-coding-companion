@@ -1,9 +1,14 @@
+import type { DictationModifier, DictationShortcutId } from '../../shared/dictation'
+import { getDictationShortcutOption } from '../../shared/dictation'
+
 type ModifierKeyEventType = 'keyDown' | 'keyUp'
 
 export type ModifierHoldKeyEvent = {
   alt: boolean
   control: boolean
   key: string
+  meta: boolean
+  shift: boolean
   type: ModifierKeyEventType
 }
 
@@ -13,16 +18,35 @@ export type ModifierHoldAction =
   | { type: 'schedule_start' }
   | { type: 'stop_recording' }
 
-function isControlKey(key: string): boolean {
-  return key === 'Control' || key === 'ControlLeft' || key === 'ControlRight'
+const MODIFIER_KEY_NAMES: Record<DictationModifier, string[]> = {
+  alt: ['Alt', 'AltLeft', 'AltRight', 'Option'],
+  control: ['Control', 'ControlLeft', 'ControlRight'],
+  meta: ['Meta', 'MetaLeft', 'MetaRight', 'Command'],
+  shift: ['Shift', 'ShiftLeft', 'ShiftRight']
 }
 
-function isOptionKey(key: string): boolean {
-  return key === 'Alt' || key === 'AltLeft' || key === 'AltRight' || key === 'Option'
+function isModifierDown(event: ModifierHoldKeyEvent, modifier: DictationModifier): boolean {
+  return event[modifier]
 }
 
-function isModifierKey(key: string): boolean {
-  return isControlKey(key) || isOptionKey(key) || key === 'Meta' || key === 'Shift'
+function isKeyForModifier(key: string, modifier: DictationModifier): boolean {
+  return MODIFIER_KEY_NAMES[modifier].includes(key)
+}
+
+function isShortcutModifierKey(key: string, shortcutId: DictationShortcutId): boolean {
+  const shortcut = getDictationShortcutOption(shortcutId)
+
+  return shortcut.modifiers.some((modifier) => isKeyForModifier(key, modifier))
+}
+
+function isShortcutActive(event: ModifierHoldKeyEvent, shortcutId: DictationShortcutId): boolean {
+  const shortcut = getDictationShortcutOption(shortcutId)
+
+  return (Object.keys(MODIFIER_KEY_NAMES) as DictationModifier[]).every((modifier) => {
+    const shouldBeDown = shortcut.modifiers.includes(modifier)
+
+    return isModifierDown(event, modifier) === shouldBeDown
+  })
 }
 
 export class ModifierHoldShortcut {
@@ -44,10 +68,17 @@ export class ModifierHoldShortcut {
     this.isRecording = false
   }
 
-  update(event: ModifierHoldKeyEvent): ModifierHoldAction {
-    const controlAndOptionDown = event.control && event.alt
+  update(
+    event: ModifierHoldKeyEvent,
+    shortcutId: DictationShortcutId = 'control-option-hold'
+  ): ModifierHoldAction {
+    const shortcutActive = isShortcutActive(event, shortcutId)
 
-    if (event.type === 'keyDown' && controlAndOptionDown && !isModifierKey(event.key)) {
+    if (
+      event.type === 'keyDown' &&
+      shortcutActive &&
+      !isShortcutModifierKey(event.key, shortcutId)
+    ) {
       this.chordCancelled = true
       if (this.isPendingStart) {
         this.isPendingStart = false
@@ -56,7 +87,7 @@ export class ModifierHoldShortcut {
       return { type: 'none' }
     }
 
-    if (!controlAndOptionDown) {
+    if (!shortcutActive) {
       this.chordCancelled = false
       if (this.isPendingStart) {
         this.isPendingStart = false
@@ -74,7 +105,7 @@ export class ModifierHoldShortcut {
       !this.isRecording &&
       !this.isPendingStart &&
       !this.chordCancelled &&
-      (isControlKey(event.key) || isOptionKey(event.key))
+      isShortcutModifierKey(event.key, shortcutId)
     ) {
       this.isPendingStart = true
       return { type: 'schedule_start' }

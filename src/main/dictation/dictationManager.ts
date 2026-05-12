@@ -44,6 +44,8 @@ export class DictationManager {
         alt: input.alt,
         control: input.control,
         key: input.key,
+        meta: input.meta,
+        shift: input.shift,
         type: input.type === 'keyUp' ? 'keyUp' : 'keyDown'
       })
     })
@@ -66,7 +68,7 @@ export class DictationManager {
   }
 
   private handleShortcutEvent(event: ModifierHoldKeyEvent): void {
-    const action = this.shortcut.update(event)
+    const action = this.shortcut.update(event, this.controller.getShortcutId())
 
     if (action.type === 'schedule_start') {
       this.clearPendingStart()

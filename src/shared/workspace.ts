@@ -1,3 +1,4 @@
+import type { DictationShortcutId } from './dictation'
 import type { CodeEditorId } from './system'
 import type { VaultConfig } from './vault'
 
@@ -79,6 +80,7 @@ export type PromptTemplate = {
 export type WorkspaceFeatureSettings = {
   keepLastDictationAudioSample: boolean
   localTranscriberEnabled: boolean
+  localTranscriberShortcut: DictationShortcutId
   playSoundsUponFinishing: boolean
 }
 

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { DictationSnapshot } from '../../../shared/dictation'
 import { CODE_EDITOR_OPTIONS, type CodeEditorCheckResult } from '../../../shared/system'
 import {
   TERMINAL_THEME_OPTIONS,
@@ -10,34 +9,20 @@ import {
 
 type ConfigsPanelProps = {
   codeEditorSettings: WorkspaceCodeEditorSettings
-  dictationSnapshot?: DictationSnapshot | null
   featureSettings: WorkspaceFeatureSettings
   terminalThemeId: TerminalThemeId
   onChangeCodeEditorSettings: (settings: WorkspaceCodeEditorSettings) => void
   onChangeFeatureSettings: (featureSettings: WorkspaceFeatureSettings) => void
   onSelectTerminalTheme: (themeId: TerminalThemeId) => void
-  onTestDictation: () => void
-}
-
-function getBackendStatusLabel(snapshot?: DictationSnapshot | null): string {
-  if (!snapshot) return 'Checking'
-  if (snapshot.backend.status === 'ready') return 'Ready'
-  if (snapshot.backend.status === 'not_installed') return 'Not installed'
-  if (snapshot.backend.status === 'installing') return 'Installing'
-  if (snapshot.backend.status === 'failed') return 'Failed'
-
-  return 'Unsupported'
 }
 
 export function ConfigsPanel({
   codeEditorSettings,
-  dictationSnapshot,
   featureSettings,
   terminalThemeId,
   onChangeCodeEditorSettings,
   onChangeFeatureSettings,
-  onSelectTerminalTheme,
-  onTestDictation
+  onSelectTerminalTheme
 }: ConfigsPanelProps): React.JSX.Element {
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false)
   const [isCheckingEditor, setIsCheckingEditor] = useState(false)
@@ -60,10 +45,6 @@ export function ConfigsPanel({
   const selectedEditorLabel =
     CODE_EDITOR_OPTIONS.find((option) => option.id === codeEditorSettings.preferredEditor)?.label ??
     CODE_EDITOR_OPTIONS[0].label
-  const dictationBackendLabel = dictationSnapshot?.backend.label ?? 'Local backend'
-  const dictationBackendStatus = getBackendStatusLabel(dictationSnapshot)
-  const canRunDictationTest =
-    featureSettings.localTranscriberEnabled && Boolean(dictationSnapshot?.backend.ready)
 
   const getNextThemeId = (currentThemeId: TerminalThemeId, delta: number): TerminalThemeId => {
     const currentIndex = Math.max(themeOptionIds.indexOf(currentThemeId), 0)
@@ -315,81 +296,6 @@ export function ConfigsPanel({
             />
             <span>Play sounds upon finishing</span>
           </label>
-        </section>
-
-        <section className="configs-section" aria-labelledby="configs-dictation-title">
-          <h2 id="configs-dictation-title">Local transcriber</h2>
-          <div className="dictation-config">
-            <label className="feature-toggle feature-toggle--flat">
-              <input
-                type="checkbox"
-                checked={featureSettings.localTranscriberEnabled}
-                onChange={(event) =>
-                  onChangeFeatureSettings({
-                    ...featureSettings,
-                    localTranscriberEnabled: event.currentTarget.checked
-                  })
-                }
-              />
-              <span>Enable local transcriber</span>
-            </label>
-
-            <div className="dictation-config__status">
-              <div>
-                <span>Backend</span>
-                <strong>{dictationBackendLabel}</strong>
-              </div>
-              <small
-                className={`dictation-config__pill dictation-config__pill--${
-                  dictationSnapshot?.backend.status ?? 'checking'
-                }`}
-                role="status"
-              >
-                {dictationBackendStatus}
-              </small>
-            </div>
-
-            <div className="dictation-config__meta">
-              <span>Shortcut</span>
-              <strong>{dictationSnapshot?.shortcut ?? 'Control+Option'}</strong>
-            </div>
-
-            <p>Audio is processed locally. Pixel does not send dictation audio to cloud APIs.</p>
-
-            <div className="dictation-config__actions">
-              <button className="secondary-button" type="button" disabled>
-                Install model
-              </button>
-              <button
-                className="secondary-button"
-                type="button"
-                disabled={!canRunDictationTest}
-                onClick={onTestDictation}
-              >
-                Test transcription
-              </button>
-            </div>
-
-            <label className="feature-toggle feature-toggle--flat">
-              <input
-                type="checkbox"
-                checked={featureSettings.keepLastDictationAudioSample}
-                onChange={(event) =>
-                  onChangeFeatureSettings({
-                    ...featureSettings,
-                    keepLastDictationAudioSample: event.currentTarget.checked
-                  })
-                }
-              />
-              <span>Keep last audio sample for debugging</span>
-            </label>
-
-            {dictationSnapshot?.error ? (
-              <small className="dictation-config__error" role="alert">
-                {dictationSnapshot.error}
-              </small>
-            ) : null}
-          </div>
         </section>
       </div>
     </section>

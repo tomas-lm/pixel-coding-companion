@@ -21,6 +21,7 @@ import {
 import { CompanionCatalogPanel } from './components/CompanionCatalogPanel'
 import { CompanionPanel } from './components/CompanionPanel'
 import { ConfigsPanel } from './components/ConfigsPanel'
+import { DictationPanel } from './components/DictationPanel'
 import { LoadingScreen } from './components/LoadingScreen'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { ProjectFormModal } from './components/ProjectFormModal'
@@ -76,6 +77,8 @@ const CODEX_START_COMMAND_PATTERN =
   /^(?:codex|pixel\s+codex|node\s+.+pixel\.mjs['"]?\s+codex)(?:\s|$)/
 const CLAUDE_START_COMMAND_PATTERN =
   /^(?:claude|pixel\s+claude|node\s+.+pixel\.mjs['"]?\s+claude)(?:\s|$)/
+const PARAKEET_COREML_MODEL_URL =
+  'https://huggingface.co/FluidInference/parakeet-tdt-0.6b-v3-coreml'
 type StartWorkspaceSelection = {
   pixelAgent: PixelLauncherAgentId
   projectId: string
@@ -256,13 +259,15 @@ function App(): React.JSX.Element {
     void window.api.dictation
       .updateSettings({
         enabled: featureSettings.localTranscriberEnabled,
-        keepLastAudioSample: featureSettings.keepLastDictationAudioSample
+        keepLastAudioSample: featureSettings.keepLastDictationAudioSample,
+        shortcutId: featureSettings.localTranscriberShortcut
       })
       .then(setDictationSnapshot)
   }, [
     configLoaded,
     featureSettings.keepLastDictationAudioSample,
-    featureSettings.localTranscriberEnabled
+    featureSettings.localTranscriberEnabled,
+    featureSettings.localTranscriberShortcut
   ])
 
   const changeFeatureSettings = useCallback(
@@ -354,6 +359,11 @@ function App(): React.JSX.Element {
       icon: 'prompts',
       id: 'prompts',
       label: 'Prompt templates'
+    },
+    {
+      icon: 'dictation',
+      id: 'dictation',
+      label: 'Dictation'
     },
     {
       icon: 'vaults',
@@ -996,6 +1006,13 @@ function App(): React.JSX.Element {
     })
   }
 
+  const openParakeetDownload = (): void => {
+    void window.api.system.openTarget({
+      kind: 'external_url',
+      url: PARAKEET_COREML_MODEL_URL
+    })
+  }
+
   const completeDictationInsertion = useCallback(
     (request: DictationInsertRequest, target: 'clipboard' | 'pixel_text' | 'terminal'): void => {
       window.api.dictation.completeInsertion({
@@ -1214,15 +1231,21 @@ function App(): React.JSX.Element {
       ) : activeActivityItemId === 'configs' ? (
         <ConfigsPanel
           codeEditorSettings={codeEditorSettings}
-          dictationSnapshot={dictationSnapshot}
           featureSettings={featureSettings}
           onChangeCodeEditorSettings={changeCodeEditorSettings}
           onChangeFeatureSettings={changeFeatureSettings}
+          onSelectTerminalTheme={applyTerminalTheme}
+          terminalThemeId={terminalThemeId}
+        />
+      ) : activeActivityItemId === 'dictation' ? (
+        <DictationPanel
+          dictationSnapshot={dictationSnapshot}
+          featureSettings={featureSettings}
+          onChangeFeatureSettings={changeFeatureSettings}
+          onDownloadParakeet={openParakeetDownload}
           onTestDictation={() => {
             void window.api.dictation.testTranscription()
           }}
-          onSelectTerminalTheme={applyTerminalTheme}
-          terminalThemeId={terminalThemeId}
         />
       ) : activeActivityItemId === 'vaults' ? (
         <VaultWorkspacePanel

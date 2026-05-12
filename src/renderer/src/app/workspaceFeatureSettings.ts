@@ -1,8 +1,10 @@
+import { isDictationShortcutId } from '../../../shared/dictation'
 import type { WorkspaceFeatureSettings } from '../../../shared/workspace'
 
 export const DEFAULT_WORKSPACE_FEATURE_SETTINGS: WorkspaceFeatureSettings = {
   keepLastDictationAudioSample: false,
   localTranscriberEnabled: false,
+  localTranscriberShortcut: 'control-option-hold',
   playSoundsUponFinishing: false
 }
 
@@ -22,6 +24,9 @@ export function normalizeWorkspaceFeatureSettings(value: unknown): WorkspaceFeat
       typeof settings.localTranscriberEnabled === 'boolean'
         ? settings.localTranscriberEnabled
         : DEFAULT_WORKSPACE_FEATURE_SETTINGS.localTranscriberEnabled,
+    localTranscriberShortcut: isDictationShortcutId(settings.localTranscriberShortcut)
+      ? settings.localTranscriberShortcut
+      : DEFAULT_WORKSPACE_FEATURE_SETTINGS.localTranscriberShortcut,
     playSoundsUponFinishing:
       typeof settings.playSoundsUponFinishing === 'boolean'
         ? settings.playSoundsUponFinishing

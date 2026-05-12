@@ -67,7 +67,11 @@ describe('DictationController', () => {
   it('moves idle -> recording -> transcribing -> inserting -> idle', async () => {
     const { controller, emittedSnapshots, insertionRequests, setNow } = createController()
 
-    controller.updateSettings({ enabled: true, keepLastAudioSample: false })
+    controller.updateSettings({
+      enabled: true,
+      keepLastAudioSample: false,
+      shortcutId: 'control-option-hold'
+    })
     await controller.startRecording()
     setNow(1800)
     await controller.stopRecording()
@@ -110,7 +114,11 @@ describe('DictationController', () => {
       })
     )
 
-    controller.updateSettings({ enabled: true, keepLastAudioSample: false })
+    controller.updateSettings({
+      enabled: true,
+      keepLastAudioSample: false,
+      shortcutId: 'control-option-hold'
+    })
     await controller.startRecording()
 
     expect(controller.getSnapshot()).toMatchObject({
@@ -126,7 +134,11 @@ describe('DictationController', () => {
       })
     )
 
-    controller.updateSettings({ enabled: true, keepLastAudioSample: false })
+    controller.updateSettings({
+      enabled: true,
+      keepLastAudioSample: false,
+      shortcutId: 'control-option-hold'
+    })
     await controller.startRecording()
     await controller.stopRecording()
 

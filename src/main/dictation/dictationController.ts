@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto'
 import type {
+  DictationShortcutId,
   DictationInsertRequest,
   DictationInsertionResult,
   DictationSettings,
@@ -7,11 +8,13 @@ import type {
   DictationState,
   DictationTranscript
 } from '../../shared/dictation'
+import { getDictationShortcutOption } from '../../shared/dictation'
 import type { DictationBackend } from './dictationBackends'
 
 const DEFAULT_DICTATION_SETTINGS: DictationSettings = {
   enabled: false,
-  keepLastAudioSample: false
+  keepLastAudioSample: false,
+  shortcutId: 'control-option-hold'
 }
 
 type DictationControllerDependencies = {
@@ -52,7 +55,7 @@ export class DictationController {
       lastInsertionTarget: this.lastInsertionTarget,
       lastTranscript: this.lastTranscript,
       settings: this.settings,
-      shortcut: 'Control+Option',
+      shortcut: getDictationShortcutOption(this.settings.shortcutId).label,
       state: this.state
     }
   }
@@ -125,7 +128,8 @@ export class DictationController {
   updateSettings(settings: DictationSettings): DictationSnapshot {
     this.settings = {
       enabled: settings.enabled,
-      keepLastAudioSample: settings.keepLastAudioSample
+      keepLastAudioSample: settings.keepLastAudioSample,
+      shortcutId: settings.shortcutId
     }
     if (!this.settings.enabled && this.state !== 'idle') {
       this.setState('idle')
@@ -134,6 +138,10 @@ export class DictationController {
     }
 
     return this.getSnapshot()
+  }
+
+  getShortcutId(): DictationShortcutId {
+    return this.settings.shortcutId
   }
 
   private setState(state: DictationState, error?: string): void {
