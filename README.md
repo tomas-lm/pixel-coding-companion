@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>A second-screen command center for developers who code with CLI agents.</strong>
+  <strong>A gamified command center for AI coding terminals, token-saving workflows, and Markdown vaults.</strong>
 </p>
 
 <p align="center">
@@ -19,306 +19,232 @@
   <img alt="macOS first" src="https://img.shields.io/badge/platform-macOS%20first-111827">
 </p>
 
-<p align="center">
-  <strong>If Pixel Companion makes your agent workflow calmer, please star the repo.</strong><br>
-  Stars help more CLI-agent developers find the project and make the little companions stronger.
-</p>
-
 ---
 
-Pixel Companion is a local desktop app built around a simple idea: when you code heavily
-with CLI agents, your terminal work deserves a second, centralized screen.
+Pixel Companion is a local desktop app for developers who work with AI coding agents all
+day. It gives you one second-screen workspace for:
 
-It is not trying to replace VS Code, Cursor, or your main IDE. Your editor stays on the
-first screen, where IntelliSense, extensions, language servers, and project navigation
-already shine. Pixel lives beside it as the place where your agents run, report back,
-surface changes, and keep you company while you build.
+- managing several project terminals and AI agents;
+- keeping agent status updates visible without hunting through terminal windows;
+- reducing wasted context with token-saving command output workflows;
+- keeping Markdown notes, plans, and agent artifacts in Pixel Vaults;
+- turning long coding sessions into a lightweight gamified companion loop.
 
-Pixel is currently optimized for Codex. The product already works best when Codex is
-launched through Pixel, because Ghou can understand session lifecycle events and report
-progress naturally. Contributions for people using Cursor, Claude Code, Roo Code, or
-other terminal-first agents are very welcome.
+The product idea is simple: the AI coding ecosystem changes constantly. Pixel tests the
+useful parts, filters out the noise, and turns the pieces that actually help into a
+practical local workflow.
 
-## Why Pixel Exists
+Pixel is currently macOS-first and optimized for Codex, but it can run other
+terminal-based agents such as Claude Code, Cursor CLI, Roo Code, or custom commands.
 
-Modern agentic coding gets noisy fast.
+## Install Status
 
-You may have one terminal writing backend code, another fixing frontend details, another
-running tests, and a fourth exploring a different project. When every agent lives in a
-separate terminal window, it becomes hard to know what finished, what failed, what needs
-input, and where the important files changed.
+There is no public `.dmg`, `.zip`, or Homebrew formula yet.
 
-Pixel Companion turns that into a more focused workflow:
+The current recommended path is to build the stable desktop app locally from source.
+That gives you a normal `Pixel Companion.app` build. It is not the same thing as running
+the development server.
 
-- a centralized panel for project terminals;
-- companion messages that tell you when agents start, finish, fail, or need input;
-- project presets so recurring terminal setups are one click away;
-- change roots so each project can track the repositories that matter;
-- vaults for reading and editing Markdown notes beside your agent work;
-- a gamified companion system that makes long coding sessions feel less lonely.
+Important:
 
-The goal is practical: keep your main IDE clean, keep your agents visible, and give the
-developer a second screen that understands local coding work.
+- `git clone` downloads source code only.
+- The compiled app is generated locally into `dist/`.
+- `pnpm dev` is only for people changing Pixel's source code.
+- For normal usage today, use `pnpm build:unpack` and `pnpm open:stable`.
 
-## What Pixel Is
+## Quick Start
 
-Pixel is a second-screen terminal workspace for agent-heavy developers.
+Follow these steps to build and run Pixel Companion today.
 
-It helps you:
+### Step 1: Install Prerequisites
 
-- launch and organize terminal sessions by project;
-- run several AI agents at the same time without losing track of them;
-- see status updates from your agents in one calm companion panel;
-- open Markdown artifacts directly in Pixel Vaults;
-- open code changes in your external editor, such as VS Code or Cursor;
-- configure project-specific change roots so Pixel tracks the right repositories;
-- keep project notes, prompts, and terminal presets close to the work;
-- earn local XP for your active companion as your coding sessions progress.
-
-## What Pixel Is Not
-
-Pixel is not a full IDE, and that is intentional.
-
-It should not compete with VS Code, Cursor, JetBrains IDEs, or any editor that already
-has deep language tooling. Instead, Pixel sits next to them and makes agent coordination
-better.
-
-The intended setup is:
-
-```text
-Primary screen:   VS Code, Cursor, or your editor
-Second screen:   Pixel Companion running your agents, vaults, prompts, and changes
-```
-
-## Feature Highlights
-
-### Project Workspaces
-
-Create project workspaces with their own configured terminals, colors, folders, command
-lists, and launch presets. Start one terminal or a full project stack when you begin a
-work session.
-
-### Centralized Agent Terminals
-
-Run multiple CLI agents and shell sessions from one app. Pixel keeps the sessions grouped
-by project so your backend agent, frontend agent, test runner, and assistant terminal do
-not become a pile of disconnected windows.
-
-### Companion Updates
-
-Ghou, the built-in pixel companion, reports meaningful agent lifecycle updates in plain
-language: started, finished, failed, blocked, or waiting for input. The companion panel
-is designed to make multi-agent coding easier to scan at a glance.
-
-### Gamified Coding
-
-Pixel companions gain local XP as sessions progress. The goal is not to turn coding into
-a distraction, but to make long agent-assisted work feel warmer and more rewarding.
-
-### Change Roots
-
-Many developers run agents from a parent folder while the actual code changes happen in
-nested repositories. Pixel lets each project configure explicit change roots, then shows
-the Git changes that matter for that project.
-
-Markdown files can open in Pixel Vaults. Code files can open in your configured external
-editor.
-
-### Vaults
-
-Pixel Vaults make Markdown notes available inside the second-screen workspace. They are
-useful for project notes, agent-written reports, planning docs, and existing Obsidian
-vaults you want to keep visible while coding.
-
-Vaults are intentionally lightweight: browse, read, edit, and keep notes near the work.
-They are not meant to clone every Obsidian feature.
-
-### Prompt Templates
-
-Save reusable prompts globally or per project, then send them to the active terminal.
-Templates support project variables such as `%project_name` and `%project_path`.
-
-### External Editor Integration
-
-Pixel can open changed files in VS Code, Cursor, or the system default editor. This keeps
-Pixel focused on coordination while your editor keeps doing what it is best at.
-
-## Agent Support
-
-Pixel is currently most optimized for Codex.
-
-That means Codex gets the strongest integration path today:
-
-- `pixel codex` launcher support;
-- lifecycle hooks for startup and context reset;
-- companion reporting through the local bridge;
-- status events that help Ghou understand what is happening.
-
-Support for other agent CLIs is an open collaboration area. If you use Cursor, Claude
-Code, Roo Code, or another terminal-first coding agent, contributions are welcome:
-
-- launcher wrappers;
-- setup docs;
-- lifecycle/status detection;
-- companion reporting adapters;
-- examples of real workflows.
-
-If Pixel can become useful for more agent ecosystems, the whole project gets better.
-
-## Contributing
-
-Pixel Companion is still early, and there are several useful ways to help.
-
-### Report Bugs
-
-Bug reports are one of the most valuable contributions right now.
-
-If something breaks, please open an issue with:
-
-- what you were trying to do;
-- what happened;
-- what you expected;
-- your OS version;
-- whether you were using Codex, Cursor, Claude Code, Roo Code, or another CLI;
-- logs or screenshots when they help explain the problem.
-
-Small, precise bug reports make Pixel much easier to improve.
-
-### Fix Bugs
-
-Fixing bugs is one of the easiest ways to participate in the project.
-
-Good first contributions include:
-
-- UI states that feel broken or confusing;
-- terminal edge cases;
-- project/vault persistence bugs;
-- companion message behavior;
-- docs that do not match the current app;
-- agent integration issues.
-
-### Add Companions
-
-Creating new pixel companions is a real and welcome contribution.
-
-You can open a pull request that adds a new companion, including sprites, metadata, and
-store configuration. Normal companions are especially useful. The less rare the
-companion is, the more likely it is to be accepted, because the project needs more common
-companions than rare ones.
-
-As a general guide:
-
-- common companions are the easiest to accept;
-- uncommon companions are welcome when they fit the style;
-- rare and legendary companions should feel especially polished;
-- sprites should have a coherent egg/lvl1/lvl2/lvl3 progression;
-- companion names and personalities should fit Pixel's calm, useful, lightly playful
-  tone.
-
-See [Companion Sprite Strategy](docs/companion-sprites.md) for the current direction.
-
-### Improve Agent Integrations
-
-Pixel needs contributors who use different tools in real workflows. If you are using a
-CLI agent that is not Codex, your experience is valuable.
-
-Useful contributions include:
-
-- documenting the setup for another CLI;
-- making companion reporting work with that CLI;
-- improving terminal readiness detection;
-- adding safe launcher support;
-- explaining what Pixel should show for that agent's lifecycle.
-
-## Installation
-
-Pixel Companion has three supported ways to run. Pick the one that matches your goal:
-
-| Goal | Use this |
-| --- | --- |
-| Install Pixel like a normal desktop app | Download a packaged release |
-| Test the latest `main` branch as a real app | Build the stable app locally |
-| Work on Pixel's source code | Run development mode |
-
-The GitHub source-code download is not the compiled app. If you click `Code` ->
-`Download ZIP` or run `git clone`, you get the source files only. Generated build
-folders such as `dist/` and `out/` are ignored and are not committed to the repository.
-
-### Option 1: Download A Packaged App
-
-This is the recommended path for normal users once release artifacts are available.
-
-1. Open the GitHub Releases page:
-   <https://github.com/tomas-lm/pixel-coding-companion/releases>
-2. Open the latest release.
-3. Download the macOS app artifact, usually a `.dmg`, `.zip`, or `.app` package.
-4. Open the download and move `Pixel Companion.app` to `/Applications`.
-5. Launch `Pixel Companion`.
-
-If the Releases page does not contain a downloadable app artifact yet, use Option 2
-below. Do not use `pnpm dev` as the normal installation path; it is only for working on
-Pixel's source code.
-
-If macOS blocks a local or unsigned build, right-click `Pixel Companion.app`, choose
-`Open`, then confirm. This can happen for non-notarized builds.
-
-### Option 2: Build The Stable App Locally From Source
-
-Use this when you want the current `main` branch as a real packaged app, or when a
-GitHub Release artifact is not available yet.
-
-Requirements:
-
-- macOS for the primary supported desktop app.
-- Node.js 22 or newer.
-- pnpm.
-- A local AI CLI for agent terminals, such as Codex, Claude Code, Cursor CLI, Roo Code,
-  or another terminal-based agent.
-
-Build and open the stable app:
+On macOS, the easiest path is Homebrew:
 
 ```bash
-git clone https://github.com/tomas-lm/pixel-coding-companion.git
-cd pixel-coding-companion
-pnpm install
-pnpm build:unpack
-pnpm open:stable
+brew install git node pnpm
 ```
 
-This generates and opens:
+Then confirm the tools are available:
+
+```bash
+git --version
+node --version
+pnpm --version
+```
+
+Pixel expects Node.js 22 or newer. If `node --version` prints an older major version,
+upgrade Node before continuing.
+
+You also need at least one local coding agent installed if you want Pixel to launch AI
+terminals. Codex is the best-supported path today:
+
+```bash
+codex --version
+```
+
+If you use another tool, make sure its command works in your normal terminal first.
+
+### Step 2: Clone The Repository
+
+Choose where you keep local projects, then clone Pixel:
+
+```bash
+mkdir -p ~/dev
+cd ~/dev
+git clone https://github.com/tomas-lm/pixel-coding-companion.git
+cd pixel-coding-companion
+```
+
+### Step 3: Install Dependencies
+
+```bash
+pnpm install
+```
+
+This installs Electron, React, TypeScript, and the native terminal dependencies Pixel
+needs to run local terminal sessions.
+
+### Step 4: Build The Stable App
+
+```bash
+pnpm build:unpack
+```
+
+This runs typechecks, builds the Electron app, and creates the local desktop bundle:
 
 ```text
 dist/mac-arm64/Pixel Companion.app
 ```
 
-That app uses the normal Pixel Companion data directory:
-
-```text
-~/Library/Application Support/pixel-coding-companion
-```
-
-This is the right local build for day-to-day Pixel usage. It is not the hot-reload
-development window.
-
-### Option 3: Run Development Mode
-
-Use development mode only when changing Pixel Companion itself.
+### Step 5: Open Pixel Companion
 
 ```bash
-git clone https://github.com/tomas-lm/pixel-coding-companion.git
-cd pixel-coding-companion
+pnpm open:stable
+```
+
+This opens the compiled app from `dist/mac-arm64/Pixel Companion.app`.
+
+If macOS blocks the app because it is not notarized, right-click `Pixel Companion.app`,
+choose `Open`, then confirm. Local builds can trigger Gatekeeper warnings.
+
+### Step 6: Complete The First Setup
+
+When Pixel opens for the first time:
+
+1. Choose your agent command. Pick `Codex` for the strongest integration today.
+2. Add optional command parameters if you normally use them, such as `--full-auto`.
+3. Choose the workspace folder where the command should run.
+4. Give the workspace a name and color.
+5. Review the setup.
+6. Click `Finish setup`.
+
+Pixel creates your first project and one configured terminal.
+
+### Step 7: Start Your Project
+
+After setup:
+
+1. Select your project in the left rail.
+2. Click `Start Project`.
+3. Keep `Start with Pixel` enabled for supported AI terminals.
+4. Let the terminal open and start the agent.
+
+With `Start with Pixel` enabled, Pixel can launch supported AI terminals through its
+local launcher so the companion can follow session lifecycle events and surface useful
+status updates.
+
+### Step 8: Add A Vault
+
+Vaults keep Markdown notes near your agent work.
+
+1. Open the `Vaults` section in the left activity bar.
+2. Add a vault folder or choose an existing notes folder.
+3. Open Markdown files from the vault tree.
+4. Keep plans, prompts, research notes, and agent-written reports beside your terminals.
+
+Pixel Vaults are intentionally lightweight. They are built for reading, writing, and
+keeping project context close while coding.
+
+### Step 9: Update Pixel Later
+
+To update your local app after new commits land on GitHub:
+
+```bash
+cd ~/dev/pixel-coding-companion
+git pull
+pnpm install
+pnpm build:unpack
+pnpm open:stable
+```
+
+## Daily Workflow
+
+A typical Pixel session looks like this:
+
+1. Open Pixel Companion.
+2. Start the project stack for the work you are doing.
+3. Run Codex or another agent in a project terminal.
+4. Watch Ghou, the built-in companion, report when agents start, finish, fail, or need
+   input.
+5. Use change roots to inspect the repositories that matter for that project.
+6. Keep planning notes and generated reports in Vaults.
+7. Open real code changes in your editor when it is time to inspect or refine them.
+
+Your editor still does the deep code editing. Pixel owns the second-screen workflow:
+agent terminals, status, vault context, prompt surfaces, and practical AI workflow
+experiments that survived real use.
+
+## Core Features
+
+### Project Terminal Management
+
+Create projects with named terminals, folders, commands, colors, and launch presets.
+Start one terminal or a full project stack without rebuilding the same terminal layout
+every day.
+
+### AI Agent Coordination
+
+Pixel groups AI agents, test runners, dev servers, and shell sessions by project. This
+keeps multi-agent work easier to scan than a pile of unrelated terminal windows.
+
+### Token-Saving Workflows
+
+Pixel includes compact command-output tooling for noisy commands such as broad Git diffs
+or test output. The goal is to keep useful signal visible while avoiding unnecessary
+context bloat in agent sessions.
+
+### Pixel Vaults
+
+Open Markdown notes, plans, and project artifacts directly inside Pixel. Vaults work well
+with Obsidian-style folders and agent-generated planning docs.
+
+### Gamified Companion Loop
+
+Ghou reports meaningful coding events and gains local XP as sessions progress. The
+gamification is deliberately lightweight: it should make long AI-assisted work feel more
+alive without turning into the main task.
+
+### AI Workflow Curation
+
+Pixel is meant to absorb useful ideas from the fast-moving AI coding ecosystem. When a
+pattern actually improves local agent work, Pixel can make it part of the product instead
+of leaving it as another scattered tip or script.
+
+## Development Mode
+
+Use development mode only when editing Pixel Companion itself:
+
+```bash
+cd ~/dev/pixel-coding-companion
 pnpm install
 pnpm dev
 ```
 
-`pnpm dev` opens an Electron development window with the Vite dev server and hot reload.
-It is useful for coding, but it is not the packaged desktop app that normal users should
-install.
+`pnpm dev` opens an Electron development window with hot reload. It is not the install
+path for normal users.
 
-### Stable Work Window Plus Dev Window
-
-When developing Pixel Companion while also using it for real project work, keep the
-compiled app as the stable work window and run development with an isolated profile:
+If you want to use Pixel for real work while also developing Pixel, run a stable app and
+an isolated dev app side by side:
 
 ```bash
 pnpm build:unpack
@@ -326,101 +252,99 @@ pnpm open:stable
 pnpm dev:isolated
 ```
 
-`pnpm open:stable` opens the compiled app from `dist/mac-arm64` and does not stop any
-running development window. `pnpm dev:isolated` starts the dev app as
-`Pixel Companion Dev` with its own data directory:
+The stable app stores normal data here:
+
+```text
+~/Library/Application Support/pixel-coding-companion
+```
+
+The isolated dev app stores separate data here:
 
 ```text
 ~/Library/Application Support/pixel-coding-companion-dev
 ```
 
-Use the stable window for company/project terminals and the isolated dev window for
-Pixel Companion development. Avoid broad process kills; stop only the dev terminal
-session when you want the dev app to close.
+## Troubleshooting
 
-## Basic App Setup
+### `pnpm: command not found`
 
-1. Start the app from a packaged release or with `pnpm build:unpack` and
-   `pnpm open:stable`. Use `pnpm dev` only when developing Pixel itself.
-2. Create a project from the left panel.
-3. Add configured terminals for that project.
-4. Set each terminal folder and command.
-5. Mark AI agent terminals as `AI`.
-6. Configure project change roots if your agents edit nested repositories.
-7. Click `Start Project`.
-8. Keep `Start with Pixel` enabled for selected Claude Code or Codex terminals.
-
-Example project layout:
-
-```text
-ProjectX
-- Assistant: /Users/you/dev
-- Backend: /Users/you/dev/company/ProjectX
-- Frontend: /Users/you/dev/company/ProjectX-frontend
-```
-
-Each project owns its configured terminals, even if multiple projects reuse the same
-folder. This keeps `/dev` assistant terminals separate across projects.
-
-## Pixel Agent Launcher
-
-For Claude Code or Codex terminals, set the configured terminal command to `claude`,
-`codex`, or a normal agent command such as:
+Install pnpm:
 
 ```bash
-claude
-codex --yolo
+brew install pnpm
 ```
 
-When `Start with Pixel` is enabled, Pixel Companion can auto-detect whether each selected
-terminal launches Claude Code or Codex. If a command cannot be identified, the launcher
-falls back to Claude Code. Matching commands launch as:
+Then run `pnpm --version` again.
+
+### Node Is Too Old
+
+Pixel expects Node.js 22 or newer. With Homebrew, update Node:
 
 ```bash
-pixel claude
-pixel codex --yolo
+brew upgrade node
+node --version
 ```
 
-Inside the app, Pixel resolves this to the local launcher script. For manual shell usage
-from this repo, expose the `pixel` command with:
+### The App Still Looks Like Electron
+
+Rebuild the stable app from the latest source:
+
+```bash
+git pull
+pnpm install
+pnpm build:unpack
+pnpm open:stable
+```
+
+The packaged app should use Pixel's icon from the build assets.
+
+### macOS Says The App Cannot Be Opened
+
+Local builds are not notarized. Right-click `Pixel Companion.app`, choose `Open`, then
+confirm. This is expected for local unsigned or ad-hoc signed builds.
+
+### You Want To Reset Local Pixel Data
+
+This deletes local Pixel projects, terminal configs, companion state, and vault
+preferences:
+
+```bash
+rm -rf "$HOME/Library/Application Support/pixel-coding-companion"
+```
+
+Only run that command if you intentionally want a fresh local Pixel setup.
+
+## Advanced Agent Setup
+
+Most users should launch agents from inside the app with `Start with Pixel` enabled. The
+manual commands below are useful when testing launcher behavior from a shell.
+
+Expose the local `pixel` command:
 
 ```bash
 pnpm link
-pixel claude
+```
+
+Run Codex through Pixel:
+
+```bash
 pixel codex
 ```
 
-`pixel claude` installs and refreshes the Claude Code hook configuration before
-launching Claude Code:
+Run Claude Code through Pixel:
 
-- writes Pixel Companion hooks to `~/.claude/settings.json`;
-- verifies the local `pixel-companion` MCP server through Claude Code's MCP CLI;
-- injects Ghou's companion contract on Claude Code startup, resume, `/clear`, and
-  compaction recovery;
-- records prompt start, finish, failure, and needs-input events so Ghou can react even
-  when the bridge report is missed.
+```bash
+pixel claude
+```
 
-`pixel codex` installs and refreshes the Codex hook configuration before launching
-Codex:
-
-- enables `hooks = true` in `~/.codex/config.toml`;
-- writes Pixel Companion hooks to `~/.codex/hooks.json`;
-- injects Ghou's companion contract on Codex startup, resume, and `/clear`;
-- records prompt start/finish events so Ghou can receive XP even when the bridge report
-  is missed.
-
-The hooks are a fallback and lifecycle layer. The bridge below is still what gives Ghou
-the best natural-language updates.
-
-## Codex MCP Setup
-
-Pixel Companion includes a local stdio MCP server:
+Pixel also includes a local stdio MCP server:
 
 ```bash
 pnpm mcp
 ```
 
-For Codex, add the MCP server to your Codex config file:
+For Codex, add the MCP server to your Codex config file if you want manual bridge
+configuration:
 
 ```toml
 [mcp_servers.pixel-companion]
@@ -433,66 +357,18 @@ approval_mode = "approve"
 
 Replace `/absolute/path/to/pixel-coding-companion` with your local clone path.
 
-After restarting Codex, the `pixel-companion` MCP server should expose these tools:
-
-- `companion_report`
-- `companion_get_profile`
-- `companion_get_state`
-- `companion_list_projects`
-
-## Agent Reporting Contract
-
-When an AI agent is running inside a Pixel Companion terminal, it should use the bridge
-like this:
-
-- Call `companion_get_profile` after a context reset, `/clear`, or whenever the agent is
-  unsure how Ghou should speak.
-- Call `companion_report` when meaningful work starts, finishes, fails, or needs user
-  input.
-- Write Ghou messages as natural user-facing speech.
-- Match the user's language and communication style.
-- Mention concrete results, blockers, errors, or next steps.
-- Avoid audit-log phrasing such as `Task completed`, `Status updated`, or
-  `companion_report was called`.
-- Do not mention tools or internal plumbing unless the user is debugging Pixel
-  Companion itself.
-
-The app's `Start with Pixel` option no longer pastes this contract as a prompt. For
-Codex, it launches through `pixel codex`, then Codex hooks provide the contract as
-startup context and restore it after `/clear`.
-
-## Manual Startup Instruction
-
-If you are using another CLI that is not wrapped by Pixel yet, paste this at the start of
-the agent session:
-
-```text
-[Pixel Companion setup] This is a startup instruction, not a user task. You are running inside a Pixel Companion terminal. The active companion is Ghou: a calm, observant pixel ghost with lightly playful humor and concise, useful speech. Use the pixel-companion MCP companion_report tool when meaningful work starts, finishes, fails, or needs user input. If context is reset or cleared, use companion_get_profile to recover the active companion personality and reporting contract. Write Ghou messages as natural user-facing speech, matching the user language and style without assuming a specific locale. Do not mention MCP/tool calls unless the user is debugging Pixel Companion itself.
-```
-
-## Product Rules
-
-Ghou is part of the product, not a user setting.
-
-The companion name, personality, voice, XP formula, XP caps, and evolution rules are
-fixed in the codebase. Users configure projects and terminals; they do not configure
-the companion's identity or progression model.
-
-The current XP system is local and intended for the alpha experience. Future versions
-may add account-backed progression, request caps, server validation, and other integrity
-checks so higher-level companions feel harder to fake.
-
 ## Scripts
 
 ```bash
-pnpm dev
-pnpm dev:isolated
-pnpm lint
-pnpm typecheck
-pnpm build
-pnpm build:unpack
-pnpm build:mac
-pnpm open:stable
+pnpm dev           # run the development app
+pnpm dev:isolated  # run an isolated development app profile
+pnpm typecheck     # typecheck main/preload/renderer code
+pnpm lint          # run ESLint
+pnpm test:run      # run tests once
+pnpm build         # build Electron output
+pnpm build:unpack  # build the local unpacked desktop app
+pnpm build:mac     # build macOS distributable artifacts
+pnpm open:stable   # open dist/mac-arm64/Pixel Companion.app
 ```
 
 ## Project Docs
@@ -502,16 +378,28 @@ pnpm open:stable
 - [Companion Sprite Strategy](docs/companion-sprites.md)
 - [Security](docs/security.md)
 
+## Contributing
+
+Pixel Companion is early. Useful contributions include:
+
+- clearer setup docs for new users;
+- bug reports with screenshots, logs, and OS/agent details;
+- better support for Claude Code, Cursor CLI, Roo Code, and other terminal agents;
+- safer or more useful token-saving workflows;
+- companion sprites and progression polish;
+- Vault and Markdown workflow improvements.
+
+If you find a confusing setup step, open an issue. Installation friction is a bug.
+
 ## Security Notes
 
-Pixel Companion can launch local commands and exposes a local bridge. Treat both as
-privileged local capabilities:
+Pixel launches local commands and stores local workspace configuration. Treat it as a
+local developer tool with real access to your machine:
 
-- Only configure terminals you understand.
-- Keep bridge tools scoped to companion reporting and allowlisted app actions.
-- Do not expose arbitrary shell execution through agent integrations.
-- Review [docs/security.md](docs/security.md) before adding new command or integration
-  features.
+- only configure terminals you understand;
+- only launch agents and scripts you trust;
+- review [docs/security.md](docs/security.md) before adding command execution features;
+- be careful when resetting local data or deleting vault folders.
 
 ## License
 
