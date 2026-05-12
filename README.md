@@ -380,6 +380,17 @@ pnpm open:stable
 pnpm dev:isolated
 ```
 
+For microphone dictation testing on macOS, use the packaged dev app instead:
+
+```bash
+pnpm dev:packaged
+```
+
+`pnpm dev:isolated` runs through Electron's generic development app, so macOS may attach
+microphone permission prompts to `Electron` instead of Pixel. `pnpm dev:packaged` builds
+and opens `dist-dev/mac-arm64/Pixel Companion Dev.app` with Pixel's dev bundle id, which
+lets macOS show the correct app in Privacy & Security > Microphone.
+
 The stable app stores normal data here:
 
 ```text
@@ -490,6 +501,7 @@ Replace `/absolute/path/to/pixel-coding-companion` with your local clone path.
 ```bash
 pnpm dev           # run the development app
 pnpm dev:isolated  # run an isolated development app profile
+pnpm dev:packaged  # run a packaged isolated dev app for macOS permission testing
 pnpm typecheck     # typecheck main/preload/renderer code
 pnpm lint          # run ESLint
 pnpm test:run      # run tests once
