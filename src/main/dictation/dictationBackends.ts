@@ -1,6 +1,7 @@
 import type {
   DictationBackendId,
   DictationBackendStatus,
+  DictationModelInstallSnapshot,
   DictationTranscript
 } from '../../shared/dictation'
 
@@ -8,6 +9,12 @@ export type DictationBackend = {
   readonly id: DictationBackendId
   getStatus: () => DictationBackendStatus
   transcribe: (input: { startedAt: number; stoppedAt: number }) => Promise<DictationTranscript>
+}
+
+type ParakeetCoreMlBackendOptions = {
+  getModelSnapshot: () => DictationModelInstallSnapshot
+  hasRuntime?: () => boolean
+  platform?: NodeJS.Platform
 }
 
 export function getBackendStatus(
@@ -40,7 +47,7 @@ export function getBackendStatus(
       available: true,
       id: backendId,
       label: 'Parakeet CoreML',
-      message: 'Local model download is not implemented in this build yet.',
+      message: 'Download the Parakeet Core ML model from the Dictation tab.',
       ready: false,
       status: 'not_installed'
     }
@@ -95,5 +102,81 @@ export class MockDictationBackend implements DictationBackend {
       language: 'en',
       text: 'Local dictation test from Pixel.'
     }
+  }
+}
+
+export class ParakeetCoreMlBackend implements DictationBackend {
+  readonly id = 'macos-parakeet-coreml' as const
+  private readonly getModelSnapshot: () => DictationModelInstallSnapshot
+  private readonly hasRuntime: () => boolean
+  private readonly platform: NodeJS.Platform
+
+  constructor({
+    getModelSnapshot,
+    hasRuntime = () => false,
+    platform = process.platform
+  }: ParakeetCoreMlBackendOptions) {
+    this.getModelSnapshot = getModelSnapshot
+    this.hasRuntime = hasRuntime
+    this.platform = platform
+  }
+
+  getStatus(): DictationBackendStatus {
+    if (this.platform !== 'darwin') {
+      return getBackendStatus(this.id, this.platform)
+    }
+
+    const model = this.getModelSnapshot()
+    if (model.status === 'checking' || model.status === 'downloading') {
+      return {
+        available: true,
+        id: this.id,
+        label: 'Parakeet CoreML',
+        message: model.message,
+        ready: false,
+        status: 'installing'
+      }
+    }
+
+    if (model.status === 'failed') {
+      return {
+        available: true,
+        id: this.id,
+        label: 'Parakeet CoreML',
+        message: model.message ?? 'Parakeet model installation failed.',
+        ready: false,
+        status: 'failed'
+      }
+    }
+
+    if (model.status !== 'installed') {
+      return getBackendStatus(this.id, this.platform)
+    }
+
+    if (!this.hasRuntime()) {
+      return {
+        available: true,
+        id: this.id,
+        label: 'Parakeet CoreML',
+        message:
+          'Parakeet model is installed. Pixel still needs the native Core ML runtime before it can transcribe real audio.',
+        ready: false,
+        status: 'runtime_missing'
+      }
+    }
+
+    return {
+      available: true,
+      id: this.id,
+      label: 'Parakeet CoreML',
+      ready: true,
+      status: 'ready'
+    }
+  }
+
+  async transcribe(): Promise<DictationTranscript> {
+    throw new Error(
+      'Real Parakeet transcription is not available until the native Core ML runtime is bundled.'
+    )
   }
 }

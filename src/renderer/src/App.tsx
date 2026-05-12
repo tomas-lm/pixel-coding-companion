@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { CompanionBridgeMessage } from '../../shared/companion'
-import type { DictationInsertRequest, DictationSnapshot } from '../../shared/dictation'
+import type {
+  DictationInsertRequest,
+  DictationInsertTarget,
+  DictationSnapshot
+} from '../../shared/dictation'
 import type { VaultConfig, VaultMarkdownFile } from '../../shared/vault'
 import type {
   PixelLauncherAgentId,
@@ -77,8 +81,7 @@ const CODEX_START_COMMAND_PATTERN =
   /^(?:codex|pixel\s+codex|node\s+.+pixel\.mjs['"]?\s+codex)(?:\s|$)/
 const CLAUDE_START_COMMAND_PATTERN =
   /^(?:claude|pixel\s+claude|node\s+.+pixel\.mjs['"]?\s+claude)(?:\s|$)/
-const PARAKEET_COREML_MODEL_URL =
-  'https://huggingface.co/FluidInference/parakeet-tdt-0.6b-v3-coreml'
+const DICTATION_RESULT_VISIBLE_MS = 3200
 type StartWorkspaceSelection = {
   pixelAgent: PixelLauncherAgentId
   projectId: string
@@ -166,12 +169,16 @@ function getSupportedPixelAgent(
   return preferredAgent
 }
 
-function getDictationIndicatorLabel(snapshot: DictationSnapshot): string {
+function getDictationIndicatorLabel(
+  snapshot: DictationSnapshot,
+  recentInsertionTarget: DictationInsertTarget | null
+): string {
   if (snapshot.state === 'recording') return 'Recording'
   if (snapshot.state === 'transcribing') return 'Transcribing'
   if (snapshot.state === 'inserting') return 'Inserting transcript'
   if (snapshot.state === 'error') return snapshot.error ?? 'Dictation failed'
-  if (snapshot.lastInsertionTarget === 'clipboard') return 'Transcript copied'
+  if (recentInsertionTarget === 'clipboard') return 'Transcript copied'
+  if (recentInsertionTarget) return 'Transcript inserted'
 
   return 'Dictation ready'
 }
@@ -233,6 +240,9 @@ function App(): React.JSX.Element {
   const [vaultHasUnsavedChanges, setVaultHasUnsavedChanges] = useState(false)
   const [vaultRefreshKey, setVaultRefreshKey] = useState(0)
   const [dictationSnapshot, setDictationSnapshot] = useState<DictationSnapshot | null>(null)
+  const [recentDictationInsertionTarget, setRecentDictationInsertionTarget] =
+    useState<DictationInsertTarget | null>(null)
+  const dictationInsertionTimerRef = useRef<number | null>(null)
 
   useCompletionNotificationSound(
     companionBridgeState.messages,
@@ -250,6 +260,14 @@ function App(): React.JSX.Element {
     return () => {
       mounted = false
       unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (dictationInsertionTimerRef.current !== null) {
+        window.clearTimeout(dictationInsertionTimerRef.current)
+      }
     }
   }, [])
 
@@ -1006,20 +1024,25 @@ function App(): React.JSX.Element {
     })
   }
 
-  const openParakeetDownload = (): void => {
-    void window.api.system.openTarget({
-      kind: 'external_url',
-      url: PARAKEET_COREML_MODEL_URL
-    })
+  const installParakeetModel = (): void => {
+    void window.api.dictation.installModel().then(setDictationSnapshot)
   }
 
   const completeDictationInsertion = useCallback(
-    (request: DictationInsertRequest, target: 'clipboard' | 'pixel_text' | 'terminal'): void => {
+    (request: DictationInsertRequest, target: DictationInsertTarget): void => {
       window.api.dictation.completeInsertion({
         ok: true,
         target,
         transcriptId: request.transcriptId
       })
+      setRecentDictationInsertionTarget(target)
+      if (dictationInsertionTimerRef.current !== null) {
+        window.clearTimeout(dictationInsertionTimerRef.current)
+      }
+      dictationInsertionTimerRef.current = window.setTimeout(() => {
+        setRecentDictationInsertionTarget(null)
+        dictationInsertionTimerRef.current = null
+      }, DICTATION_RESULT_VISIBLE_MS)
     },
     []
   )
@@ -1146,7 +1169,7 @@ function App(): React.JSX.Element {
   const promptProjectPath = getPromptTemplateProjectPath(activeSession, activeProjectConfigs)
   const shouldShowDictationIndicator =
     dictationSnapshot !== null &&
-    (dictationSnapshot.state !== 'idle' || dictationSnapshot.lastInsertionTarget === 'clipboard')
+    (dictationSnapshot.state !== 'idle' || recentDictationInsertionTarget !== null)
 
   return (
     <main className="app-shell" style={activeStyle}>
@@ -1242,7 +1265,7 @@ function App(): React.JSX.Element {
           dictationSnapshot={dictationSnapshot}
           featureSettings={featureSettings}
           onChangeFeatureSettings={changeFeatureSettings}
-          onDownloadParakeet={openParakeetDownload}
+          onInstallParakeet={installParakeetModel}
           onTestDictation={() => {
             void window.api.dictation.testTranscription()
           }}
@@ -1296,7 +1319,9 @@ function App(): React.JSX.Element {
           aria-live="polite"
         >
           <span className="dictation-indicator__dot" aria-hidden="true" />
-          <strong>{getDictationIndicatorLabel(dictationSnapshot)}</strong>
+          <strong>
+            {getDictationIndicatorLabel(dictationSnapshot, recentDictationInsertionTarget)}
+          </strong>
         </div>
       ) : null}
 

@@ -1,11 +1,17 @@
 export const DICTATION_CHANNELS = {
   completeInsertion: 'dictation:complete-insertion',
+  installModel: 'dictation:install-model',
   insertTranscript: 'dictation:insert-transcript',
   loadSnapshot: 'dictation:load-snapshot',
   state: 'dictation:state',
   testTranscription: 'dictation:test-transcription',
   updateSettings: 'dictation:update-settings'
 } as const
+
+export const PARAKEET_COREML_MODEL_URL =
+  'https://huggingface.co/FluidInference/parakeet-tdt-0.6b-v3-coreml'
+
+export const PARAKEET_COREML_MODEL_DOWNLOAD_SIZE_LABEL = '~461 MB'
 
 export type DictationBackendId = 'macos-parakeet-coreml' | 'onnx-sherpa' | 'mock'
 
@@ -52,7 +58,7 @@ export type DictationBackendStatus =
       id: DictationBackendId
       label: string
       ready: false
-      status: 'not_installed' | 'installing' | 'failed'
+      status: 'not_installed' | 'installing' | 'failed' | 'runtime_missing'
       message?: string
     }
   | {
@@ -77,6 +83,25 @@ export type DictationTranscript = {
   text: string
 }
 
+export type DictationModelInstallStatus =
+  | 'checking'
+  | 'downloading'
+  | 'failed'
+  | 'installed'
+  | 'not_installed'
+
+export type DictationModelInstallSnapshot = {
+  currentFile?: string
+  downloadedBytes: number
+  installPath?: string
+  message?: string
+  percent: number
+  requiredBytesLabel: string
+  sourceUrl: string
+  status: DictationModelInstallStatus
+  totalBytes: number
+}
+
 export type DictationInsertTarget = 'clipboard' | 'pixel_text' | 'terminal'
 
 export type DictationInsertRequest = {
@@ -96,6 +121,7 @@ export type DictationSnapshot = {
   error?: string
   lastInsertionTarget?: DictationInsertTarget
   lastTranscript?: DictationTranscript
+  model: DictationModelInstallSnapshot
   settings: DictationSettings
   shortcut: string
   state: DictationState
@@ -103,6 +129,7 @@ export type DictationSnapshot = {
 
 export type DictationApi = {
   completeInsertion: (result: DictationInsertionResult) => void
+  installModel: () => Promise<DictationSnapshot>
   loadSnapshot: () => Promise<DictationSnapshot>
   onInsertTranscript: (callback: (request: DictationInsertRequest) => void) => () => void
   onState: (callback: (snapshot: DictationSnapshot) => void) => () => void

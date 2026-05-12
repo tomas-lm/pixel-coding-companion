@@ -69,6 +69,8 @@ const api: CompanionApi = {
     completeInsertion: (result: DictationInsertionResult): void => {
       ipcRenderer.send(DICTATION_CHANNELS.completeInsertion, result)
     },
+    installModel: (): Promise<DictationSnapshot> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.installModel),
     loadSnapshot: (): Promise<DictationSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.loadSnapshot),
     onInsertTranscript: (callback: (request: DictationInsertRequest) => void) => {

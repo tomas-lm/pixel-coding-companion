@@ -55,7 +55,9 @@ const companionStoreService = new CompanionStoreService(
   getCompanionStoreStatePath
 )
 const workspaceStore = new WorkspaceStore(getWorkspaceConfigPath)
-const dictationManager = new DictationManager()
+const dictationManager = new DictationManager({
+  getUserDataPath: () => app.getPath('userData')
+})
 
 app.setName(APP_NAME)
 // Keep persisted workspace data independent from the display name shown by macOS.

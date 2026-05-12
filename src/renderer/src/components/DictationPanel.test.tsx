@@ -27,6 +27,14 @@ const dictationSnapshot: DictationSnapshot = {
     keepLastAudioSample: false,
     shortcutId: 'control-option-hold'
   },
+  model: {
+    downloadedBytes: 0,
+    percent: 0,
+    requiredBytesLabel: '~461 MB',
+    sourceUrl: 'https://huggingface.co/FluidInference/parakeet-tdt-0.6b-v3-coreml',
+    status: 'not_installed',
+    totalBytes: 0
+  },
   shortcut: 'Control+Option',
   state: 'idle'
 }
@@ -39,7 +47,7 @@ function renderDictationPanel(
       dictationSnapshot={dictationSnapshot}
       featureSettings={featureSettings}
       onChangeFeatureSettings={vi.fn()}
-      onDownloadParakeet={vi.fn()}
+      onInstallParakeet={vi.fn()}
       onTestDictation={vi.fn()}
       {...overrides}
     />
@@ -53,7 +61,7 @@ describe('DictationPanel', () => {
     expect(screen.getByRole('heading', { name: 'Dictation' })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Enable local transcriber' })).not.toBeChecked()
     expect(screen.getByRole('radiogroup', { name: 'Dictation bind' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Download Parakeet (~2.7 GB)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Download Parakeet (~461 MB)' })).toBeInTheDocument()
   })
 
   it('updates the local transcriber preference', () => {
@@ -86,15 +94,36 @@ describe('DictationPanel', () => {
     })
   })
 
-  it('opens the Parakeet download with the size warning visible', () => {
-    const onDownloadParakeet = vi.fn()
+  it('starts the Parakeet install inside Pixel', () => {
+    const onInstallParakeet = vi.fn()
 
-    renderDictationPanel({ onDownloadParakeet })
+    renderDictationPanel({ onInstallParakeet })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Download Parakeet (~2.7 GB)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Download Parakeet (~461 MB)' }))
 
-    expect(onDownloadParakeet).toHaveBeenCalledOnce()
-    expect(screen.getByText(/Expected Core ML package: ~2.7 GB/)).toBeInTheDocument()
+    expect(onInstallParakeet).toHaveBeenCalledOnce()
+  })
+
+  it('shows Parakeet download progress', () => {
+    renderDictationPanel({
+      dictationSnapshot: {
+        ...dictationSnapshot,
+        model: {
+          ...dictationSnapshot.model,
+          currentFile: 'Encoder.mlmodelc/weights/weight.bin',
+          downloadedBytes: 241_500_000,
+          percent: 50,
+          status: 'downloading',
+          totalBytes: 483_000_000
+        }
+      }
+    })
+
+    expect(screen.getByRole('progressbar', { name: 'Parakeet download progress' })).toHaveAttribute(
+      'aria-valuenow',
+      '50'
+    )
+    expect(screen.getByText('Encoder.mlmodelc/weights/weight.bin')).toBeInTheDocument()
   })
 
   it('runs the dictation test when enabled and ready', () => {

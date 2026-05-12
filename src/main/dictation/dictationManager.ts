@@ -7,30 +7,48 @@ import type {
 } from '../../shared/dictation'
 import { DICTATION_CHANNELS } from '../../shared/dictation'
 import { DictationController } from './dictationController'
-import { MockDictationBackend, type DictationBackend } from './dictationBackends'
+import { ParakeetCoreMlBackend, type DictationBackend } from './dictationBackends'
 import { ModifierHoldShortcut, type ModifierHoldKeyEvent } from './modifierHoldShortcut'
+import { ParakeetModelInstaller } from './parakeetModelInstaller'
 
 const MODIFIER_HOLD_DEBOUNCE_MS = 180
 
 type DictationManagerOptions = {
   backend?: DictationBackend
   debounceMs?: number
+  getUserDataPath?: () => string
+  modelInstaller?: ParakeetModelInstaller
 }
 
 export class DictationManager {
   private readonly controller: DictationController
   private readonly debounceMs: number
+  private readonly modelInstaller: ParakeetModelInstaller
   private readonly shortcut = new ModifierHoldShortcut()
   private pendingStartTimer: NodeJS.Timeout | null = null
 
   constructor({
-    backend = new MockDictationBackend(),
-    debounceMs = MODIFIER_HOLD_DEBOUNCE_MS
+    backend,
+    debounceMs = MODIFIER_HOLD_DEBOUNCE_MS,
+    getUserDataPath = () => process.cwd(),
+    modelInstaller
   }: DictationManagerOptions = {}) {
     this.debounceMs = debounceMs
+    this.modelInstaller =
+      modelInstaller ??
+      new ParakeetModelInstaller({
+        getUserDataPath,
+        onChange: () => this.broadcastSnapshot(this.controller.getSnapshot())
+      })
+    const resolvedBackend =
+      backend ??
+      new ParakeetCoreMlBackend({
+        getModelSnapshot: () => this.modelInstaller.getSnapshot()
+      })
     this.controller = new DictationController({
-      backend,
+      backend: resolvedBackend,
       emitSnapshot: (snapshot) => this.broadcastSnapshot(snapshot),
+      getModelSnapshot: () => this.modelInstaller.getSnapshot(),
       requestInsertion: (request) => this.requestInsertion(request)
     })
   }
@@ -57,6 +75,12 @@ export class DictationManager {
   }
 
   registerIpc(): void {
+    ipcMain.handle(DICTATION_CHANNELS.installModel, async () => {
+      await this.modelInstaller.install()
+      const snapshot = this.controller.getSnapshot()
+      this.broadcastSnapshot(snapshot)
+      return snapshot
+    })
     ipcMain.handle(DICTATION_CHANNELS.loadSnapshot, () => this.controller.getSnapshot())
     ipcMain.handle(DICTATION_CHANNELS.updateSettings, (_, settings: DictationSettings) =>
       this.controller.updateSettings(settings)

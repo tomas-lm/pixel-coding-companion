@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto'
 import type {
+  DictationModelInstallSnapshot,
   DictationShortcutId,
   DictationInsertRequest,
   DictationInsertionResult,
@@ -8,7 +9,11 @@ import type {
   DictationState,
   DictationTranscript
 } from '../../shared/dictation'
-import { getDictationShortcutOption } from '../../shared/dictation'
+import {
+  PARAKEET_COREML_MODEL_DOWNLOAD_SIZE_LABEL,
+  PARAKEET_COREML_MODEL_URL,
+  getDictationShortcutOption
+} from '../../shared/dictation'
 import type { DictationBackend } from './dictationBackends'
 
 const DEFAULT_DICTATION_SETTINGS: DictationSettings = {
@@ -17,9 +22,19 @@ const DEFAULT_DICTATION_SETTINGS: DictationSettings = {
   shortcutId: 'control-option-hold'
 }
 
+const DEFAULT_MODEL_INSTALL_SNAPSHOT: DictationModelInstallSnapshot = {
+  downloadedBytes: 0,
+  percent: 0,
+  requiredBytesLabel: PARAKEET_COREML_MODEL_DOWNLOAD_SIZE_LABEL,
+  sourceUrl: PARAKEET_COREML_MODEL_URL,
+  status: 'not_installed',
+  totalBytes: 0
+}
+
 type DictationControllerDependencies = {
   backend: DictationBackend
   emitSnapshot: (snapshot: DictationSnapshot) => void
+  getModelSnapshot?: () => DictationModelInstallSnapshot
   now?: () => number
   requestInsertion: (request: DictationInsertRequest) => void
 }
@@ -27,6 +42,7 @@ type DictationControllerDependencies = {
 export class DictationController {
   private readonly backend: DictationBackend
   private readonly emitSnapshot: (snapshot: DictationSnapshot) => void
+  private readonly getModelSnapshot: () => DictationModelInstallSnapshot
   private readonly now: () => number
   private readonly requestInsertion: (request: DictationInsertRequest) => void
   private error: string | undefined
@@ -39,11 +55,13 @@ export class DictationController {
   constructor({
     backend,
     emitSnapshot,
+    getModelSnapshot = () => DEFAULT_MODEL_INSTALL_SNAPSHOT,
     now = () => Date.now(),
     requestInsertion
   }: DictationControllerDependencies) {
     this.backend = backend
     this.emitSnapshot = emitSnapshot
+    this.getModelSnapshot = getModelSnapshot
     this.now = now
     this.requestInsertion = requestInsertion
   }
@@ -54,6 +72,7 @@ export class DictationController {
       error: this.error,
       lastInsertionTarget: this.lastInsertionTarget,
       lastTranscript: this.lastTranscript,
+      model: this.getModelSnapshot(),
       settings: this.settings,
       shortcut: getDictationShortcutOption(this.settings.shortcutId).label,
       state: this.state
