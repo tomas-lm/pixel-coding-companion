@@ -391,7 +391,9 @@ microphone permission prompts to `Electron` instead of Pixel. `pnpm dev:packaged
 and opens `dist-dev/mac-arm64/Pixel Companion Dev.app` with Pixel's dev bundle id, which
 lets macOS show the correct app in Privacy & Security > Microphone. The packaged dev app
 is launched through macOS `open` instead of executing the binary directly, because
-LaunchServices is the reliable path for TCC privacy prompts.
+LaunchServices is the reliable path for TCC privacy prompts. Pixel also enforces a
+single running instance so macOS permissions do not get split across duplicate dev
+windows.
 
 The stable app stores normal data here:
 

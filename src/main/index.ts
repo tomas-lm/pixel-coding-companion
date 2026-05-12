@@ -60,6 +60,7 @@ const dictationManager = new DictationManager({
   getResourcesPath: () => process.resourcesPath,
   getUserDataPath: () => app.getPath('userData')
 })
+let mainWindow: BrowserWindow | null = null
 
 app.setName(APP_NAME)
 // Keep persisted workspace data independent from the display name shown by macOS.
@@ -139,59 +140,87 @@ function registerMainWindowMenu(mainWindow: BrowserWindow): void {
   })
 }
 
-function createWindow(): void {
-  const mainWindow = createMainWindow({
+function showMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow()
+    return
+  }
+
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+}
+
+function createWindow(): BrowserWindow {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    showMainWindow()
+    return mainWindow
+  }
+
+  const nextMainWindow = createMainWindow({
     appName: APP_NAME,
     icon,
     isDev: is.dev,
     rendererUrl: process.env['ELECTRON_RENDERER_URL'],
     isSafeExternalUrl,
     onClosed: () => {
+      if (mainWindow === nextMainWindow) mainWindow = null
       terminalManager.stopAll()
     },
     registerMenu: registerMainWindowMenu
   })
-  dictationManager.attachWindow(mainWindow)
+  mainWindow = nextMainWindow
+  dictationManager.attachWindow(nextMainWindow)
+  return nextMainWindow
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId(APP_ID)
-  app.setAboutPanelOptions({
-    applicationName: APP_NAME,
-    applicationVersion: app.getVersion(),
-    version: app.getVersion()
-  })
-  if (process.platform === 'darwin' && app.dock) {
-    app.dock.setIcon(icon)
-  }
-  void terminalContextRegistry.clear()
-
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
+if (!hasSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    showMainWindow()
   })
 
-  registerTerminalIpc(terminalManager)
-  registerWorkspaceIpc(workspaceStore)
-  registerVaultIpc()
-  registerCompanionIpc(companionBridgeStore, companionStoreService)
-  registerSystemIpc()
-  dictationManager.registerIpc()
+  // This method will be called when Electron has finished
+  // initialization and is ready to create browser windows.
+  // Some APIs can only be used after this event occurs.
+  app.whenReady().then(() => {
+    // Set app user model id for windows
+    electronApp.setAppUserModelId(APP_ID)
+    app.setAboutPanelOptions({
+      applicationName: APP_NAME,
+      applicationVersion: app.getVersion(),
+      version: app.getVersion()
+    })
+    if (process.platform === 'darwin' && app.dock) {
+      app.dock.setIcon(icon)
+    }
+    void terminalContextRegistry.clear()
 
-  createWindow()
+    // Default open or close DevTools by F12 in development
+    // and ignore CommandOrControl + R in production.
+    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+    app.on('browser-window-created', (_, window) => {
+      optimizer.watchWindowShortcuts(window)
+    })
 
-  app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    registerTerminalIpc(terminalManager)
+    registerWorkspaceIpc(workspaceStore)
+    registerVaultIpc()
+    registerCompanionIpc(companionBridgeStore, companionStoreService)
+    registerSystemIpc()
+    dictationManager.registerIpc()
+
+    createWindow()
+
+    app.on('activate', function () {
+      // On macOS it's common to re-create a window in the app when the
+      // dock icon is clicked and there are no other windows open.
+      showMainWindow()
+    })
   })
-})
+}
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
