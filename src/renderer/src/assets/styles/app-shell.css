@@ -19,6 +19,12 @@
   padding: 0;
 }
 
+.app-shell--no-context-rail {
+  grid-template-columns:
+    var(--activity-bar-width) minmax(320px, 1fr) var(--resize-divider-size)
+    minmax(220px, min(var(--companion-width), 28vw));
+}
+
 .activity-sidebar {
   display: flex;
   flex-direction: column;

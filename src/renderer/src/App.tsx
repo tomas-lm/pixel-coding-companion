@@ -45,6 +45,7 @@ import {
   STARTER_COMPANION_IDS,
   getCompanionStageForLevel
 } from './companions/companionRegistry'
+import { hasContextRail, shouldShowVaultRail, shouldShowWorkspaceRail } from './app/activityLayout'
 import { getActiveCompanionProgress, getCompanionMessageColor } from './app/companionSelectors'
 import {
   getDictationAudioInputPermissionStatus,
@@ -1377,16 +1378,20 @@ function App(): React.JSX.Element {
   const shouldShowDictationIndicator =
     dictationSnapshot !== null &&
     (dictationSnapshot.state !== 'idle' || recentDictationInsertionTarget !== null)
+  const workspaceRailVisible = shouldShowWorkspaceRail(activeActivityItemId)
+  const vaultRailVisible = shouldShowVaultRail(activeActivityItemId)
+  const contextRailVisible = hasContextRail(activeActivityItemId)
+  const shellClassName = `app-shell${contextRailVisible ? '' : ' app-shell--no-context-rail'}`
 
   return (
-    <main className="app-shell" style={activeStyle}>
+    <main className={shellClassName} style={activeStyle}>
       <ActivitySidebar
         activeItemId={activeActivityItemId}
         items={activitySidebarItems}
         onSelect={setActiveActivityItemId}
       />
 
-      {activeActivityItemId === 'vaults' ? (
+      {vaultRailVisible ? (
         <VaultRail
           activeVault={activeVault}
           activeVaultId={activeVaultId}
@@ -1399,7 +1404,7 @@ function App(): React.JSX.Element {
           onSelectFile={selectVaultFile}
           onSelectVault={selectVault}
         />
-      ) : (
+      ) : workspaceRailVisible ? (
         <WorkspaceRail
           activeProject={activeProject}
           activeProjectConfigs={activeProjectConfigs}
@@ -1423,14 +1428,16 @@ function App(): React.JSX.Element {
           onStartWorkspace={openStartWorkspace}
           onStopSession={stopSession}
         />
-      )}
+      ) : null}
 
-      <button
-        className="resize-handle resize-handle--column"
-        type="button"
-        aria-label="Resize project rail"
-        onPointerDown={(event) => startLayoutResize(event, 'railWidth')}
-      />
+      {contextRailVisible ? (
+        <button
+          className="resize-handle resize-handle--column"
+          type="button"
+          aria-label={vaultRailVisible ? 'Resize vault rail' : 'Resize project rail'}
+          onPointerDown={(event) => startLayoutResize(event, 'railWidth')}
+        />
+      ) : null}
 
       {activeActivityItemId === 'terminal' ? (
         <TerminalWorkspacePanel
