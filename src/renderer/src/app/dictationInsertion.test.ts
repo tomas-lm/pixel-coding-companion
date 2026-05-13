@@ -86,4 +86,25 @@ describe('dictationInsertion', () => {
     expect(writeClipboard).toHaveBeenCalledWith('hello clipboard')
     expect(writeTerminal).not.toHaveBeenCalled()
   })
+
+  it('can skip Pixel targets and terminal writes for external insertion fallback', () => {
+    const input = document.createElement('input')
+    const writeTerminal = vi.fn()
+    const writeClipboard = vi.fn()
+
+    document.body.append(input)
+    input.focus()
+
+    const target = insertDictationTranscript('outside app', {
+      allowPixelTargets: false,
+      terminalSessionId: 'session-1',
+      writeClipboard,
+      writeTerminal
+    })
+
+    expect(target).toBe('clipboard')
+    expect(input.value).toBe('')
+    expect(writeClipboard).toHaveBeenCalledWith('outside app')
+    expect(writeTerminal).not.toHaveBeenCalled()
+  })
 })

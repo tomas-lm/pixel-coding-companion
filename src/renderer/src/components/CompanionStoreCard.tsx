@@ -10,15 +10,33 @@ import { getCompanionStageForLevel } from '../companions/companionRegistry'
 import type { CompanionCardState, CompanionDefinition } from '../companions/companionTypes'
 import { CompanionAvatar } from './CompanionAvatar'
 
-const RAYA_STORE_SCALE = 0.7
 const RAYA_STORE_EGG_SCALE = 0.91
+const HATCHED_STORE_ADJUSTMENTS: Record<
+  string,
+  {
+    offsetXDelta?: number
+    scaleMultiplier?: number
+  }
+> = {
+  combot: { offsetXDelta: -4 },
+  frogo: { offsetXDelta: 4, scaleMultiplier: 0.9 },
+  ghou: { scaleMultiplier: 0.7 },
+  karpa: { offsetXDelta: -34, scaleMultiplier: 0.595 },
+  phoebe: { offsetXDelta: -13, scaleMultiplier: 0.8 },
+  raya: { offsetXDelta: -29, scaleMultiplier: 0.7 },
+  touk: { scaleMultiplier: 0.8 }
+}
+
+function multiplyStoreScale(scale: number | undefined, multiplier: number): number {
+  return Number(((scale ?? 1) * multiplier).toFixed(3))
+}
 
 function getCompanionStoreStage(
   companion: CompanionDefinition,
   stage: ReturnType<typeof getCompanionStageForLevel>
 ): ReturnType<typeof getCompanionStageForLevel> {
   let avatarOffsetX = stage.avatarOffsetX
-  let avatarOffsetY = stage.avatarOffsetY
+  const avatarOffsetY = stage.avatarOffsetY
   let avatarScale = stage.avatarScale
 
   if (stage.id === 'egg') {
@@ -34,38 +52,22 @@ function getCompanionStoreStage(
     avatarScale = (avatarScale ?? 1) * 0.97
   }
 
-  if (companion.id === 'raya') {
-    avatarScale =
-      (avatarScale ?? 1) * (stage.id === 'egg' ? RAYA_STORE_EGG_SCALE : RAYA_STORE_SCALE)
-  }
-
   if (companion.id === 'raya' && stage.id === 'egg') {
+    avatarScale = (avatarScale ?? 1) * RAYA_STORE_EGG_SCALE
     avatarOffsetX = (avatarOffsetX ?? 0) + 2
-  }
-
-  if (
-    companion.id === 'raya' &&
-    (stage.id === 'lvl1' || stage.id === 'lvl2' || stage.id === 'lvl3')
-  ) {
-    avatarOffsetX = (avatarOffsetX ?? 0) - 24
-  }
-
-  if (companion.id === 'frogo' && stage.id === 'lvl3') {
-    avatarOffsetX = (avatarOffsetX ?? 0) + 1
   }
 
   if (companion.id === 'ghou' && stage.id === 'egg') {
     avatarOffsetX = (avatarOffsetX ?? 0) + 3
   }
 
-  if (companion.id === 'karpa') {
-    if (stage.id === 'lvl1' || stage.id === 'lvl2') {
-      avatarOffsetX = (avatarOffsetX ?? 0) - 45
-      avatarScale = (avatarScale ?? 1) * 0.7
+  if (stage.id === 'lvl1') {
+    const adjustment = HATCHED_STORE_ADJUSTMENTS[companion.id]
+    if (adjustment?.offsetXDelta) {
+      avatarOffsetX = (avatarOffsetX ?? 0) + adjustment.offsetXDelta
     }
-
-    if (stage.id === 'lvl2' || stage.id === 'lvl3') {
-      avatarOffsetY = companion.stages.find((candidate) => candidate.id === 'egg')?.avatarOffsetY
+    if (adjustment?.scaleMultiplier) {
+      avatarScale = multiplyStoreScale(avatarScale, adjustment.scaleMultiplier)
     }
   }
 

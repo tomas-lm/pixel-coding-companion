@@ -77,6 +77,7 @@ export class DictationController {
   private error: string | undefined
   private lastInsertionTarget: DictationSnapshot['lastInsertionTarget']
   private lastTranscript: DictationTranscript | undefined
+  private lastTranscriptId: string | undefined
   private recordingStartedAt = 0
   private settings = DEFAULT_DICTATION_SETTINGS
   private state: DictationState = 'idle'
@@ -115,6 +116,7 @@ export class DictationController {
       error: this.error,
       lastInsertionTarget: this.lastInsertionTarget,
       lastTranscript: this.lastTranscript,
+      lastTranscriptId: this.lastTranscriptId,
       model: this.getModelSnapshot(),
       settings: this.settings,
       shortcut: getDictationShortcutOption(this.settings.shortcutId).label,
@@ -190,6 +192,7 @@ export class DictationController {
       })
       const transcriptId = randomUUID()
       this.lastTranscript = transcript
+      this.lastTranscriptId = transcriptId
       if (this.settings.keepTranscriptHistory) {
         try {
           await this.recordTranscript({

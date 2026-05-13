@@ -117,6 +117,9 @@ importers:
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1
+      node-gyp:
+        specifier: ^12.3.0
+        version: 12.3.0
       prettier:
         specifier: ^3.7.4
         version: 3.8.3

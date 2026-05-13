@@ -111,6 +111,7 @@ describe('DictationController', () => {
       durationMs: 800,
       text: 'hello pixel'
     } satisfies Partial<DictationTranscript>)
+    expect(controller.getSnapshot().lastTranscriptId).toBe(insertionRequests[0].transcriptId)
 
     controller.reportInsertion({
       ok: true,

@@ -2,7 +2,6 @@ import {
   DICTATION_SHORTCUT_OPTIONS,
   PARAKEET_COREML_MODEL_DOWNLOAD_SIZE_LABEL,
   PARAKEET_COREML_MODEL_URL,
-  type DictationHistoryEntry,
   type DictationMicrophonePermissionSnapshot,
   type DictationShortcutId,
   type DictationSnapshot,
@@ -14,19 +13,13 @@ import type { DictationAudioInputDevice } from '../app/dictationCapture'
 type DictationPanelProps = {
   audioInputDevices: DictationAudioInputDevice[]
   description?: string
-  dictationHistoryEntries?: DictationHistoryEntry[]
-  dictationHistoryQuery?: string
   dictationSnapshot?: DictationSnapshot | null
   dictationStats?: DictationStatsSnapshot | null
   embedded?: boolean
   featureSettings: WorkspaceFeatureSettings
   microphonePermission: DictationMicrophonePermissionSnapshot | null
   title?: string
-  onChangeHistoryQuery?: (query: string) => void
   onChangeFeatureSettings: (featureSettings: WorkspaceFeatureSettings) => void
-  onClearHistory?: () => void
-  onCopyHistoryEntry?: (entry: DictationHistoryEntry) => void
-  onDeleteHistoryEntry?: (entry: DictationHistoryEntry) => void
   onInstallParakeet: () => void
   onOpenMicrophoneSettings: () => void
   onRefreshAudioInputs: () => void
@@ -65,26 +58,6 @@ function formatDuration(durationMs: number): string {
   return `${minutes}m ${remainingSeconds}s`
 }
 
-function formatDateTime(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-
-  return date.toLocaleString(undefined, {
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    month: 'short'
-  })
-}
-
-function getInsertionTargetLabel(target: DictationHistoryEntry['insertionTarget']): string {
-  if (target === 'terminal') return 'Terminal'
-  if (target === 'pixel_text') return 'Pixel text'
-  if (target === 'clipboard') return 'Clipboard'
-
-  return 'Pending'
-}
-
 function getMicrophonePermissionLabel(
   permission: DictationMicrophonePermissionSnapshot | null
 ): string {
@@ -101,19 +74,13 @@ function getMicrophonePermissionLabel(
 export function DictationPanel({
   audioInputDevices,
   description = 'Local voice input for Pixel text targets.',
-  dictationHistoryEntries = [],
-  dictationHistoryQuery = '',
   dictationSnapshot,
   dictationStats,
   embedded = false,
   featureSettings,
   microphonePermission,
   title = 'Dictation',
-  onChangeHistoryQuery = () => {},
   onChangeFeatureSettings,
-  onClearHistory = () => {},
-  onCopyHistoryEntry = () => {},
-  onDeleteHistoryEntry = () => {},
   onInstallParakeet,
   onOpenMicrophoneSettings,
   onRefreshAudioInputs,
@@ -240,7 +207,7 @@ export function DictationPanel({
         </section>
 
         <section className="dictation-settings-group" aria-labelledby="dictation-history-title">
-          <h2 id="dictation-history-title">History</h2>
+          <h2 id="dictation-history-title">History Storage</h2>
 
           <div className="dictation-setting-row">
             <div className="dictation-setting-copy">
@@ -279,60 +246,6 @@ export function DictationPanel({
                 Audio storage: {formatBytes(visibleStats.audioStorageBytes)}
               </small>
             </div>
-          </div>
-
-          <div className="dictation-history-tools">
-            <input
-              type="search"
-              aria-label="Search dictation history"
-              placeholder="Search transcripts"
-              value={dictationHistoryQuery}
-              onChange={(event) => onChangeHistoryQuery(event.currentTarget.value)}
-            />
-            <button
-              className="secondary-button"
-              type="button"
-              disabled={dictationHistoryEntries.length === 0}
-              onClick={onClearHistory}
-            >
-              Clear history
-            </button>
-          </div>
-
-          <div className="dictation-history-list app-dark-scroll" aria-label="Past transcripts">
-            {dictationHistoryEntries.length > 0 ? (
-              dictationHistoryEntries.map((entry) => (
-                <article key={entry.id} className="dictation-history-entry">
-                  <button
-                    className="dictation-history-entry__preview"
-                    type="button"
-                    onClick={() => onCopyHistoryEntry(entry)}
-                  >
-                    <span>{entry.text}</span>
-                    <small>
-                      {formatDateTime(entry.createdAt)} · {entry.wordCount} words ·{' '}
-                      {formatDuration(entry.durationMs)} ·{' '}
-                      {getInsertionTargetLabel(entry.insertionTarget)}
-                      {entry.audioFilePath ? ' · audio kept' : ''}
-                    </small>
-                  </button>
-                  <div className="dictation-history-entry__actions">
-                    <button type="button" onClick={() => onCopyHistoryEntry(entry)}>
-                      Copy
-                    </button>
-                    <button type="button" onClick={() => onDeleteHistoryEntry(entry)}>
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              ))
-            ) : (
-              <div className="dictation-history-empty">
-                {dictationHistoryQuery.trim()
-                  ? 'No saved transcripts match this search.'
-                  : 'Saved transcripts will appear here after local dictation runs.'}
-              </div>
-            )}
           </div>
         </section>
 

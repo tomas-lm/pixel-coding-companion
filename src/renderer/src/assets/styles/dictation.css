@@ -8,6 +8,137 @@
   padding: 22px 24px;
 }
 
+.dictation-history-panel {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.dictation-history-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dictation-history-panel__header h1 {
+  margin: 0;
+  color: var(--ev-c-text-1);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.dictation-history-panel__header p {
+  margin: 5px 0 0;
+  color: var(--ev-c-text-3);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.dictation-history-panel__toolbar input {
+  width: min(520px, 100%);
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 0 11px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--ev-c-text-1);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.dictation-history-panel__toolbar input:focus-visible {
+  border-color: color-mix(in srgb, var(--active-project-color) 56%, transparent);
+  outline: none;
+}
+
+.dictation-history-productivity {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 14px;
+}
+
+.dictation-history-productivity h2 {
+  margin: 0;
+  color: color-mix(in srgb, var(--ev-c-text-1) 82%, var(--active-project-color));
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.dictation-history-panel__list {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: 9px;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.dictation-history-card {
+  display: grid;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.dictation-history-card__text {
+  display: -webkit-box;
+  min-width: 0;
+  min-height: 40px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  color: var(--ev-c-text-1);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.45;
+  text-align: left;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.dictation-history-card__text:hover,
+.dictation-history-card__text:focus-visible {
+  color: color-mix(in srgb, var(--active-project-color) 70%, var(--ev-c-text-1));
+  outline: none;
+}
+
+.dictation-history-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  color: var(--ev-c-text-3);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dictation-history-card__actions {
+  display: flex;
+  gap: 7px;
+}
+
+.dictation-history-card__actions .primary-button,
+.dictation-history-card__actions .secondary-button {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
 .dictation-panel--embedded {
   grid-template-rows: minmax(0, 1fr);
   width: min(100%, 1040px);
@@ -310,109 +441,6 @@
   font-weight: 850;
 }
 
-.dictation-history-tools {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  min-width: 0;
-  padding: 8px;
-}
-
-.dictation-history-tools input {
-  min-width: 0;
-  min-height: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  padding: 0 10px;
-  background: rgba(8, 12, 20, 0.72);
-  color: var(--ev-c-text-1);
-  font: inherit;
-  font-size: 13px;
-}
-
-.dictation-history-tools input:focus-visible {
-  border-color: color-mix(in srgb, var(--active-project-color) 54%, rgba(255, 255, 255, 0.12));
-  outline: none;
-}
-
-.dictation-history-list {
-  display: grid;
-  gap: 0;
-  max-height: 320px;
-  min-width: 0;
-  overflow: auto;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.dictation-history-entry {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
-  padding: 7px 8px;
-}
-
-.dictation-history-entry:hover {
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.dictation-history-entry__preview {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.dictation-history-entry__preview span,
-.dictation-history-entry__preview small {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dictation-history-entry__preview span {
-  color: var(--ev-c-text-1);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.dictation-history-entry__preview small {
-  color: var(--ev-c-text-2);
-  font-size: 11px;
-  font-weight: 750;
-}
-
-.dictation-history-entry__actions {
-  display: inline-flex;
-  gap: 5px;
-}
-
-.dictation-history-entry__actions button {
-  min-height: 26px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 5px;
-  padding: 0 8px;
-  background: rgba(255, 255, 255, 0.035);
-  color: var(--ev-c-text-1);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.dictation-history-entry__actions button:hover,
-.dictation-history-entry__actions button:focus-visible {
-  border-color: color-mix(in srgb, var(--active-project-color) 44%, rgba(255, 255, 255, 0.12));
-  outline: none;
-}
-
 .dictation-history-empty {
   padding: 16px 8px;
   color: var(--ev-c-text-2);
@@ -515,19 +543,24 @@
   .dictation-stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .dictation-history-entry {
-    grid-template-columns: 1fr;
-  }
-
-  .dictation-history-entry__actions {
-    justify-content: flex-start;
-  }
 }
 
 @media (max-width: 560px) {
   .dictation-panel {
     padding: 16px;
+  }
+
+  .dictation-history-panel {
+    padding: 16px;
+  }
+
+  .dictation-history-panel__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dictation-history-card__actions {
+    flex-wrap: wrap;
   }
 
   .dictation-panel--embedded {
@@ -538,8 +571,7 @@
     grid-template-columns: 1fr;
   }
 
-  .dictation-stats-grid,
-  .dictation-history-tools {
+  .dictation-stats-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -3,6 +3,7 @@ import { existsSync } from 'fs'
 import { join } from 'path'
 
 const HELPER_NAME = 'pixel-dictation-helper'
+const GLOBAL_SHORTCUT_ADDON_NAME = 'pixel_global_shortcut.node'
 const TRANSCRIPTION_TIMEOUT_MS = 180_000
 
 type NativeDictationRuntimeOptions = {
@@ -42,6 +43,16 @@ export class NativeDictationRuntime {
     if (process.platform !== 'darwin') return null
 
     for (const candidate of this.getHelperPathCandidates()) {
+      if (existsSync(candidate)) return candidate
+    }
+
+    return null
+  }
+
+  getGlobalShortcutAddonPath(): string | null {
+    if (process.platform !== 'darwin') return null
+
+    for (const candidate of this.getGlobalShortcutAddonPathCandidates()) {
       if (existsSync(candidate)) return candidate
     }
 
@@ -88,6 +99,20 @@ export class NativeDictationRuntime {
       join(appPath, 'resources', 'native', HELPER_NAME),
       join(cwd, 'resources', 'native', HELPER_NAME),
       join(cwd, 'native', 'pixel-dictation-helper', '.build', 'release', HELPER_NAME)
+    ]
+  }
+
+  private getGlobalShortcutAddonPathCandidates(): string[] {
+    const appPath = this.getAppPath()
+    const resourcesPath = this.getResourcesPath()
+    const cwd = this.getWorkingDirectory()
+
+    return [
+      join(resourcesPath, 'app.asar.unpacked', 'resources', 'native', GLOBAL_SHORTCUT_ADDON_NAME),
+      join(resourcesPath, 'native', GLOBAL_SHORTCUT_ADDON_NAME),
+      join(appPath, 'resources', 'native', GLOBAL_SHORTCUT_ADDON_NAME),
+      join(cwd, 'resources', 'native', GLOBAL_SHORTCUT_ADDON_NAME),
+      join(cwd, 'native', 'pixel-global-shortcut', 'build', 'Release', GLOBAL_SHORTCUT_ADDON_NAME)
     ]
   }
 }

@@ -25,19 +25,13 @@ function renderConfigsPanel(
       activeSection="general"
       audioInputDevices={[]}
       codeEditorSettings={{ preferredEditor: 'auto' }}
-      dictationHistoryEntries={[]}
-      dictationHistoryQuery=""
       dictationSnapshot={null}
       dictationStats={null}
       featureSettings={featureSettings}
       microphonePermission={null}
       terminalThemeId="catppuccin_mocha"
-      onChangeHistoryQuery={vi.fn()}
-      onClearHistory={vi.fn()}
       onChangeCodeEditorSettings={vi.fn()}
       onChangeFeatureSettings={vi.fn()}
-      onCopyHistoryEntry={vi.fn()}
-      onDeleteHistoryEntry={vi.fn()}
       onInstallParakeet={vi.fn()}
       onOpenMicrophoneSettings={vi.fn()}
       onRefreshAudioInputs={vi.fn()}
@@ -79,7 +73,7 @@ describe('ConfigsPanel', () => {
     renderConfigsPanel({ activeSection: 'audio' })
 
     expect(screen.getByRole('checkbox', { name: 'Show dictation overlay' })).toBeInTheDocument()
-    expect(screen.getByRole('searchbox', { name: 'Search dictation history' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Keep transcript history' })).toBeInTheDocument()
   })
 
   it('updates the preferred code editor', () => {

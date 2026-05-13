@@ -5,8 +5,10 @@ import { join } from 'path'
 import type {
   DictationCaptureCommand,
   DictationCaptureResult,
+  DictationExternalInsertRequest,
   DictationInsertRequest,
   DictationInsertionResult,
+  DictationOverlayMoveRequest,
   DictationSettings,
   DictationSnapshot
 } from '../../shared/dictation'
@@ -20,11 +22,14 @@ import {
   openMicrophonePrivacySettings,
   requestMicrophonePermission
 } from './dictationPermissions'
+import { insertTextIntoActiveApplication } from './externalTextInsertion'
+import { GlobalModifierShortcutMonitor } from './globalModifierShortcutMonitor'
 import { ModifierHoldShortcut, type ModifierHoldKeyEvent } from './modifierHoldShortcut'
 import { NativeDictationRuntime } from './nativeDictationRuntime'
 import { ParakeetModelInstaller } from './parakeetModelInstaller'
 
 const MODIFIER_HOLD_DEBOUNCE_MS = 180
+const GLOBAL_SHORTCUT_RETRY_MS = 3000
 
 type DictationManagerOptions = {
   backend?: DictationBackend
@@ -45,10 +50,13 @@ export class DictationManager {
   private readonly getMainWindow: () => BrowserWindow | null
   private readonly getUserDataPath: () => string
   private readonly historyStore: DictationHistoryStore
+  private readonly globalShortcutMonitor: GlobalModifierShortcutMonitor
   private readonly modelInstaller: ParakeetModelInstaller
   private readonly nativeRuntime: NativeDictationRuntime
   private readonly overlayManager?: DictationOverlayManager
   private readonly shortcut = new ModifierHoldShortcut()
+  private globalShortcutRetryTimer: NodeJS.Timeout | null = null
+  private hasReportedGlobalShortcutPermissionError = false
   private pendingStartTimer: NodeJS.Timeout | null = null
 
   constructor({
@@ -80,6 +88,10 @@ export class DictationManager {
         getAppPath,
         getResourcesPath
       })
+    this.globalShortcutMonitor = new GlobalModifierShortcutMonitor({
+      nativeRuntime: this.nativeRuntime,
+      onEvent: (event) => this.handleShortcutEvent(event)
+    })
     const resolvedBackend =
       backend ??
       new ParakeetCoreMlBackend({
@@ -106,6 +118,12 @@ export class DictationManager {
     window.webContents.on('before-input-event', (_, input) => {
       const snapshot = this.controller.getSnapshot()
       if (!snapshot.settings.enabled) return
+      if (
+        this.globalShortcutMonitor.isRunning() &&
+        this.globalShortcutMonitor.observesCurrentAppEvents()
+      ) {
+        return
+      }
 
       this.handleShortcutEvent({
         alt: input.alt,
@@ -140,6 +158,11 @@ export class DictationManager {
       this.broadcastSnapshot(snapshot)
       return snapshot
     })
+    ipcMain.handle(
+      DICTATION_CHANNELS.insertExternalText,
+      (_, request: DictationExternalInsertRequest) =>
+        insertTextIntoActiveApplication(request.text, { nativeRuntime: this.nativeRuntime })
+    )
     ipcMain.handle(DICTATION_CHANNELS.listHistory, (_, request) =>
       this.historyStore.listHistory(request)
     )
@@ -147,6 +170,7 @@ export class DictationManager {
     ipcMain.handle(DICTATION_CHANNELS.loadSnapshot, () => this.controller.getSnapshot())
     ipcMain.handle(DICTATION_CHANNELS.updateSettings, async (_, settings: DictationSettings) => {
       const snapshot = this.controller.updateSettings(settings)
+      this.syncGlobalShortcutMonitor(snapshot.settings.enabled)
       await this.overlayManager?.setEnabled(settings.overlayEnabled)
       return snapshot
     })
@@ -154,6 +178,7 @@ export class DictationManager {
       requestMicrophonePermission()
     )
     ipcMain.handle(DICTATION_CHANNELS.testTranscription, () => this.controller.testTranscription())
+    ipcMain.handle(DICTATION_CHANNELS.toggleRecording, () => this.toggleRecording())
     ipcMain.on(DICTATION_CHANNELS.completeInsertion, (_, result: DictationInsertionResult) => {
       this.controller.reportInsertion(result)
     })
@@ -163,6 +188,36 @@ export class DictationManager {
     ipcMain.on(DICTATION_CHANNELS.openAudioSettings, () => {
       this.overlayManager?.openAudioSettings()
     })
+    ipcMain.on(DICTATION_CHANNELS.openMainWindow, () => {
+      this.overlayManager?.openMainWindow()
+    })
+    ipcMain.on(DICTATION_CHANNELS.finishOverlayDrag, () => {
+      this.overlayManager?.finishDrag()
+    })
+    ipcMain.on(DICTATION_CHANNELS.moveOverlay, (_, request: DictationOverlayMoveRequest) => {
+      this.overlayManager?.moveBy(request)
+    })
+    ipcMain.on(DICTATION_CHANNELS.setOverlayExpanded, (_, expanded: boolean) => {
+      this.overlayManager?.setExpanded(Boolean(expanded))
+    })
+  }
+
+  stop(): void {
+    this.globalShortcutMonitor.stop()
+    this.clearGlobalShortcutRetry()
+    this.hasReportedGlobalShortcutPermissionError = false
+    this.clearPendingStart()
+    this.shortcut.reset()
+  }
+
+  private toggleRecording(): Promise<DictationSnapshot> {
+    const snapshot = this.controller.getSnapshot()
+    if (snapshot.state === 'recording') return this.controller.stopRecording()
+    if (snapshot.state === 'idle' || snapshot.state === 'error') {
+      return this.controller.startRecording()
+    }
+
+    return Promise.resolve(snapshot)
   }
 
   private handleShortcutEvent(event: ModifierHoldKeyEvent): void {
@@ -170,9 +225,11 @@ export class DictationManager {
 
     if (action.type === 'schedule_start') {
       this.clearPendingStart()
+      this.overlayManager?.presentOnActiveDisplay()
       this.pendingStartTimer = setTimeout(() => {
         this.pendingStartTimer = null
         if (this.shortcut.commitPendingStart()) {
+          this.overlayManager?.presentOnActiveDisplay()
           void this.controller.startRecording()
         }
       }, this.debounceMs)
@@ -186,8 +243,44 @@ export class DictationManager {
 
     if (action.type === 'stop_recording') {
       this.clearPendingStart()
+      this.overlayManager?.presentOnActiveDisplay()
       void this.controller.stopRecording()
     }
+  }
+
+  private syncGlobalShortcutMonitor(enabled: boolean): void {
+    this.clearGlobalShortcutRetry()
+    if (!enabled) {
+      this.globalShortcutMonitor.stop()
+      this.hasReportedGlobalShortcutPermissionError = false
+      return
+    }
+
+    if (this.globalShortcutMonitor.start(this.controller.getShortcutId())) {
+      this.hasReportedGlobalShortcutPermissionError = false
+      return
+    }
+
+    if (!this.hasReportedGlobalShortcutPermissionError) {
+      this.hasReportedGlobalShortcutPermissionError = true
+      this.controller.failRecording(
+        'Pixel could not start the global dictation bind monitor. Restart Pixel and confirm macOS Accessibility permission if the bind does not fire.'
+      )
+    }
+    this.globalShortcutRetryTimer = setTimeout(() => {
+      this.globalShortcutRetryTimer = null
+      if (this.controller.getSnapshot().settings.enabled) {
+        this.syncGlobalShortcutMonitor(true)
+      }
+    }, GLOBAL_SHORTCUT_RETRY_MS)
+    this.globalShortcutRetryTimer.unref?.()
+  }
+
+  private clearGlobalShortcutRetry(): void {
+    if (!this.globalShortcutRetryTimer) return
+
+    clearTimeout(this.globalShortcutRetryTimer)
+    this.globalShortcutRetryTimer = null
   }
 
   private clearPendingStart(): void {
@@ -206,19 +299,47 @@ export class DictationManager {
   }
 
   private requestInsertion(request: DictationInsertRequest): void {
+    if (this.shouldInsertIntoActiveExternalApp()) {
+      void this.requestExternalInsertion(request)
+      return
+    }
+
     const targetWindow = this.getMainProcessTargetWindow()
 
     if (!targetWindow || targetWindow.webContents.isDestroyed()) {
-      this.controller.reportInsertion({
-        ok: false,
-        reason: 'Pixel has no available window for transcript insertion.',
-        target: 'clipboard',
-        transcriptId: request.transcriptId
-      })
+      void this.requestExternalInsertion(request)
       return
     }
 
     targetWindow.webContents.send(DICTATION_CHANNELS.insertTranscript, request)
+  }
+
+  private shouldInsertIntoActiveExternalApp(): boolean {
+    const focusedWindow = BrowserWindow.getFocusedWindow()
+
+    return !focusedWindow || Boolean(this.overlayManager?.isOverlayWindow(focusedWindow))
+  }
+
+  private async requestExternalInsertion(request: DictationInsertRequest): Promise<void> {
+    try {
+      const result = await insertTextIntoActiveApplication(request.transcript.text, {
+        nativeRuntime: this.nativeRuntime
+      })
+      this.controller.reportInsertion({
+        ok: result.ok,
+        reason: result.reason,
+        target: result.target,
+        transcriptId: request.transcriptId
+      })
+    } catch (error) {
+      this.controller.reportInsertion({
+        ok: false,
+        reason:
+          error instanceof Error ? error.message : 'Could not paste transcript outside Pixel.',
+        target: 'clipboard',
+        transcriptId: request.transcriptId
+      })
+    }
   }
 
   private async completeCapture(result: DictationCaptureResult): Promise<DictationSnapshot> {

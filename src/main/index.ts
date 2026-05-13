@@ -184,6 +184,14 @@ function createWindow(): BrowserWindow {
   })
   mainWindow = nextMainWindow
   dictationManager.attachWindow(nextMainWindow)
+  const refreshDictationOverlay = (): void => {
+    dictationOverlayManager.presentOnActiveDisplay()
+  }
+  nextMainWindow.on('show', refreshDictationOverlay)
+  nextMainWindow.on('restore', refreshDictationOverlay)
+  nextMainWindow.on('maximize', refreshDictationOverlay)
+  nextMainWindow.on('enter-full-screen', refreshDictationOverlay)
+  nextMainWindow.on('leave-full-screen', refreshDictationOverlay)
   return nextMainWindow
 }
 
@@ -224,9 +232,9 @@ if (!hasSingleInstanceLock) {
     registerCompanionIpc(companionBridgeStore, companionStoreService)
     registerSystemIpc()
     dictationManager.registerIpc()
-    void dictationOverlayManager.load()
 
     createWindow()
+    void dictationOverlayManager.load()
 
     app.on('activate', function () {
       // On macOS it's common to re-create a window in the app when the
@@ -246,6 +254,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  dictationManager.stop()
   terminalManager.stopAll()
 })
 

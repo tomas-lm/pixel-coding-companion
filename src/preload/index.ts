@@ -15,6 +15,8 @@ import {
 } from '../shared/system'
 import {
   DICTATION_CHANNELS,
+  type DictationExternalInsertRequest,
+  type DictationExternalInsertResult,
   type DictationCaptureCommand,
   type DictationCaptureResult,
   type DictationHistoryDeleteRequest,
@@ -23,6 +25,7 @@ import {
   type DictationInsertRequest,
   type DictationInsertionResult,
   type DictationMicrophonePermissionSnapshot,
+  type DictationOverlayMoveRequest,
   type DictationSettings,
   type DictationSnapshot,
   type DictationStatsSnapshot
@@ -90,12 +93,22 @@ const api: CompanionApi = {
       ipcRenderer.invoke(DICTATION_CHANNELS.getMicrophonePermission),
     installModel: (): Promise<DictationSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.installModel),
+    insertExternalText: (
+      request: DictationExternalInsertRequest
+    ): Promise<DictationExternalInsertResult> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.insertExternalText, request),
     listHistory: (request?: DictationHistoryListRequest): Promise<DictationHistoryListResult> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.listHistory, request),
     loadStats: (): Promise<DictationStatsSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.loadStats),
     loadSnapshot: (): Promise<DictationSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.loadSnapshot),
+    finishOverlayDrag: (): void => {
+      ipcRenderer.send(DICTATION_CHANNELS.finishOverlayDrag)
+    },
+    moveOverlay: (request: DictationOverlayMoveRequest): void => {
+      ipcRenderer.send(DICTATION_CHANNELS.moveOverlay, request)
+    },
     onCaptureCommand: (callback: (command: DictationCaptureCommand) => void) => {
       const listener = (_: Electron.IpcRendererEvent, command: DictationCaptureCommand): void =>
         callback(command)
@@ -122,13 +135,21 @@ const api: CompanionApi = {
     openAudioSettings: (): void => {
       ipcRenderer.send(DICTATION_CHANNELS.openAudioSettings)
     },
+    openMainWindow: (): void => {
+      ipcRenderer.send(DICTATION_CHANNELS.openMainWindow)
+    },
     openMicrophoneSettings: (): void => {
       ipcRenderer.send(DICTATION_CHANNELS.openMicrophoneSettings)
     },
     requestMicrophonePermission: (): Promise<DictationMicrophonePermissionSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.requestMicrophonePermission),
+    setOverlayExpanded: (expanded: boolean): void => {
+      ipcRenderer.send(DICTATION_CHANNELS.setOverlayExpanded, expanded)
+    },
     testTranscription: (): Promise<DictationSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.testTranscription),
+    toggleRecording: (): Promise<DictationSnapshot> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.toggleRecording),
     updateSettings: (settings: DictationSettings): Promise<DictationSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.updateSettings, settings)
   },

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
-  DictationHistoryEntry,
   DictationMicrophonePermissionSnapshot,
   DictationSnapshot,
   DictationStatsSnapshot
@@ -21,19 +20,13 @@ type ConfigsPanelProps = {
   activeSection: ConfigsSection
   audioInputDevices: DictationAudioInputDevice[]
   codeEditorSettings: WorkspaceCodeEditorSettings
-  dictationHistoryEntries: DictationHistoryEntry[]
-  dictationHistoryQuery: string
   dictationSnapshot?: DictationSnapshot | null
   dictationStats: DictationStatsSnapshot | null
   featureSettings: WorkspaceFeatureSettings
   microphonePermission: DictationMicrophonePermissionSnapshot | null
-  onChangeHistoryQuery: (query: string) => void
   terminalThemeId: TerminalThemeId
-  onClearHistory: () => void
   onChangeCodeEditorSettings: (settings: WorkspaceCodeEditorSettings) => void
   onChangeFeatureSettings: (featureSettings: WorkspaceFeatureSettings) => void
-  onCopyHistoryEntry: (entry: DictationHistoryEntry) => void
-  onDeleteHistoryEntry: (entry: DictationHistoryEntry) => void
   onInstallParakeet: () => void
   onOpenMicrophoneSettings: () => void
   onRefreshAudioInputs: () => void
@@ -47,19 +40,13 @@ export function ConfigsPanel({
   activeSection,
   audioInputDevices,
   codeEditorSettings,
-  dictationHistoryEntries,
-  dictationHistoryQuery,
   dictationSnapshot,
   dictationStats,
   featureSettings,
   microphonePermission,
   terminalThemeId,
-  onChangeHistoryQuery,
-  onClearHistory,
   onChangeCodeEditorSettings,
   onChangeFeatureSettings,
-  onCopyHistoryEntry,
-  onDeleteHistoryEntry,
   onInstallParakeet,
   onOpenMicrophoneSettings,
   onRefreshAudioInputs,
@@ -184,19 +171,13 @@ export function ConfigsPanel({
         <DictationPanel
           embedded
           audioInputDevices={audioInputDevices}
-          dictationHistoryEntries={dictationHistoryEntries}
-          dictationHistoryQuery={dictationHistoryQuery}
           dictationSnapshot={dictationSnapshot}
           dictationStats={dictationStats}
           featureSettings={featureSettings}
           microphonePermission={microphonePermission}
           title="Audio"
-          description="Local dictation, transcript history, and overlay behavior."
+          description="Local dictation, shortcuts, microphone, and overlay behavior."
           onChangeFeatureSettings={onChangeFeatureSettings}
-          onChangeHistoryQuery={onChangeHistoryQuery}
-          onClearHistory={onClearHistory}
-          onCopyHistoryEntry={onCopyHistoryEntry}
-          onDeleteHistoryEntry={onDeleteHistoryEntry}
           onInstallParakeet={onInstallParakeet}
           onOpenMicrophoneSettings={onOpenMicrophoneSettings}
           onRefreshAudioInputs={onRefreshAudioInputs}

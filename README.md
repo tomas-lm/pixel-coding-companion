@@ -51,7 +51,34 @@ Important:
 - Linux and Windows targets exist, but should be treated as experimental until they are
   tested on release machines.
 
-## Choose Your Platform
+## Easy Mode: Ask A Coding Agent
+
+If you already use Codex, Claude Code, Cursor, or another local coding agent, paste this
+prompt and let the agent handle the install:
+
+```text
+Install Pixel Companion from source on this machine.
+
+Use the official repository:
+https://github.com/tomas-lm/pixel-coding-companion
+
+Please:
+1. Detect my operating system.
+2. Check whether Git, Node.js 22 or newer, and pnpm are installed.
+3. If a required tool is missing, tell me the exact install command for my OS before continuing.
+4. Clone the repo into ~/dev/pixel-coding-companion unless it already exists.
+5. Run pnpm install.
+6. Build the app for my OS:
+   - macOS: pnpm build:unpack, then pnpm open:stable
+   - Linux: pnpm build:linux
+   - Windows: pnpm build:win
+7. If the build fails, diagnose the error and suggest the smallest safe fix.
+
+Do not delete existing folders, reset git state, or overwrite local changes without asking me first.
+Do not use pnpm dev unless I explicitly say I want to edit Pixel's source code.
+```
+
+## Hard Mode: Build It Yourself
 
 Use the path for your operating system. All paths require Node.js 22 or newer and pnpm.
 
