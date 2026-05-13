@@ -46,6 +46,33 @@ describe('dictationInsertion', () => {
     expect(writeClipboard).not.toHaveBeenCalled()
   })
 
+  it('writes to the active terminal when xterm helper textarea is focused', () => {
+    const terminalSurface = document.createElement('div')
+    const helperTextarea = document.createElement('textarea')
+    const writeTerminal = vi.fn()
+    const writeClipboard = vi.fn()
+
+    terminalSurface.className = 'terminal-surface'
+    helperTextarea.className = 'xterm-helper-textarea'
+    terminalSurface.append(helperTextarea)
+    document.body.append(terminalSurface)
+    helperTextarea.focus()
+
+    const target = insertDictationTranscript('ditado no terminal', {
+      terminalSessionId: 'session-1',
+      writeClipboard,
+      writeTerminal
+    })
+
+    expect(target).toBe('terminal')
+    expect(helperTextarea.value).toBe('')
+    expect(writeTerminal).toHaveBeenCalledWith({
+      data: 'ditado no terminal',
+      id: 'session-1'
+    })
+    expect(writeClipboard).not.toHaveBeenCalled()
+  })
+
   it('copies to clipboard when no Pixel text target or terminal is available', () => {
     const writeTerminal = vi.fn()
     const writeClipboard = vi.fn()

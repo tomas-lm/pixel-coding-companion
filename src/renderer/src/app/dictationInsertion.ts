@@ -10,9 +10,14 @@ function isTextInput(element: Element): element is HTMLInputElement {
   return element instanceof HTMLInputElement && TEXT_INPUT_TYPES.has(element.type)
 }
 
+function isInsideTerminalSurface(element: Element): boolean {
+  return Boolean(element.closest('.terminal-surface'))
+}
+
 function getFocusedTextTarget(documentRef: Document): HTMLElement | null {
   const activeElement = documentRef.activeElement
   if (!activeElement) return null
+  if (isInsideTerminalSurface(activeElement)) return null
 
   if (isTextInput(activeElement) || activeElement instanceof HTMLTextAreaElement) {
     return activeElement
