@@ -52,7 +52,10 @@ export function getPtyShellArgs(
   shellPath: string,
   platform: NodeJS.Platform = process.platform
 ): string[] {
-  if (platform !== 'darwin') return []
+  // GUI/Electron apps (including AppImage) often inherit a minimal PATH. Login shells load the
+  // same profile chain as a normal terminal on Unix — macOS already relied on this; Linux needs
+  // it too so ~/.profile / ~/.zprofile (and Go/rustup PATH hooks) apply inside Pixel's PTY.
+  if (platform === 'win32') return []
 
   const shellName = basename(shellPath)
   return shellName === 'zsh' || shellName === 'bash' ? ['--login'] : []
