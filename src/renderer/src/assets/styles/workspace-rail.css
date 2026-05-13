@@ -144,6 +144,27 @@
     opacity 120ms ease;
 }
 
+.primary-button {
+  border-color: color-mix(in srgb, var(--active-project-color) 56%, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--active-project-color) 20%, rgba(255, 255, 255, 0.04));
+  color: color-mix(in srgb, var(--active-project-color) 76%, #ffffff);
+}
+
+.secondary-button {
+  border-color: color-mix(in srgb, var(--active-project-color) 34%, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--active-project-color) 10%, rgba(255, 255, 255, 0.035));
+  color: color-mix(in srgb, var(--active-project-color) 70%, var(--ev-c-text-1));
+}
+
+.primary-button:hover,
+.primary-button:focus-visible,
+.secondary-button:hover,
+.secondary-button:focus-visible {
+  border-color: color-mix(in srgb, var(--active-project-color) 68%, rgba(255, 255, 255, 0.1));
+  background: color-mix(in srgb, var(--active-project-color) 16%, rgba(255, 255, 255, 0.06));
+  color: color-mix(in srgb, var(--active-project-color) 82%, #ffffff);
+}
+
 .workspace-rail .primary-button,
 .workspace-rail .secondary-button {
   min-height: 28px;
@@ -153,20 +174,24 @@
 }
 
 .workspace-rail .primary-button {
-  border-color: color-mix(in srgb, var(--active-project-color) 44%, rgba(255, 255, 255, 0.08));
-  background: color-mix(in srgb, var(--active-project-color) 15%, rgba(255, 255, 255, 0.04));
+  border-color: color-mix(in srgb, var(--active-project-color) 56%, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--active-project-color) 20%, rgba(255, 255, 255, 0.04));
+  color: color-mix(in srgb, var(--active-project-color) 76%, #ffffff);
 }
 
 .workspace-rail .secondary-button {
-  background: rgba(255, 255, 255, 0.035);
+  border-color: color-mix(in srgb, var(--active-project-color) 34%, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--active-project-color) 10%, rgba(255, 255, 255, 0.035));
+  color: color-mix(in srgb, var(--active-project-color) 70%, var(--ev-c-text-1));
 }
 
 .workspace-rail .primary-button:hover,
 .workspace-rail .primary-button:focus-visible,
 .workspace-rail .secondary-button:hover,
 .workspace-rail .secondary-button:focus-visible {
-  border-color: color-mix(in srgb, var(--active-project-color) 54%, rgba(255, 255, 255, 0.1));
-  background: color-mix(in srgb, var(--active-project-color) 12%, rgba(255, 255, 255, 0.06));
+  border-color: color-mix(in srgb, var(--active-project-color) 68%, rgba(255, 255, 255, 0.1));
+  background: color-mix(in srgb, var(--active-project-color) 16%, rgba(255, 255, 255, 0.06));
+  color: color-mix(in srgb, var(--active-project-color) 82%, #ffffff);
 }
 
 .primary-button:disabled,
@@ -190,7 +215,7 @@
   min-width: 22px;
   min-height: 22px;
   padding: 0;
-  color: var(--ev-c-text-2);
+  color: color-mix(in srgb, var(--active-project-color) 76%, var(--ev-c-text-1));
   font-size: 16px;
   font-weight: 700;
 }
@@ -317,7 +342,7 @@
 
 .template-row {
   grid-template-columns: minmax(0, 1fr);
-  height: 40px;
+  height: 50px;
 }
 
 .session-row {
@@ -459,10 +484,14 @@
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-content: center;
-  gap: 1px 7px;
+  gap: 2px 7px;
   height: 100%;
   overflow: hidden;
-  padding: 5px 30px 5px 9px;
+  padding: 7px 30px 7px 9px;
+}
+
+.template-name {
+  line-height: 1.18;
 }
 
 .template-detail {
@@ -470,7 +499,7 @@
   color: var(--ev-c-text-2);
   font-size: 11px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.32;
 }
 
 .row-action-button {
@@ -488,7 +517,7 @@
   padding: 0;
   overflow: hidden;
   background: transparent;
-  color: var(--ev-c-text-2);
+  color: color-mix(in srgb, var(--active-project-color) 58%, var(--ev-c-text-2));
   opacity: 0;
   text-align: center;
   text-overflow: ellipsis;
@@ -512,9 +541,20 @@
 
 .row-action-button:hover,
 .row-action-button:focus-visible {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--ev-c-text-1);
+  border-color: color-mix(in srgb, var(--active-project-color) 44%, rgba(255, 255, 255, 0.1));
+  background: color-mix(in srgb, var(--active-project-color) 14%, rgba(255, 255, 255, 0.06));
+  color: color-mix(in srgb, var(--active-project-color) 78%, #ffffff);
+}
+
+.project-row .row-action-button {
+  color: color-mix(in srgb, var(--project-color) 58%, var(--ev-c-text-2));
+}
+
+.project-row .row-action-button:hover,
+.project-row .row-action-button:focus-visible {
+  border-color: color-mix(in srgb, var(--project-color) 44%, rgba(255, 255, 255, 0.1));
+  background: color-mix(in srgb, var(--project-color) 14%, rgba(255, 255, 255, 0.06));
+  color: color-mix(in srgb, var(--project-color) 78%, #ffffff);
 }
 
 .session-item {
