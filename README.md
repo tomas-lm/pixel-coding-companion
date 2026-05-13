@@ -395,8 +395,9 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` opens an Electron development window with hot reload. It is not the install
-path for normal users.
+`pnpm dev` opens an isolated Electron development window with hot reload, using the
+`Pixel Companion Dev` app identity and a separate config/storage directory. It is not the
+install path for normal users.
 
 If you want to use Pixel for real work while also developing Pixel, run a stable app and
 an isolated dev app side by side:
@@ -404,7 +405,7 @@ an isolated dev app side by side:
 ```bash
 pnpm build:unpack
 pnpm open:stable
-pnpm dev:isolated
+pnpm dev
 ```
 
 For microphone dictation testing on macOS, use the packaged dev app instead:
@@ -413,7 +414,7 @@ For microphone dictation testing on macOS, use the packaged dev app instead:
 pnpm dev:packaged
 ```
 
-`pnpm dev:isolated` runs through Electron's generic development app, so macOS may attach
+`pnpm dev` still runs through Electron's generic development app, so macOS may attach
 microphone permission prompts to `Electron` instead of Pixel. `pnpm dev:packaged` builds
 and opens `dist-dev/mac-arm64/Pixel Companion Dev.app` with Pixel's dev bundle id, which
 lets macOS show the correct app in Privacy & Security > Microphone. The packaged dev app
@@ -531,7 +532,6 @@ Replace `/absolute/path/to/pixel-coding-companion` with your local clone path.
 
 ```bash
 pnpm dev           # run the development app
-pnpm dev:isolated  # run an isolated development app profile
 pnpm dev:packaged  # run a packaged isolated dev app for macOS permission testing
 pnpm typecheck     # typecheck main/preload/renderer code
 pnpm lint          # run ESLint
