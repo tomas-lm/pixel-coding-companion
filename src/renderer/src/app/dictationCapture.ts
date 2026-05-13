@@ -1,3 +1,5 @@
+import type { DictationMicrophonePermissionStatus } from '../../../shared/dictation'
+
 type AudioContextWindow = Window &
   typeof globalThis & {
     webkitAudioContext?: typeof AudioContext
@@ -49,6 +51,13 @@ export async function listDictationAudioInputDevices(): Promise<DictationAudioIn
     })
 }
 
+export async function getDictationAudioInputPermissionStatus(): Promise<DictationMicrophonePermissionStatus> {
+  const statusFromDevices = await inferAudioInputPermissionStatusFromDevices()
+  if (statusFromDevices !== 'unknown') return statusFromDevices
+
+  return queryBrowserMicrophonePermissionStatus()
+}
+
 export async function startWavCapture({
   preferredDeviceId
 }: WavCaptureOptions = {}): Promise<WavCapture> {
@@ -79,6 +88,36 @@ export async function startWavCapture({
 export async function requestDictationAudioInputAccess(): Promise<void> {
   const stream = await openPreferredAudioStream(null)
   stopStream(stream)
+}
+
+async function inferAudioInputPermissionStatusFromDevices(): Promise<DictationMicrophonePermissionStatus> {
+  if (!navigator.mediaDevices?.enumerateDevices) return 'unknown'
+
+  try {
+    const audioInputDevices = (await navigator.mediaDevices.enumerateDevices()).filter(
+      (device) => device.kind === 'audioinput'
+    )
+    if (audioInputDevices.length === 0) return 'unknown'
+
+    return audioInputDevices.some((device) => device.label.trim()) ? 'granted' : 'not-determined'
+  } catch {
+    return 'unknown'
+  }
+}
+
+async function queryBrowserMicrophonePermissionStatus(): Promise<DictationMicrophonePermissionStatus> {
+  if (!navigator.permissions?.query) return 'unknown'
+
+  try {
+    const status = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+    if (status.state === 'granted') return 'granted'
+    if (status.state === 'denied') return 'denied'
+    if (status.state === 'prompt') return 'not-determined'
+  } catch {
+    return 'unknown'
+  }
+
+  return 'unknown'
 }
 
 function startMediaRecorderCapture(stream: MediaStream): WavCapture {

@@ -47,6 +47,7 @@ import {
 } from './companions/companionRegistry'
 import { getActiveCompanionProgress, getCompanionMessageColor } from './app/companionSelectors'
 import {
+  getDictationAudioInputPermissionStatus,
   listDictationAudioInputDevices,
   requestDictationAudioInputAccess,
   startWavCapture,
@@ -54,6 +55,13 @@ import {
   type WavCapture
 } from './app/dictationCapture'
 import { insertDictationTranscript } from './app/dictationInsertion'
+import {
+  createGrantedDictationMicrophonePermission,
+  createUnknownDictationMicrophonePermission,
+  mergeMicrophonePermissionSnapshots,
+  snapshotFromBrowserMicrophonePermissionStatus,
+  withMicrophoneCaptureError
+} from './app/dictationPermission'
 import { primeCompletionSound } from './app/notificationSounds'
 import { getPromptTemplateProjectPath, getPromptTemplateSendStatus } from './app/promptTemplates'
 import type { ProjectForm } from './app/projectForms'
@@ -287,56 +295,78 @@ function App(): React.JSX.Element {
       return
     }
 
-    void window.api.dictation
-      .getMicrophonePermission()
-      .then(setDictationMicrophonePermission)
+    void Promise.all([
+      window.api.dictation.getMicrophonePermission(),
+      getDictationAudioInputPermissionStatus()
+    ])
+      .then(([nativePermission, browserStatus]) =>
+        setDictationMicrophonePermission(
+          mergeMicrophonePermissionSnapshots(nativePermission, browserStatus)
+        )
+      )
       .catch(() =>
-        setDictationMicrophonePermission({
-          canPrompt: false,
-          message: 'Pixel could not read microphone permission status.',
-          status: 'unknown'
-        })
+        setDictationMicrophonePermission(
+          createUnknownDictationMicrophonePermission(
+            'Pixel could not read microphone permission status.'
+          )
+        )
       )
   }, [])
 
   const requestDictationMicrophonePermission =
     useCallback(async (): Promise<DictationMicrophonePermissionSnapshot> => {
-      let captureRequestError: unknown = null
+      let firstCaptureError: unknown = null
 
       try {
         await requestDictationAudioInputAccess()
+        const permission = createGrantedDictationMicrophonePermission()
+        setDictationMicrophonePermission(permission)
+        refreshDictationAudioInputDevices()
+        return permission
       } catch (error) {
-        captureRequestError = error
+        firstCaptureError = error
+        // Fall through to the native prompt path below.
       }
 
       if (typeof window.api.dictation.requestMicrophonePermission !== 'function') {
-        const permission: DictationMicrophonePermissionSnapshot = {
-          canPrompt: captureRequestError === null,
-          message:
-            captureRequestError instanceof Error
-              ? captureRequestError.message
-              : 'Restart Pixel to enable the macOS microphone permission request.',
-          status: captureRequestError === null ? 'granted' : 'unknown'
-        }
+        const permission = withMicrophoneCaptureError(
+          createUnknownDictationMicrophonePermission(
+            'Restart Pixel to enable the macOS microphone permission request.'
+          ),
+          firstCaptureError
+        )
         setDictationMicrophonePermission(permission)
         refreshDictationAudioInputDevices()
         return permission
       }
 
-      const permission =
-        captureRequestError === null
-          ? await window.api.dictation.getMicrophonePermission()
-          : await window.api.dictation.requestMicrophonePermission()
-      const nextPermission =
-        captureRequestError instanceof Error && permission.status !== 'granted'
-          ? {
-              ...permission,
-              message: captureRequestError.message
-            }
-          : permission
-      setDictationMicrophonePermission(nextPermission)
-      refreshDictationAudioInputDevices()
-      return nextPermission
+      let nativePermission: DictationMicrophonePermissionSnapshot
+      try {
+        nativePermission = await window.api.dictation.requestMicrophonePermission()
+      } catch (error) {
+        nativePermission = withMicrophoneCaptureError(
+          createUnknownDictationMicrophonePermission(),
+          error
+        )
+      }
+
+      try {
+        await requestDictationAudioInputAccess()
+        const permission = createGrantedDictationMicrophonePermission()
+        setDictationMicrophonePermission(permission)
+        refreshDictationAudioInputDevices()
+        return permission
+      } catch (error) {
+        const browserStatus = await getDictationAudioInputPermissionStatus().catch(
+          () => 'unknown' as const
+        )
+        const fallbackPermission =
+          snapshotFromBrowserMicrophonePermissionStatus(browserStatus) ?? nativePermission
+        const nextPermission = withMicrophoneCaptureError(fallbackPermission, error)
+        setDictationMicrophonePermission(nextPermission)
+        refreshDictationAudioInputDevices()
+        return nextPermission
+      }
     }, [refreshDictationAudioInputDevices])
 
   useEffect(() => {
