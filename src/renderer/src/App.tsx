@@ -324,7 +324,7 @@ function App(): React.JSX.Element {
       queueMicrotask(() => {
         setDictationMicrophonePermission({
           canPrompt: false,
-          message: 'Restart Pixel to enable the macOS microphone permission check.',
+          message: 'Restart Pixel to enable the microphone permission check.',
           status: 'unknown'
         })
       })
@@ -367,7 +367,7 @@ function App(): React.JSX.Element {
       if (typeof window.api.dictation.requestMicrophonePermission !== 'function') {
         const permission = withMicrophoneCaptureError(
           createUnknownDictationMicrophonePermission(
-            'Restart Pixel to enable the macOS microphone permission request.'
+            'Restart Pixel to enable the microphone permission request.'
           ),
           firstCaptureError
         )

@@ -29,6 +29,13 @@ export const PARAKEET_COREML_MODEL_URL =
 
 export const PARAKEET_COREML_MODEL_DOWNLOAD_SIZE_LABEL = '~461 MB'
 
+export const SHERPA_ONNX_PARAKEET_MODEL_ID = 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8'
+
+export const SHERPA_ONNX_PARAKEET_MODEL_URL =
+  `https://huggingface.co/csukuangfj/${SHERPA_ONNX_PARAKEET_MODEL_ID}`
+
+export const SHERPA_ONNX_PARAKEET_MODEL_DOWNLOAD_SIZE_LABEL = '~661 MB'
+
 export type DictationBackendId = 'macos-parakeet-coreml' | 'onnx-sherpa' | 'mock'
 
 export type DictationState = 'idle' | 'recording' | 'transcribing' | 'inserting' | 'error'
@@ -158,6 +165,17 @@ export type DictationCaptureCommand = {
   type: 'start' | 'stop'
 }
 
+export type DictationShortcutAvailability =
+  | {
+      mode: 'hold'
+      scope: 'focused'
+    }
+  | {
+      message?: string
+      mode: 'toggle'
+      scope: 'focused' | 'global'
+    }
+
 export type DictationCaptureResult =
   | {
       audioData: ArrayBuffer
@@ -227,6 +245,7 @@ export type DictationSnapshot = {
   model: DictationModelInstallSnapshot
   settings: DictationSettings
   shortcut: string
+  shortcutAvailability: DictationShortcutAvailability
   state: DictationState
 }
 
@@ -269,4 +288,17 @@ export function getDictationShortcutOption(id: DictationShortcutId): DictationSh
   return (
     DICTATION_SHORTCUT_OPTIONS.find((option) => option.id === id) ?? DICTATION_SHORTCUT_OPTIONS[0]
   )
+}
+
+export function getDictationShortcutLabel(
+  id: DictationShortcutId,
+  platform: NodeJS.Platform = process.platform
+): string {
+  if (platform === 'linux') {
+    if (id === 'control-option-hold') return 'Ctrl+Alt+Space'
+    if (id === 'control-shift-hold') return 'Ctrl+Shift+Space'
+    if (id === 'option-shift-hold') return 'Alt+Shift+Space'
+  }
+
+  return getDictationShortcutOption(id).label
 }

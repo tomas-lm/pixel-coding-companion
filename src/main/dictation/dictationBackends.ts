@@ -5,6 +5,7 @@ import type {
   DictationTranscript
 } from '../../shared/dictation'
 import type { NativeDictationRuntime } from './nativeDictationRuntime'
+import type { SherpaOnnxRuntime } from './sherpaOnnxRuntime'
 
 export type DictationBackend = {
   readonly id: DictationBackendId
@@ -21,6 +22,13 @@ type ParakeetCoreMlBackendOptions = {
   hasRuntime?: () => boolean
   platform?: NodeJS.Platform
   runtime?: NativeDictationRuntime
+}
+
+type SherpaOnnxBackendOptions = {
+  getModelSnapshot: () => DictationModelInstallSnapshot
+  hasRuntime?: () => boolean
+  platform?: NodeJS.Platform
+  runtime?: SherpaOnnxRuntime
 }
 
 export function getBackendStatus(
@@ -59,12 +67,23 @@ export function getBackendStatus(
     }
   }
 
-  if (platform === 'win32' || platform === 'linux') {
+  if (backendId === 'onnx-sherpa') {
+    if (platform !== 'linux') {
+      return {
+        available: false,
+        id: backendId,
+        label: 'Parakeet ONNX',
+        message: 'Parakeet ONNX dictation is available only on Linux.',
+        ready: false,
+        status: 'unsupported'
+      }
+    }
+
     return {
       available: true,
       id: backendId,
-      label: 'ONNX sherpa',
-      message: 'ONNX/sherpa backend is planned but not implemented yet.',
+      label: 'Parakeet ONNX',
+      message: 'Download the Parakeet ONNX model from the Dictation tab.',
       ready: false,
       status: 'not_installed'
     }
@@ -73,8 +92,8 @@ export function getBackendStatus(
   return {
     available: false,
     id: backendId,
-    label: 'ONNX sherpa',
-    message: 'ONNX/sherpa backend is reserved for future Windows and Linux support.',
+    label: 'Local dictation backend',
+    message: 'This dictation backend is reserved for future platform support.',
     ready: false,
     status: 'unsupported'
   }
@@ -82,7 +101,7 @@ export function getBackendStatus(
 
 export function selectPreferredDictationBackend(platform: NodeJS.Platform): DictationBackendId {
   if (platform === 'darwin') return 'macos-parakeet-coreml'
-  if (platform === 'win32' || platform === 'linux') return 'onnx-sherpa'
+  if (platform === 'linux') return 'onnx-sherpa'
   return 'mock'
 }
 
@@ -209,6 +228,109 @@ export class ParakeetCoreMlBackend implements DictationBackend {
       durationMs: result.durationMs ?? Math.max(0, stoppedAt - startedAt),
       language: result.language,
       text: result.text?.trim() ?? ''
+    }
+  }
+}
+
+export class SherpaOnnxBackend implements DictationBackend {
+  readonly id = 'onnx-sherpa' as const
+  private readonly getModelSnapshot: () => DictationModelInstallSnapshot
+  private readonly hasRuntime: () => boolean
+  private readonly platform: NodeJS.Platform
+  private readonly runtime: SherpaOnnxRuntime | undefined
+
+  constructor({
+    getModelSnapshot,
+    hasRuntime,
+    platform = process.platform,
+    runtime
+  }: SherpaOnnxBackendOptions) {
+    this.getModelSnapshot = getModelSnapshot
+    this.hasRuntime = hasRuntime ?? (() => Boolean(runtime?.isAvailable()))
+    this.platform = platform
+    this.runtime = runtime
+  }
+
+  getStatus(): DictationBackendStatus {
+    if (this.platform !== 'linux') {
+      return getBackendStatus(this.id, this.platform)
+    }
+
+    const model = this.getModelSnapshot()
+    if (model.status === 'checking' || model.status === 'downloading') {
+      return {
+        available: true,
+        id: this.id,
+        label: 'Parakeet ONNX',
+        message: model.message,
+        ready: false,
+        status: 'installing'
+      }
+    }
+
+    if (model.status === 'failed') {
+      return {
+        available: true,
+        id: this.id,
+        label: 'Parakeet ONNX',
+        message: model.message ?? 'Parakeet ONNX model installation failed.',
+        ready: false,
+        status: 'failed'
+      }
+    }
+
+    if (model.status !== 'installed') {
+      return getBackendStatus(this.id, this.platform)
+    }
+
+    if (!this.hasRuntime()) {
+      return {
+        available: true,
+        id: this.id,
+        label: 'Parakeet ONNX',
+        message: 'Parakeet ONNX model is installed. Pixel still needs the sherpa-onnx runtime.',
+        ready: false,
+        status: 'runtime_missing'
+      }
+    }
+
+    return {
+      available: true,
+      id: this.id,
+      label: 'Parakeet ONNX',
+      ready: true,
+      status: 'ready'
+    }
+  }
+
+  async transcribe({
+    audioFilePath,
+    startedAt,
+    stoppedAt
+  }: {
+    audioFilePath?: string
+    startedAt: number
+    stoppedAt: number
+  }): Promise<DictationTranscript> {
+    const model = this.getModelSnapshot()
+    if (!audioFilePath) throw new Error('Pixel did not receive microphone audio to transcribe.')
+    if (!this.runtime) throw new Error('Pixel dictation sherpa-onnx runtime is not configured.')
+    if (model.status !== 'installed' || !model.installPath) {
+      throw new Error('Parakeet ONNX model is not installed.')
+    }
+
+    const result = await this.runtime.transcribe({
+      audioFilePath,
+      modelPath: model.installPath
+    })
+    const text = result.text?.trim() ?? ''
+    if (!text) throw new Error('Parakeet ONNX returned an empty transcript.')
+
+    return {
+      backend: this.id,
+      durationMs: result.durationMs ?? Math.max(0, stoppedAt - startedAt),
+      language: result.language,
+      text
     }
   }
 }

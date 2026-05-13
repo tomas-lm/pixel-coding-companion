@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import type {
   DictationModelInstallSnapshot,
+  DictationShortcutAvailability,
   DictationShortcutId,
   DictationInsertRequest,
   DictationInsertionResult,
@@ -12,7 +13,7 @@ import type {
 import {
   PARAKEET_COREML_MODEL_DOWNLOAD_SIZE_LABEL,
   PARAKEET_COREML_MODEL_URL,
-  getDictationShortcutOption
+  getDictationShortcutLabel
 } from '../../shared/dictation'
 import type { DictationBackend } from './dictationBackends'
 
@@ -39,6 +40,7 @@ type DictationControllerDependencies = {
   backend: DictationBackend
   emitSnapshot: (snapshot: DictationSnapshot) => void
   getModelSnapshot?: () => DictationModelInstallSnapshot
+  getShortcutAvailability?: () => DictationShortcutAvailability
   now?: () => number
   recordTranscript?: (request: {
     audioFilePath: string
@@ -62,6 +64,7 @@ export class DictationController {
   private readonly backend: DictationBackend
   private readonly emitSnapshot: (snapshot: DictationSnapshot) => void
   private readonly getModelSnapshot: () => DictationModelInstallSnapshot
+  private readonly getShortcutAvailability: () => DictationShortcutAvailability
   private readonly now: () => number
   private readonly recordTranscript: NonNullable<
     DictationControllerDependencies['recordTranscript']
@@ -88,6 +91,10 @@ export class DictationController {
     backend,
     emitSnapshot,
     getModelSnapshot = () => DEFAULT_MODEL_INSTALL_SNAPSHOT,
+    getShortcutAvailability = () => ({
+      mode: 'hold',
+      scope: 'focused'
+    }),
     now = () => Date.now(),
     recordTranscript = async () => {},
     requestCaptureStart = () => {},
@@ -100,6 +107,7 @@ export class DictationController {
     this.backend = backend
     this.emitSnapshot = emitSnapshot
     this.getModelSnapshot = getModelSnapshot
+    this.getShortcutAvailability = getShortcutAvailability
     this.now = now
     this.recordTranscript = recordTranscript
     this.requestCaptureStart = requestCaptureStart
@@ -111,6 +119,13 @@ export class DictationController {
   }
 
   getSnapshot(): DictationSnapshot {
+    const shortcutPlatform =
+      this.backend.id === 'onnx-sherpa'
+        ? 'linux'
+        : this.backend.id === 'macos-parakeet-coreml'
+          ? 'darwin'
+          : process.platform
+
     return {
       backend: this.backend.getStatus(),
       error: this.error,
@@ -119,7 +134,8 @@ export class DictationController {
       lastTranscriptId: this.lastTranscriptId,
       model: this.getModelSnapshot(),
       settings: this.settings,
-      shortcut: getDictationShortcutOption(this.settings.shortcutId).label,
+      shortcut: getDictationShortcutLabel(this.settings.shortcutId, shortcutPlatform),
+      shortcutAvailability: this.getShortcutAvailability(),
       state: this.state
     }
   }
