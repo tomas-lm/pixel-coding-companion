@@ -2,6 +2,9 @@ import { isDictationShortcutId } from '../../../shared/dictation'
 import type { WorkspaceFeatureSettings } from '../../../shared/workspace'
 
 export const DEFAULT_WORKSPACE_FEATURE_SETTINGS: WorkspaceFeatureSettings = {
+  dictationOverlayEnabled: false,
+  keepDictationAudioHistory: false,
+  keepDictationTranscriptHistory: true,
   keepLastDictationAudioSample: false,
   localTranscriberAudioInputDeviceId: null,
   localTranscriberEnabled: false,
@@ -17,6 +20,18 @@ export function normalizeWorkspaceFeatureSettings(value: unknown): WorkspaceFeat
   const settings = value as Partial<Record<keyof WorkspaceFeatureSettings, unknown>>
 
   return {
+    dictationOverlayEnabled:
+      typeof settings.dictationOverlayEnabled === 'boolean'
+        ? settings.dictationOverlayEnabled
+        : DEFAULT_WORKSPACE_FEATURE_SETTINGS.dictationOverlayEnabled,
+    keepDictationAudioHistory:
+      typeof settings.keepDictationAudioHistory === 'boolean'
+        ? settings.keepDictationAudioHistory
+        : DEFAULT_WORKSPACE_FEATURE_SETTINGS.keepDictationAudioHistory,
+    keepDictationTranscriptHistory:
+      typeof settings.keepDictationTranscriptHistory === 'boolean'
+        ? settings.keepDictationTranscriptHistory
+        : DEFAULT_WORKSPACE_FEATURE_SETTINGS.keepDictationTranscriptHistory,
     keepLastDictationAudioSample:
       typeof settings.keepLastDictationAudioSample === 'boolean'
         ? settings.keepLastDictationAudioSample

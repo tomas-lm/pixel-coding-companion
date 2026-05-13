@@ -1,11 +1,16 @@
 export const DICTATION_CHANNELS = {
+  clearHistory: 'dictation:clear-history',
   captureCommand: 'dictation:capture-command',
   completeCapture: 'dictation:complete-capture',
   completeInsertion: 'dictation:complete-insertion',
+  deleteHistoryEntry: 'dictation:delete-history-entry',
   getMicrophonePermission: 'dictation:get-microphone-permission',
   installModel: 'dictation:install-model',
+  listHistory: 'dictation:list-history',
+  loadStats: 'dictation:load-stats',
   insertTranscript: 'dictation:insert-transcript',
   loadSnapshot: 'dictation:load-snapshot',
+  openAudioSettings: 'dictation:open-audio-settings',
   openMicrophoneSettings: 'dictation:open-microphone-settings',
   requestMicrophonePermission: 'dictation:request-microphone-permission',
   state: 'dictation:state',
@@ -77,7 +82,10 @@ export type DictationBackendStatus =
 
 export type DictationSettings = {
   enabled: boolean
+  keepAudioHistory: boolean
   keepLastAudioSample: boolean
+  keepTranscriptHistory: boolean
+  overlayEnabled: boolean
   shortcutId: DictationShortcutId
 }
 
@@ -100,6 +108,44 @@ export type DictationTranscript = {
   durationMs: number
   language?: string
   text: string
+}
+
+export type DictationHistoryEntry = {
+  audioFilePath?: string
+  backend: DictationBackendId
+  characterCount: number
+  createdAt: string
+  durationMs: number
+  estimatedKeystrokesAvoided: number
+  id: string
+  insertionTarget?: DictationInsertTarget
+  language?: string
+  text: string
+  wordCount: number
+}
+
+export type DictationHistoryListRequest = {
+  limit?: number
+  query?: string
+}
+
+export type DictationHistoryListResult = {
+  entries: DictationHistoryEntry[]
+}
+
+export type DictationHistoryDeleteRequest = {
+  id: string
+}
+
+export type DictationStatsSnapshot = {
+  audioStorageBytes: number
+  averageWordsPerTranscript: number
+  estimatedKeystrokesAvoided: number
+  totalDurationMs: number
+  totalTranscripts: number
+  totalWordsDictated: number
+  updatedAt: string
+  wordsDictatedToday: number
 }
 
 export type DictationCaptureCommand = {
@@ -163,14 +209,22 @@ export type DictationSnapshot = {
 }
 
 export type DictationApi = {
+  clearHistory: () => Promise<DictationHistoryListResult>
   completeCapture: (result: DictationCaptureResult) => Promise<DictationSnapshot>
   completeInsertion: (result: DictationInsertionResult) => void
+  deleteHistoryEntry: (
+    request: DictationHistoryDeleteRequest
+  ) => Promise<DictationHistoryListResult>
   getMicrophonePermission: () => Promise<DictationMicrophonePermissionSnapshot>
   installModel: () => Promise<DictationSnapshot>
+  listHistory: (request?: DictationHistoryListRequest) => Promise<DictationHistoryListResult>
+  loadStats: () => Promise<DictationStatsSnapshot>
   loadSnapshot: () => Promise<DictationSnapshot>
   onCaptureCommand: (callback: (command: DictationCaptureCommand) => void) => () => void
   onInsertTranscript: (callback: (request: DictationInsertRequest) => void) => () => void
+  onOpenAudioSettings: (callback: () => void) => () => void
   onState: (callback: (snapshot: DictationSnapshot) => void) => () => void
+  openAudioSettings: () => void
   openMicrophoneSettings: () => void
   requestMicrophonePermission: () => Promise<DictationMicrophonePermissionSnapshot>
   testTranscription: () => Promise<DictationSnapshot>

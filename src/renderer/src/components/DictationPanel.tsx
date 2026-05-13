@@ -2,19 +2,31 @@ import {
   DICTATION_SHORTCUT_OPTIONS,
   PARAKEET_COREML_MODEL_DOWNLOAD_SIZE_LABEL,
   PARAKEET_COREML_MODEL_URL,
+  type DictationHistoryEntry,
   type DictationMicrophonePermissionSnapshot,
   type DictationShortcutId,
-  type DictationSnapshot
+  type DictationSnapshot,
+  type DictationStatsSnapshot
 } from '../../../shared/dictation'
 import type { WorkspaceFeatureSettings } from '../../../shared/workspace'
 import type { DictationAudioInputDevice } from '../app/dictationCapture'
 
 type DictationPanelProps = {
   audioInputDevices: DictationAudioInputDevice[]
+  description?: string
+  dictationHistoryEntries?: DictationHistoryEntry[]
+  dictationHistoryQuery?: string
   dictationSnapshot?: DictationSnapshot | null
+  dictationStats?: DictationStatsSnapshot | null
+  embedded?: boolean
   featureSettings: WorkspaceFeatureSettings
   microphonePermission: DictationMicrophonePermissionSnapshot | null
+  title?: string
+  onChangeHistoryQuery?: (query: string) => void
   onChangeFeatureSettings: (featureSettings: WorkspaceFeatureSettings) => void
+  onClearHistory?: () => void
+  onCopyHistoryEntry?: (entry: DictationHistoryEntry) => void
+  onDeleteHistoryEntry?: (entry: DictationHistoryEntry) => void
   onInstallParakeet: () => void
   onOpenMicrophoneSettings: () => void
   onRefreshAudioInputs: () => void
@@ -42,6 +54,37 @@ function formatBytes(bytes: number): string {
   return `${(mib / 1024).toFixed(1)} GB`
 }
 
+function formatDuration(durationMs: number): string {
+  if (durationMs < 1000) return `${Math.round(durationMs)}ms`
+
+  const seconds = Math.round(durationMs / 1000)
+  if (seconds < 60) return `${seconds}s`
+
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return `${minutes}m ${remainingSeconds}s`
+}
+
+function formatDateTime(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toLocaleString(undefined, {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'short'
+  })
+}
+
+function getInsertionTargetLabel(target: DictationHistoryEntry['insertionTarget']): string {
+  if (target === 'terminal') return 'Terminal'
+  if (target === 'pixel_text') return 'Pixel text'
+  if (target === 'clipboard') return 'Clipboard'
+
+  return 'Pending'
+}
+
 function getMicrophonePermissionLabel(
   permission: DictationMicrophonePermissionSnapshot | null
 ): string {
@@ -57,10 +100,20 @@ function getMicrophonePermissionLabel(
 
 export function DictationPanel({
   audioInputDevices,
+  description = 'Local voice input for Pixel text targets.',
+  dictationHistoryEntries = [],
+  dictationHistoryQuery = '',
   dictationSnapshot,
+  dictationStats,
+  embedded = false,
   featureSettings,
   microphonePermission,
+  title = 'Dictation',
+  onChangeHistoryQuery = () => {},
   onChangeFeatureSettings,
+  onClearHistory = () => {},
+  onCopyHistoryEntry = () => {},
+  onDeleteHistoryEntry = () => {},
   onInstallParakeet,
   onOpenMicrophoneSettings,
   onRefreshAudioInputs,
@@ -95,6 +148,16 @@ export function DictationPanel({
     !audioInputDevices.some(
       (device) => device.deviceId === featureSettings.localTranscriberAudioInputDeviceId
     )
+  const visibleStats = dictationStats ?? {
+    audioStorageBytes: 0,
+    averageWordsPerTranscript: 0,
+    estimatedKeystrokesAvoided: 0,
+    totalDurationMs: 0,
+    totalTranscripts: 0,
+    totalWordsDictated: 0,
+    updatedAt: '',
+    wordsDictatedToday: 0
+  }
 
   const updateShortcut = (shortcutId: DictationShortcutId): void => {
     onChangeFeatureSettings({
@@ -110,16 +173,169 @@ export function DictationPanel({
     })
   }
 
-  return (
-    <section className="dictation-panel" aria-label="Dictation">
-      <header className="dictation-panel__header">
-        <div>
-          <h1>Dictation</h1>
-          <p>Local voice input for Pixel text targets.</p>
-        </div>
-      </header>
+  const content = (
+    <>
+      {!embedded ? (
+        <header className="dictation-panel__header">
+          <div>
+            <h1>{title}</h1>
+            <p>{description}</p>
+          </div>
+        </header>
+      ) : null}
 
       <div className="dictation-panel__body app-dark-scroll">
+        <section className="dictation-settings-group" aria-labelledby="dictation-overlay-title">
+          <h2 id="dictation-overlay-title">Overlay</h2>
+
+          <div className="dictation-setting-row">
+            <div className="dictation-setting-copy">
+              <h3>Floating transcriber</h3>
+              <p>Show a small always-on-top window for status and last-transcript copy.</p>
+            </div>
+
+            <div className="dictation-setting-control">
+              <label className="feature-toggle feature-toggle--flat dictation-inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={featureSettings.dictationOverlayEnabled}
+                  onChange={(event) =>
+                    onChangeFeatureSettings({
+                      ...featureSettings,
+                      dictationOverlayEnabled: event.currentTarget.checked
+                    })
+                  }
+                />
+                <span>Show dictation overlay</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section className="dictation-settings-group" aria-labelledby="dictation-stats-title">
+          <h2 id="dictation-stats-title">Productivity</h2>
+
+          <div className="dictation-stats-grid" aria-label="Dictation productivity stats">
+            <div className="dictation-stat">
+              <span>Today</span>
+              <strong>{visibleStats.wordsDictatedToday.toLocaleString()}</strong>
+              <small>words dictated</small>
+            </div>
+            <div className="dictation-stat">
+              <span>Total</span>
+              <strong>{visibleStats.totalWordsDictated.toLocaleString()}</strong>
+              <small>words dictated</small>
+            </div>
+            <div className="dictation-stat">
+              <span>Avoided</span>
+              <strong>{visibleStats.estimatedKeystrokesAvoided.toLocaleString()}</strong>
+              <small>keystrokes</small>
+            </div>
+            <div className="dictation-stat">
+              <span>Duration</span>
+              <strong>{formatDuration(visibleStats.totalDurationMs)}</strong>
+              <small>{visibleStats.totalTranscripts.toLocaleString()} transcripts</small>
+            </div>
+          </div>
+        </section>
+
+        <section className="dictation-settings-group" aria-labelledby="dictation-history-title">
+          <h2 id="dictation-history-title">History</h2>
+
+          <div className="dictation-setting-row">
+            <div className="dictation-setting-copy">
+              <h3>Transcript history</h3>
+              <p>Keep searchable local transcripts so previous dictation can be copied later.</p>
+            </div>
+
+            <div className="dictation-setting-control">
+              <label className="feature-toggle feature-toggle--flat dictation-inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={featureSettings.keepDictationTranscriptHistory}
+                  onChange={(event) =>
+                    onChangeFeatureSettings({
+                      ...featureSettings,
+                      keepDictationTranscriptHistory: event.currentTarget.checked
+                    })
+                  }
+                />
+                <span>Keep transcript history</span>
+              </label>
+              <label className="feature-toggle feature-toggle--flat dictation-inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={featureSettings.keepDictationAudioHistory}
+                  onChange={(event) =>
+                    onChangeFeatureSettings({
+                      ...featureSettings,
+                      keepDictationAudioHistory: event.currentTarget.checked
+                    })
+                  }
+                />
+                <span>Keep audio recordings</span>
+              </label>
+              <small className="dictation-config__notice">
+                Audio storage: {formatBytes(visibleStats.audioStorageBytes)}
+              </small>
+            </div>
+          </div>
+
+          <div className="dictation-history-tools">
+            <input
+              type="search"
+              aria-label="Search dictation history"
+              placeholder="Search transcripts"
+              value={dictationHistoryQuery}
+              onChange={(event) => onChangeHistoryQuery(event.currentTarget.value)}
+            />
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={dictationHistoryEntries.length === 0}
+              onClick={onClearHistory}
+            >
+              Clear history
+            </button>
+          </div>
+
+          <div className="dictation-history-list app-dark-scroll" aria-label="Past transcripts">
+            {dictationHistoryEntries.length > 0 ? (
+              dictationHistoryEntries.map((entry) => (
+                <article key={entry.id} className="dictation-history-entry">
+                  <button
+                    className="dictation-history-entry__preview"
+                    type="button"
+                    onClick={() => onCopyHistoryEntry(entry)}
+                  >
+                    <span>{entry.text}</span>
+                    <small>
+                      {formatDateTime(entry.createdAt)} · {entry.wordCount} words ·{' '}
+                      {formatDuration(entry.durationMs)} ·{' '}
+                      {getInsertionTargetLabel(entry.insertionTarget)}
+                      {entry.audioFilePath ? ' · audio kept' : ''}
+                    </small>
+                  </button>
+                  <div className="dictation-history-entry__actions">
+                    <button type="button" onClick={() => onCopyHistoryEntry(entry)}>
+                      Copy
+                    </button>
+                    <button type="button" onClick={() => onDeleteHistoryEntry(entry)}>
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="dictation-history-empty">
+                {dictationHistoryQuery.trim()
+                  ? 'No saved transcripts match this search.'
+                  : 'Saved transcripts will appear here after local dictation runs.'}
+              </div>
+            )}
+          </div>
+        </section>
+
         <section className="dictation-settings-group" aria-labelledby="dictation-enable-title">
           <h2 id="dictation-enable-title">Local Transcriber</h2>
 
@@ -383,6 +599,20 @@ export function DictationPanel({
           </div>
         </section>
       </div>
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div className="dictation-panel dictation-panel--embedded" aria-label={title}>
+        {content}
+      </div>
+    )
+  }
+
+  return (
+    <section className="dictation-panel" aria-label={title}>
+      {content}
     </section>
   )
 }

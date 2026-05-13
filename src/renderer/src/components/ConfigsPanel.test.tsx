@@ -7,6 +7,9 @@ import { ConfigsPanel } from './ConfigsPanel'
 afterEach(cleanup)
 
 const featureSettings: WorkspaceFeatureSettings = {
+  dictationOverlayEnabled: false,
+  keepDictationAudioHistory: false,
+  keepDictationTranscriptHistory: true,
   keepLastDictationAudioSample: false,
   localTranscriberAudioInputDeviceId: null,
   localTranscriberEnabled: false,
@@ -19,12 +22,31 @@ function renderConfigsPanel(
 ): ReturnType<typeof render> {
   return render(
     <ConfigsPanel
+      activeSection="general"
+      audioInputDevices={[]}
       codeEditorSettings={{ preferredEditor: 'auto' }}
+      dictationHistoryEntries={[]}
+      dictationHistoryQuery=""
+      dictationSnapshot={null}
+      dictationStats={null}
       featureSettings={featureSettings}
+      microphonePermission={null}
       terminalThemeId="catppuccin_mocha"
+      onChangeHistoryQuery={vi.fn()}
+      onClearHistory={vi.fn()}
       onChangeCodeEditorSettings={vi.fn()}
       onChangeFeatureSettings={vi.fn()}
+      onCopyHistoryEntry={vi.fn()}
+      onDeleteHistoryEntry={vi.fn()}
+      onInstallParakeet={vi.fn()}
+      onOpenMicrophoneSettings={vi.fn()}
+      onRefreshAudioInputs={vi.fn()}
+      onRequestMicrophonePermission={vi
+        .fn()
+        .mockResolvedValue({ canPrompt: false, status: 'granted' })}
+      onSectionChange={vi.fn()}
       onSelectTerminalTheme={vi.fn()}
+      onTestDictation={vi.fn()}
       {...overrides}
     />
   )
@@ -48,12 +70,16 @@ describe('ConfigsPanel', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Play sounds upon finishing' }))
 
     expect(onChangeFeatureSettings).toHaveBeenCalledWith({
-      keepLastDictationAudioSample: false,
-      localTranscriberAudioInputDeviceId: null,
-      localTranscriberEnabled: false,
-      localTranscriberShortcut: 'control-option-hold',
+      ...featureSettings,
       playSoundsUponFinishing: true
     })
+  })
+
+  it('renders audio settings inside settings', () => {
+    renderConfigsPanel({ activeSection: 'audio' })
+
+    expect(screen.getByRole('checkbox', { name: 'Show dictation overlay' })).toBeInTheDocument()
+    expect(screen.getByRole('searchbox', { name: 'Search dictation history' })).toBeInTheDocument()
   })
 
   it('updates the preferred code editor', () => {

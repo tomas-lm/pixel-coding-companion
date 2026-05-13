@@ -1,0 +1,110 @@
+.dictation-overlay-document {
+  min-height: 100vh;
+  overflow: hidden;
+  background: transparent;
+}
+
+.dictation-overlay-document #root {
+  width: 100vw;
+  height: 100vh;
+}
+
+.dictation-overlay {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100vw;
+  height: 100vh;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 11px;
+  padding: 10px;
+  background: rgba(14, 17, 23, 0.9);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.38);
+  color: var(--ev-c-text-1);
+  -webkit-app-region: drag;
+}
+
+.dictation-overlay__status {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: #34d399;
+}
+
+.dictation-overlay--recording .dictation-overlay__status {
+  background: #ef5b5b;
+  box-shadow: 0 0 0 7px rgba(239, 91, 91, 0.13);
+}
+
+.dictation-overlay--transcribing .dictation-overlay__status,
+.dictation-overlay--inserting .dictation-overlay__status {
+  background: #f7d56f;
+}
+
+.dictation-overlay--error .dictation-overlay__status {
+  background: #ef5b5b;
+}
+
+.dictation-overlay__content {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.dictation-overlay__content strong,
+.dictation-overlay__content span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dictation-overlay__content strong {
+  color: var(--ev-c-text-1);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.dictation-overlay__content span {
+  color: var(--ev-c-text-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dictation-overlay__actions {
+  display: inline-flex;
+  gap: 5px;
+  -webkit-app-region: no-drag;
+}
+
+.dictation-overlay__actions button {
+  min-height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 0 9px;
+  background: color-mix(
+    in srgb,
+    var(--active-project-color, #ff57e0) 20%,
+    rgba(255, 255, 255, 0.04)
+  );
+  color: var(--ev-c-text-1);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.dictation-overlay__actions button:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.dictation-overlay__actions button:not(:disabled):hover,
+.dictation-overlay__actions button:not(:disabled):focus-visible {
+  border-color: color-mix(
+    in srgb,
+    var(--active-project-color, #ff57e0) 56%,
+    rgba(255, 255, 255, 0.12)
+  );
+  outline: none;
+}

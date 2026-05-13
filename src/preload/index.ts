@@ -17,11 +17,15 @@ import {
   DICTATION_CHANNELS,
   type DictationCaptureCommand,
   type DictationCaptureResult,
+  type DictationHistoryDeleteRequest,
+  type DictationHistoryListRequest,
+  type DictationHistoryListResult,
   type DictationInsertRequest,
   type DictationInsertionResult,
   type DictationMicrophonePermissionSnapshot,
   type DictationSettings,
-  type DictationSnapshot
+  type DictationSnapshot,
+  type DictationStatsSnapshot
 } from '../shared/dictation'
 import {
   TERMINAL_CHANNELS,
@@ -71,15 +75,25 @@ const api: CompanionApi = {
     }
   },
   dictation: {
+    clearHistory: (): Promise<DictationHistoryListResult> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.clearHistory),
     completeCapture: (result: DictationCaptureResult): Promise<DictationSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.completeCapture, result),
     completeInsertion: (result: DictationInsertionResult): void => {
       ipcRenderer.send(DICTATION_CHANNELS.completeInsertion, result)
     },
+    deleteHistoryEntry: (
+      request: DictationHistoryDeleteRequest
+    ): Promise<DictationHistoryListResult> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.deleteHistoryEntry, request),
     getMicrophonePermission: (): Promise<DictationMicrophonePermissionSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.getMicrophonePermission),
     installModel: (): Promise<DictationSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.installModel),
+    listHistory: (request?: DictationHistoryListRequest): Promise<DictationHistoryListResult> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.listHistory, request),
+    loadStats: (): Promise<DictationStatsSnapshot> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.loadStats),
     loadSnapshot: (): Promise<DictationSnapshot> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.loadSnapshot),
     onCaptureCommand: (callback: (command: DictationCaptureCommand) => void) => {
@@ -94,11 +108,19 @@ const api: CompanionApi = {
       ipcRenderer.on(DICTATION_CHANNELS.insertTranscript, listener)
       return () => ipcRenderer.removeListener(DICTATION_CHANNELS.insertTranscript, listener)
     },
+    onOpenAudioSettings: (callback: () => void) => {
+      const listener = (): void => callback()
+      ipcRenderer.on(DICTATION_CHANNELS.openAudioSettings, listener)
+      return () => ipcRenderer.removeListener(DICTATION_CHANNELS.openAudioSettings, listener)
+    },
     onState: (callback: (snapshot: DictationSnapshot) => void) => {
       const listener = (_: Electron.IpcRendererEvent, snapshot: DictationSnapshot): void =>
         callback(snapshot)
       ipcRenderer.on(DICTATION_CHANNELS.state, listener)
       return () => ipcRenderer.removeListener(DICTATION_CHANNELS.state, listener)
+    },
+    openAudioSettings: (): void => {
+      ipcRenderer.send(DICTATION_CHANNELS.openAudioSettings)
     },
     openMicrophoneSettings: (): void => {
       ipcRenderer.send(DICTATION_CHANNELS.openMicrophoneSettings)

@@ -18,7 +18,10 @@ import type { DictationBackend } from './dictationBackends'
 
 const DEFAULT_DICTATION_SETTINGS: DictationSettings = {
   enabled: false,
+  keepAudioHistory: false,
   keepLastAudioSample: false,
+  keepTranscriptHistory: true,
+  overlayEnabled: false,
   shortcutId: 'control-option-hold'
 }
 const DEFAULT_MIN_RECORDING_MS = 900
@@ -37,9 +40,16 @@ type DictationControllerDependencies = {
   emitSnapshot: (snapshot: DictationSnapshot) => void
   getModelSnapshot?: () => DictationModelInstallSnapshot
   now?: () => number
+  recordTranscript?: (request: {
+    audioFilePath: string
+    keepAudioHistory: boolean
+    transcript: DictationTranscript
+    transcriptId: string
+  }) => Promise<void>
   requestCaptureStart?: () => void
   requestCaptureStop?: () => void
   requestInsertion: (request: DictationInsertRequest) => void
+  reportInsertionResult?: (result: DictationInsertionResult) => void
   minRecordingMs?: number
   testRecordingMs?: number
 }
@@ -53,9 +63,15 @@ export class DictationController {
   private readonly emitSnapshot: (snapshot: DictationSnapshot) => void
   private readonly getModelSnapshot: () => DictationModelInstallSnapshot
   private readonly now: () => number
+  private readonly recordTranscript: NonNullable<
+    DictationControllerDependencies['recordTranscript']
+  >
   private readonly requestCaptureStart: () => void
   private readonly requestCaptureStop: () => void
   private readonly requestInsertion: (request: DictationInsertRequest) => void
+  private readonly reportInsertionResult: NonNullable<
+    DictationControllerDependencies['reportInsertionResult']
+  >
   private readonly minRecordingMs: number
   private readonly testRecordingMs: number
   private error: string | undefined
@@ -72,9 +88,11 @@ export class DictationController {
     emitSnapshot,
     getModelSnapshot = () => DEFAULT_MODEL_INSTALL_SNAPSHOT,
     now = () => Date.now(),
+    recordTranscript = async () => {},
     requestCaptureStart = () => {},
     requestCaptureStop = () => {},
     requestInsertion,
+    reportInsertionResult = () => {},
     minRecordingMs = DEFAULT_MIN_RECORDING_MS,
     testRecordingMs = 3000
   }: DictationControllerDependencies) {
@@ -82,9 +100,11 @@ export class DictationController {
     this.emitSnapshot = emitSnapshot
     this.getModelSnapshot = getModelSnapshot
     this.now = now
+    this.recordTranscript = recordTranscript
     this.requestCaptureStart = requestCaptureStart
     this.requestCaptureStop = requestCaptureStop
     this.requestInsertion = requestInsertion
+    this.reportInsertionResult = reportInsertionResult
     this.minRecordingMs = minRecordingMs
     this.testRecordingMs = testRecordingMs
   }
@@ -111,6 +131,7 @@ export class DictationController {
     }
 
     this.lastInsertionTarget = result.target
+    this.reportInsertionResult(result)
     this.setState('idle')
     return this.getSnapshot()
   }
@@ -167,11 +188,27 @@ export class DictationController {
         startedAt: this.recordingStartedAt,
         stoppedAt
       })
+      const transcriptId = randomUUID()
       this.lastTranscript = transcript
+      if (this.settings.keepTranscriptHistory) {
+        try {
+          await this.recordTranscript({
+            audioFilePath,
+            keepAudioHistory: this.settings.keepAudioHistory,
+            transcript,
+            transcriptId
+          })
+        } catch (error) {
+          console.warn(
+            'Could not store dictation transcript history.',
+            error instanceof Error ? error.message : error
+          )
+        }
+      }
       this.setState('inserting')
       this.requestInsertion({
         transcript,
-        transcriptId: randomUUID()
+        transcriptId
       })
     } catch (error) {
       this.setState(
@@ -206,7 +243,10 @@ export class DictationController {
   updateSettings(settings: DictationSettings): DictationSnapshot {
     this.settings = {
       enabled: settings.enabled,
+      keepAudioHistory: settings.keepAudioHistory,
       keepLastAudioSample: settings.keepLastAudioSample,
+      keepTranscriptHistory: settings.keepTranscriptHistory,
+      overlayEnabled: settings.overlayEnabled,
       shortcutId: settings.shortcutId
     }
     if (!this.settings.enabled && this.state !== 'idle') {

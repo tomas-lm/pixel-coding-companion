@@ -13,6 +13,8 @@ import type {
 import { DICTATION_CHANNELS } from '../../shared/dictation'
 import { DictationController } from './dictationController'
 import { ParakeetCoreMlBackend, type DictationBackend } from './dictationBackends'
+import { DictationHistoryStore } from './dictationHistoryStore'
+import type { DictationOverlayManager } from './dictationOverlayManager'
 import {
   getMicrophonePermissionSnapshot,
   openMicrophonePrivacySettings,
@@ -28,18 +30,24 @@ type DictationManagerOptions = {
   backend?: DictationBackend
   debounceMs?: number
   getAppPath?: () => string
+  getMainWindow?: () => BrowserWindow | null
   getResourcesPath?: () => string
   getUserDataPath?: () => string
+  historyStore?: DictationHistoryStore
   modelInstaller?: ParakeetModelInstaller
   nativeRuntime?: NativeDictationRuntime
+  overlayManager?: DictationOverlayManager
 }
 
 export class DictationManager {
   private readonly controller: DictationController
   private readonly debounceMs: number
+  private readonly getMainWindow: () => BrowserWindow | null
   private readonly getUserDataPath: () => string
+  private readonly historyStore: DictationHistoryStore
   private readonly modelInstaller: ParakeetModelInstaller
   private readonly nativeRuntime: NativeDictationRuntime
+  private readonly overlayManager?: DictationOverlayManager
   private readonly shortcut = new ModifierHoldShortcut()
   private pendingStartTimer: NodeJS.Timeout | null = null
 
@@ -47,13 +55,19 @@ export class DictationManager {
     backend,
     debounceMs = MODIFIER_HOLD_DEBOUNCE_MS,
     getAppPath = () => process.cwd(),
+    getMainWindow = () => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0],
     getResourcesPath = () => process.cwd(),
     getUserDataPath = () => process.cwd(),
+    historyStore,
     modelInstaller,
-    nativeRuntime
+    nativeRuntime,
+    overlayManager
   }: DictationManagerOptions = {}) {
     this.debounceMs = debounceMs
+    this.getMainWindow = getMainWindow
     this.getUserDataPath = getUserDataPath
+    this.historyStore = historyStore ?? new DictationHistoryStore({ getUserDataPath })
+    this.overlayManager = overlayManager
     this.modelInstaller =
       modelInstaller ??
       new ParakeetModelInstaller({
@@ -76,9 +90,15 @@ export class DictationManager {
       backend: resolvedBackend,
       emitSnapshot: (snapshot) => this.broadcastSnapshot(snapshot),
       getModelSnapshot: () => this.modelInstaller.getSnapshot(),
+      recordTranscript: async (request) => {
+        await this.historyStore.recordTranscript(request)
+      },
       requestCaptureStart: () => this.sendCaptureCommand({ type: 'start' }),
       requestCaptureStop: () => this.sendCaptureCommand({ type: 'stop' }),
-      requestInsertion: (request) => this.requestInsertion(request)
+      requestInsertion: (request) => this.requestInsertion(request),
+      reportInsertionResult: (result) => {
+        void this.historyStore.updateInsertionTarget(result.transcriptId, result.target)
+      }
     })
   }
 
@@ -107,6 +127,10 @@ export class DictationManager {
     ipcMain.handle(DICTATION_CHANNELS.completeCapture, (_, result: DictationCaptureResult) =>
       this.completeCapture(result)
     )
+    ipcMain.handle(DICTATION_CHANNELS.clearHistory, () => this.historyStore.clearHistory())
+    ipcMain.handle(DICTATION_CHANNELS.deleteHistoryEntry, (_, request: { id: string }) =>
+      this.historyStore.deleteEntry(request.id)
+    )
     ipcMain.handle(DICTATION_CHANNELS.getMicrophonePermission, () =>
       getMicrophonePermissionSnapshot()
     )
@@ -116,10 +140,16 @@ export class DictationManager {
       this.broadcastSnapshot(snapshot)
       return snapshot
     })
-    ipcMain.handle(DICTATION_CHANNELS.loadSnapshot, () => this.controller.getSnapshot())
-    ipcMain.handle(DICTATION_CHANNELS.updateSettings, (_, settings: DictationSettings) =>
-      this.controller.updateSettings(settings)
+    ipcMain.handle(DICTATION_CHANNELS.listHistory, (_, request) =>
+      this.historyStore.listHistory(request)
     )
+    ipcMain.handle(DICTATION_CHANNELS.loadStats, () => this.historyStore.getStats())
+    ipcMain.handle(DICTATION_CHANNELS.loadSnapshot, () => this.controller.getSnapshot())
+    ipcMain.handle(DICTATION_CHANNELS.updateSettings, async (_, settings: DictationSettings) => {
+      const snapshot = this.controller.updateSettings(settings)
+      await this.overlayManager?.setEnabled(settings.overlayEnabled)
+      return snapshot
+    })
     ipcMain.handle(DICTATION_CHANNELS.requestMicrophonePermission, () =>
       requestMicrophonePermission()
     )
@@ -129,6 +159,9 @@ export class DictationManager {
     })
     ipcMain.on(DICTATION_CHANNELS.openMicrophoneSettings, () => {
       openMicrophonePrivacySettings()
+    })
+    ipcMain.on(DICTATION_CHANNELS.openAudioSettings, () => {
+      this.overlayManager?.openAudioSettings()
     })
   }
 
@@ -173,7 +206,7 @@ export class DictationManager {
   }
 
   private requestInsertion(request: DictationInsertRequest): void {
-    const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    const targetWindow = this.getMainProcessTargetWindow()
 
     if (!targetWindow || targetWindow.webContents.isDestroyed()) {
       this.controller.reportInsertion({
@@ -207,7 +240,7 @@ export class DictationManager {
   }
 
   private sendCaptureCommand(command: DictationCaptureCommand): void {
-    const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    const targetWindow = this.getMainProcessTargetWindow()
 
     if (!targetWindow || targetWindow.webContents.isDestroyed()) {
       this.controller.failRecording('Pixel has no available window for microphone capture.')
@@ -215,5 +248,23 @@ export class DictationManager {
     }
 
     targetWindow.webContents.send(DICTATION_CHANNELS.captureCommand, command)
+  }
+
+  private getMainProcessTargetWindow(): BrowserWindow | null {
+    const preferredWindow = this.getMainWindow()
+    if (
+      preferredWindow &&
+      !preferredWindow.webContents.isDestroyed() &&
+      !this.overlayManager?.isOverlayWindow(preferredWindow)
+    ) {
+      return preferredWindow
+    }
+
+    return (
+      BrowserWindow.getAllWindows().find(
+        (window) =>
+          !window.webContents.isDestroyed() && !this.overlayManager?.isOverlayWindow(window)
+      ) ?? null
+    )
   }
 }

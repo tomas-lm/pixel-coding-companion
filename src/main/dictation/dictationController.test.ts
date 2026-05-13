@@ -12,6 +12,15 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+const enabledSettings = {
+  enabled: true,
+  keepAudioHistory: false,
+  keepLastAudioSample: false,
+  keepTranscriptHistory: true,
+  overlayEnabled: false,
+  shortcutId: 'control-option-hold' as const
+}
+
 function readyStatus(): DictationBackendStatus {
   return {
     available: true,
@@ -84,9 +93,7 @@ describe('DictationController', () => {
     const { controller, emittedSnapshots, insertionRequests, setNow } = createController()
 
     controller.updateSettings({
-      enabled: true,
-      keepLastAudioSample: false,
-      shortcutId: 'control-option-hold'
+      ...enabledSettings
     })
     await controller.startRecording()
     setNow(1800)
@@ -132,9 +139,7 @@ describe('DictationController', () => {
     )
 
     controller.updateSettings({
-      enabled: true,
-      keepLastAudioSample: false,
-      shortcutId: 'control-option-hold'
+      ...enabledSettings
     })
     await controller.startRecording()
 
@@ -152,9 +157,7 @@ describe('DictationController', () => {
     )
 
     controller.updateSettings({
-      enabled: true,
-      keepLastAudioSample: false,
-      shortcutId: 'control-option-hold'
+      ...enabledSettings
     })
     await controller.startRecording()
     await controller.stopRecording()
@@ -170,9 +173,7 @@ describe('DictationController', () => {
     const { controller, requestCaptureStart, requestCaptureStop } = createController()
 
     controller.updateSettings({
-      enabled: true,
-      keepLastAudioSample: false,
-      shortcutId: 'control-option-hold'
+      ...enabledSettings
     })
     await controller.startRecording()
     await controller.stopRecording()
@@ -188,9 +189,7 @@ describe('DictationController', () => {
     })
 
     controller.updateSettings({
-      enabled: true,
-      keepLastAudioSample: false,
-      shortcutId: 'control-option-hold'
+      ...enabledSettings
     })
     await controller.startRecording()
     setNow(1200)

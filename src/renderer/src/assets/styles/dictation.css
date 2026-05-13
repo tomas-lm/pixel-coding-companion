@@ -8,6 +8,14 @@
   padding: 22px 24px;
 }
 
+.dictation-panel--embedded {
+  grid-template-rows: minmax(0, 1fr);
+  width: min(100%, 1040px);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
 .dictation-panel__header {
   display: flex;
   align-items: start;
@@ -260,6 +268,158 @@
   outline-offset: 2px;
 }
 
+.dictation-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+}
+
+.dictation-stat {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border-left: 2px solid color-mix(in srgb, var(--active-project-color) 72%, transparent);
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.dictation-stat span,
+.dictation-stat small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ev-c-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.dictation-stat span {
+  text-transform: uppercase;
+}
+
+.dictation-stat strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ev-c-text-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.dictation-history-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+}
+
+.dictation-history-tools input {
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: rgba(8, 12, 20, 0.72);
+  color: var(--ev-c-text-1);
+  font: inherit;
+  font-size: 13px;
+}
+
+.dictation-history-tools input:focus-visible {
+  border-color: color-mix(in srgb, var(--active-project-color) 54%, rgba(255, 255, 255, 0.12));
+  outline: none;
+}
+
+.dictation-history-list {
+  display: grid;
+  gap: 0;
+  max-height: 320px;
+  min-width: 0;
+  overflow: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.dictation-history-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  padding: 7px 8px;
+}
+
+.dictation-history-entry:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.dictation-history-entry__preview {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dictation-history-entry__preview span,
+.dictation-history-entry__preview small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dictation-history-entry__preview span {
+  color: var(--ev-c-text-1);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dictation-history-entry__preview small {
+  color: var(--ev-c-text-2);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.dictation-history-entry__actions {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.dictation-history-entry__actions button {
+  min-height: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--ev-c-text-1);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.dictation-history-entry__actions button:hover,
+.dictation-history-entry__actions button:focus-visible {
+  border-color: color-mix(in srgb, var(--active-project-color) 44%, rgba(255, 255, 255, 0.12));
+  outline: none;
+}
+
+.dictation-history-empty {
+  padding: 16px 8px;
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .dictation-download-progress {
   display: grid;
   gap: 7px;
@@ -351,6 +511,18 @@
   .dictation-setting-control {
     justify-items: stretch;
   }
+
+  .dictation-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dictation-history-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .dictation-history-entry__actions {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 560px) {
@@ -358,7 +530,16 @@
     padding: 16px;
   }
 
+  .dictation-panel--embedded {
+    padding: 0;
+  }
+
   .dictation-shortcut-options {
+    grid-template-columns: 1fr;
+  }
+
+  .dictation-stats-grid,
+  .dictation-history-tools {
     grid-template-columns: 1fr;
   }
 }

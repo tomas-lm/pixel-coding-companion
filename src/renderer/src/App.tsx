@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { CompanionBridgeMessage } from '../../shared/companion'
 import type {
+  DictationHistoryEntry,
   DictationInsertRequest,
   DictationInsertTarget,
   DictationMicrophonePermissionSnapshot,
-  DictationSnapshot
+  DictationSnapshot,
+  DictationStatsSnapshot
 } from '../../shared/dictation'
 import type { VaultConfig, VaultMarkdownFile, VaultTreeNode } from '../../shared/vault'
 import type {
@@ -26,7 +28,6 @@ import {
 import { CompanionCatalogPanel } from './components/CompanionCatalogPanel'
 import { CompanionPanel } from './components/CompanionPanel'
 import { ConfigsPanel } from './components/ConfigsPanel'
-import { DictationPanel } from './components/DictationPanel'
 import { LoadingScreen } from './components/LoadingScreen'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { ProjectFormModal } from './components/ProjectFormModal'
@@ -263,6 +264,11 @@ function App(): React.JSX.Element {
   const [vaultHasUnsavedChanges, setVaultHasUnsavedChanges] = useState(false)
   const [vaultRefreshKey, setVaultRefreshKey] = useState(0)
   const [dictationSnapshot, setDictationSnapshot] = useState<DictationSnapshot | null>(null)
+  const [dictationHistoryEntries, setDictationHistoryEntries] = useState<DictationHistoryEntry[]>(
+    []
+  )
+  const [dictationHistoryQuery, setDictationHistoryQuery] = useState('')
+  const [dictationStats, setDictationStats] = useState<DictationStatsSnapshot | null>(null)
   const [dictationAudioInputDevices, setDictationAudioInputDevices] = useState<
     DictationAudioInputDevice[]
   >([])
@@ -274,6 +280,7 @@ function App(): React.JSX.Element {
   const dictationCaptureRef = useRef<WavCapture | null>(null)
   const dictationCaptureStartRef = useRef<Promise<WavCapture> | null>(null)
   const featureSettingsRef = useRef(featureSettings)
+  const [configsSection, setConfigsSection] = useState<'general' | 'audio'>('general')
 
   useCompletionNotificationSound(
     companionBridgeState.messages,
@@ -289,6 +296,24 @@ function App(): React.JSX.Element {
       .then(setDictationAudioInputDevices)
       .catch(() => setDictationAudioInputDevices([]))
   }, [])
+
+  const refreshDictationHistory = useCallback(
+    (query = dictationHistoryQuery): void => {
+      void Promise.all([
+        window.api.dictation.listHistory({ limit: 80, query }),
+        window.api.dictation.loadStats()
+      ])
+        .then(([historyResult, statsSnapshot]) => {
+          setDictationHistoryEntries(historyResult.entries)
+          setDictationStats(statsSnapshot)
+        })
+        .catch(() => {
+          setDictationHistoryEntries([])
+          setDictationStats(null)
+        })
+    },
+    [dictationHistoryQuery]
+  )
 
   const refreshDictationMicrophonePermission = useCallback((): void => {
     if (typeof window.api.dictation.getMicrophonePermission !== 'function') {
@@ -404,6 +429,18 @@ function App(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
+    refreshDictationHistory()
+  }, [refreshDictationHistory])
+
+  useEffect(() => {
+    return window.api.dictation.onOpenAudioSettings(() => {
+      setConfigsSection('audio')
+      setActiveActivityItemId('configs')
+      refreshDictationHistory()
+    })
+  }, [refreshDictationHistory])
+
+  useEffect(() => {
     return () => {
       if (dictationInsertionTimerRef.current !== null) {
         window.clearTimeout(dictationInsertionTimerRef.current)
@@ -491,13 +528,19 @@ function App(): React.JSX.Element {
     void window.api.dictation
       .updateSettings({
         enabled: featureSettings.localTranscriberEnabled,
+        keepAudioHistory: featureSettings.keepDictationAudioHistory,
         keepLastAudioSample: featureSettings.keepLastDictationAudioSample,
+        keepTranscriptHistory: featureSettings.keepDictationTranscriptHistory,
+        overlayEnabled: featureSettings.dictationOverlayEnabled,
         shortcutId: featureSettings.localTranscriberShortcut
       })
       .then(setDictationSnapshot)
   }, [
     configLoaded,
+    featureSettings.dictationOverlayEnabled,
+    featureSettings.keepDictationAudioHistory,
     featureSettings.keepLastDictationAudioSample,
+    featureSettings.keepDictationTranscriptHistory,
     featureSettings.localTranscriberEnabled,
     featureSettings.localTranscriberShortcut
   ])
@@ -591,11 +634,6 @@ function App(): React.JSX.Element {
       icon: 'prompts',
       id: 'prompts',
       label: 'Prompt templates'
-    },
-    {
-      icon: 'dictation',
-      id: 'dictation',
-      label: 'Dictation'
     },
     {
       icon: 'vaults',
@@ -1306,6 +1344,34 @@ function App(): React.JSX.Element {
     void window.api.dictation.installModel().then(setDictationSnapshot)
   }
 
+  const copyDictationHistoryEntry = (entry: DictationHistoryEntry): void => {
+    window.api.clipboard.writeText(entry.text)
+  }
+
+  const deleteDictationHistoryEntry = (entry: DictationHistoryEntry): void => {
+    if (!window.confirm(`Delete this transcript from Pixel history?`)) return
+
+    void window.api.dictation
+      .deleteHistoryEntry({ id: entry.id })
+      .then((result) => {
+        setDictationHistoryEntries(result.entries)
+        return window.api.dictation.loadStats()
+      })
+      .then(setDictationStats)
+  }
+
+  const clearDictationHistory = (): void => {
+    if (!window.confirm('Clear all saved transcript history?')) return
+
+    void window.api.dictation
+      .clearHistory()
+      .then((result) => {
+        setDictationHistoryEntries(result.entries)
+        return window.api.dictation.loadStats()
+      })
+      .then(setDictationStats)
+  }
+
   const completeDictationInsertion = useCallback(
     (request: DictationInsertRequest, target: DictationInsertTarget): void => {
       window.api.dictation.completeInsertion({
@@ -1321,8 +1387,9 @@ function App(): React.JSX.Element {
         setRecentDictationInsertionTarget(null)
         dictationInsertionTimerRef.current = null
       }, DICTATION_RESULT_VISIBLE_MS)
+      refreshDictationHistory()
     },
-    []
+    [refreshDictationHistory]
   )
 
   const handleDictationInsert = useCallback(
@@ -1539,20 +1606,21 @@ function App(): React.JSX.Element {
         />
       ) : activeActivityItemId === 'configs' ? (
         <ConfigsPanel
+          activeSection={configsSection}
+          audioInputDevices={dictationAudioInputDevices}
           codeEditorSettings={codeEditorSettings}
+          dictationHistoryEntries={dictationHistoryEntries}
+          dictationHistoryQuery={dictationHistoryQuery}
+          dictationSnapshot={dictationSnapshot}
+          dictationStats={dictationStats}
           featureSettings={featureSettings}
+          microphonePermission={dictationMicrophonePermission}
           onChangeCodeEditorSettings={changeCodeEditorSettings}
           onChangeFeatureSettings={changeFeatureSettings}
-          onSelectTerminalTheme={applyTerminalTheme}
-          terminalThemeId={terminalThemeId}
-        />
-      ) : activeActivityItemId === 'dictation' ? (
-        <DictationPanel
-          audioInputDevices={dictationAudioInputDevices}
-          microphonePermission={dictationMicrophonePermission}
-          dictationSnapshot={dictationSnapshot}
-          featureSettings={featureSettings}
-          onChangeFeatureSettings={changeFeatureSettings}
+          onChangeHistoryQuery={setDictationHistoryQuery}
+          onClearHistory={clearDictationHistory}
+          onCopyHistoryEntry={copyDictationHistoryEntry}
+          onDeleteHistoryEntry={deleteDictationHistoryEntry}
           onInstallParakeet={installParakeetModel}
           onOpenMicrophoneSettings={() => {
             if (typeof window.api.dictation.openMicrophoneSettings === 'function') {
@@ -1561,9 +1629,12 @@ function App(): React.JSX.Element {
           }}
           onRefreshAudioInputs={refreshDictationAudioInputDevices}
           onRequestMicrophonePermission={requestDictationMicrophonePermission}
+          onSectionChange={setConfigsSection}
+          onSelectTerminalTheme={applyTerminalTheme}
           onTestDictation={() => {
             void window.api.dictation.testTranscription()
           }}
+          terminalThemeId={terminalThemeId}
         />
       ) : activeActivityItemId === 'vaults' ? (
         <VaultWorkspacePanel
