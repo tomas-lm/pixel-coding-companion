@@ -4,6 +4,7 @@ import {
   createFolder,
   createMarkdownFile,
   createVaultFolder,
+  deleteEntry,
   listMarkdownTree,
   readMarkdownFile,
   saveMarkdownFile
@@ -15,6 +16,8 @@ import {
   type VaultCreateFolderRequest,
   type VaultCreateFolderResult,
   type VaultCreateMarkdownFileRequest,
+  type VaultDeleteEntryRequest,
+  type VaultDeleteEntryResult,
   type VaultFileRequest,
   type VaultFolderPickResult,
   type VaultMarkdownFile,
@@ -65,6 +68,13 @@ export function registerVaultIpc(): void {
     VAULT_CHANNELS.createFolder,
     async (_, request: VaultCreateDirectoryRequest): Promise<VaultCreateDirectoryResult> => {
       return createFolder(request)
+    }
+  )
+
+  ipcMain.handle(
+    VAULT_CHANNELS.deleteEntry,
+    async (_, request: VaultDeleteEntryRequest): Promise<VaultDeleteEntryResult> => {
+      return deleteEntry(request)
     }
   )
 

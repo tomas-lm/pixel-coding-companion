@@ -41,6 +41,7 @@ import {
   type VaultCreateDirectoryRequest,
   type VaultCreateFolderRequest,
   type VaultCreateMarkdownFileRequest,
+  type VaultDeleteEntryRequest,
   type VaultFileRequest,
   type VaultRootRequest,
   type VaultSaveMarkdownFileRequest
@@ -159,6 +160,8 @@ const api: CompanionApi = {
       ipcRenderer.invoke(VAULT_CHANNELS.createMarkdownFile, request),
     createVaultFolder: (request: VaultCreateFolderRequest) =>
       ipcRenderer.invoke(VAULT_CHANNELS.createVaultFolder, request),
+    deleteEntry: (request: VaultDeleteEntryRequest) =>
+      ipcRenderer.invoke(VAULT_CHANNELS.deleteEntry, request),
     listTree: (request: VaultRootRequest) => ipcRenderer.invoke(VAULT_CHANNELS.listTree, request),
     pickFolder: () => ipcRenderer.invoke(VAULT_CHANNELS.pickFolder),
     pickParentFolder: () => ipcRenderer.invoke(VAULT_CHANNELS.pickParentFolder),

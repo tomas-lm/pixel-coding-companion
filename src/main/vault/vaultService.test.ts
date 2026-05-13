@@ -6,6 +6,7 @@ import {
   createFolder,
   createMarkdownFile,
   createVaultFolder,
+  deleteEntry,
   isPathInside,
   listMarkdownTree,
   readMarkdownFile,
@@ -170,5 +171,55 @@ describe('vaultService', () => {
         rootPath: root
       })
     ).rejects.toThrow('plain name')
+  })
+
+  it('deletes markdown files and folders inside the vault', async () => {
+    const root = await createTempDir()
+    const folderPath = join(root, 'notes')
+    const filePath = join(folderPath, 'daily.md')
+    await mkdir(folderPath)
+    await writeFile(filePath, '# Daily')
+
+    await deleteEntry({
+      path: filePath,
+      rootPath: root,
+      type: 'markdown'
+    })
+
+    await expect(readFile(filePath, 'utf8')).rejects.toThrow()
+
+    await writeFile(join(folderPath, 'nested.md'), '# Nested')
+    await deleteEntry({
+      path: folderPath,
+      rootPath: root,
+      type: 'directory'
+    })
+
+    await expect(readFile(join(folderPath, 'nested.md'), 'utf8')).rejects.toThrow()
+  })
+
+  it('rejects unsafe delete requests', async () => {
+    const root = await createTempDir()
+    const outsidePath = join(tmpdir(), `pixel-outside-${Date.now()}.md`)
+    await writeFile(outsidePath, '# Outside')
+
+    try {
+      await expect(
+        deleteEntry({
+          path: root,
+          rootPath: root,
+          type: 'directory'
+        })
+      ).rejects.toThrow('vault root')
+      await expect(
+        deleteEntry({
+          path: outsidePath,
+          rootPath: root,
+          type: 'markdown'
+        })
+      ).rejects.toThrow('outside the selected vault')
+    } finally {
+      await rm(outsidePath, { force: true })
+    }
   })
 })

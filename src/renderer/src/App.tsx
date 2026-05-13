@@ -6,7 +6,7 @@ import type {
   DictationMicrophonePermissionSnapshot,
   DictationSnapshot
 } from '../../shared/dictation'
-import type { VaultConfig, VaultMarkdownFile } from '../../shared/vault'
+import type { VaultConfig, VaultMarkdownFile, VaultTreeNode } from '../../shared/vault'
 import type {
   PixelLauncherAgentId,
   Project,
@@ -104,6 +104,12 @@ type StartWorkspaceSelection = {
   projectId: string
   selectedConfigIds: string[]
   startWithPixel: boolean
+}
+
+type VaultContextEntry = {
+  name: string
+  path: string
+  type: VaultTreeNode['type']
 }
 
 type RunningSessionPatch = Partial<
@@ -1219,6 +1225,58 @@ function App(): React.JSX.Element {
     setVaultRefreshKey((currentKey) => currentKey + 1)
   }
 
+  const deleteVaultEntry = async (entry: VaultContextEntry): Promise<void> => {
+    if (!activeVault) return
+
+    const isDeletingOpenFile = Boolean(
+      selectedVaultFilePath &&
+      (entry.path === selectedVaultFilePath ||
+        (entry.type === 'directory' && isPathInsideRoot(entry.path, selectedVaultFilePath)))
+    )
+
+    if (isDeletingOpenFile && !confirmDiscardVaultChanges()) return
+
+    const confirmed = window.confirm(
+      entry.type === 'directory'
+        ? `Delete folder "${entry.name}" and everything inside it from disk?`
+        : `Delete file "${entry.name}" from disk?`
+    )
+    if (!confirmed) return
+
+    await window.api.vault.deleteEntry({
+      path: entry.path,
+      rootPath: activeVault.rootPath,
+      type: entry.type
+    })
+
+    setVaults((currentVaults) =>
+      currentVaults.map((vault) => {
+        const lastOpenedFilePath = vault.lastOpenedFilePath
+        if (
+          vault.id !== activeVault.id ||
+          !lastOpenedFilePath ||
+          (lastOpenedFilePath !== entry.path &&
+            (entry.type !== 'directory' || !isPathInsideRoot(entry.path, lastOpenedFilePath)))
+        ) {
+          return vault
+        }
+
+        return {
+          ...vault,
+          lastOpenedFilePath: undefined,
+          updatedAt: new Date().toISOString()
+        }
+      })
+    )
+
+    if (isDeletingOpenFile) {
+      setSelectedVaultFileSelection(null)
+      setVaultHasUnsavedChanges(false)
+    }
+
+    setVaultRefreshKey((currentKey) => currentKey + 1)
+  }
+
   const handleVaultFileSaved = (file: VaultMarkdownFile): void => {
     if (!activeVault) return
 
@@ -1412,6 +1470,7 @@ function App(): React.JSX.Element {
           refreshKey={vaultRefreshKey}
           onCreateFolder={createVaultFolder}
           onCreateNote={createVaultNote}
+          onDeleteEntry={deleteVaultEntry}
           onDeleteVault={deleteVault}
           onSaveVault={saveVault}
           onSelectFile={selectVaultFile}

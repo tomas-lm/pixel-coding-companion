@@ -19,6 +19,12 @@ const tree: VaultTreeNode[] = [
     path: '/vault/Projects',
     relativePath: 'Projects',
     type: 'directory'
+  },
+  {
+    name: 'Roadmap.md',
+    path: '/vault/Roadmap.md',
+    relativePath: 'Roadmap.md',
+    type: 'markdown'
   }
 ]
 
@@ -34,6 +40,7 @@ function renderVaultRail(
       vaults={[activeVault]}
       onCreateFolder={vi.fn()}
       onCreateNote={vi.fn()}
+      onDeleteEntry={vi.fn()}
       onDeleteVault={vi.fn()}
       onSaveVault={vi.fn()}
       onSelectFile={vi.fn()}
@@ -91,6 +98,42 @@ describe('VaultRail', () => {
 
     await waitFor(() => {
       expect(onCreateNote).toHaveBeenCalledWith('Roadmap', undefined)
+    })
+  })
+
+  it('deletes a folder from the folder context menu', async () => {
+    const onDeleteEntry = vi.fn().mockResolvedValue(undefined)
+
+    renderVaultRail({ onDeleteEntry })
+
+    const folderButton = await screen.findByRole('button', { name: 'Projects' })
+    fireEvent.contextMenu(folderButton, { clientX: 140, clientY: 160 })
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete folder' }))
+
+    await waitFor(() => {
+      expect(onDeleteEntry).toHaveBeenCalledWith({
+        name: 'Projects',
+        path: '/vault/Projects',
+        type: 'directory'
+      })
+    })
+  })
+
+  it('deletes a file from the file context menu', async () => {
+    const onDeleteEntry = vi.fn().mockResolvedValue(undefined)
+
+    renderVaultRail({ onDeleteEntry })
+
+    const fileButton = await screen.findByRole('button', { name: 'Roadmap.md' })
+    fireEvent.contextMenu(fileButton, { clientX: 140, clientY: 180 })
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete file' }))
+
+    await waitFor(() => {
+      expect(onDeleteEntry).toHaveBeenCalledWith({
+        name: 'Roadmap.md',
+        path: '/vault/Roadmap.md',
+        type: 'markdown'
+      })
     })
   })
 })

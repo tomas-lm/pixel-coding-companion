@@ -16,6 +16,7 @@ type VaultRailProps = {
   activeVaultId: string | null
   onCreateFolder: (name: string, directoryPath?: string) => Promise<void>
   onCreateNote: (name: string, directoryPath?: string) => Promise<void>
+  onDeleteEntry: (entry: VaultContextEntry) => Promise<void>
   onDeleteVault: (vaultId: string) => void
   onSaveVault: (vault: VaultConfig) => void
   onSelectFile: (filePath: string) => void
@@ -44,9 +45,16 @@ type VaultCreateTarget = {
   kind: 'file' | 'folder'
 }
 
+type VaultContextEntry = {
+  name: string
+  path: string
+  type: VaultTreeNode['type']
+}
+
 type VaultContextMenuState = {
-  directoryName: string
+  createDirectoryName?: string
   directoryPath?: string
+  entry?: VaultContextEntry
   x: number
   y: number
 }
@@ -92,6 +100,8 @@ function VaultTreeItem({
   node,
   onOpenDirectoryMenu,
   onOpenDirectoryMenuAt,
+  onOpenFileMenu,
+  onOpenFileMenuAt,
   onSelectFile,
   onToggleFolder,
   selectedFilePath
@@ -101,6 +111,8 @@ function VaultTreeItem({
   node: VaultTreeNode
   onOpenDirectoryMenu: (event: React.MouseEvent<HTMLElement>, node: VaultTreeNode) => void
   onOpenDirectoryMenuAt: (x: number, y: number, node: VaultTreeNode) => void
+  onOpenFileMenu: (event: React.MouseEvent<HTMLElement>, node: VaultTreeNode) => void
+  onOpenFileMenuAt: (x: number, y: number, node: VaultTreeNode) => void
   onSelectFile: (filePath: string) => void
   onToggleFolder: (path: string) => void
   selectedFilePath: string | null
@@ -116,7 +128,15 @@ function VaultTreeItem({
           type="button"
           title={node.relativePath}
           aria-current={isSelected ? 'page' : undefined}
+          onContextMenu={(event) => onOpenFileMenu(event, node)}
           onClick={() => onSelectFile(node.path)}
+          onKeyDown={(event) => {
+            if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+              event.preventDefault()
+              const rect = event.currentTarget.getBoundingClientRect()
+              onOpenFileMenuAt(rect.left + 20, rect.top + rect.height, node)
+            }
+          }}
         >
           <span aria-hidden="true" className="vault-tree-spacer" />
           <MarkdownFileIcon />
@@ -168,6 +188,8 @@ function VaultTreeItem({
               selectedFilePath={selectedFilePath}
               onOpenDirectoryMenu={onOpenDirectoryMenu}
               onOpenDirectoryMenuAt={onOpenDirectoryMenuAt}
+              onOpenFileMenu={onOpenFileMenu}
+              onOpenFileMenuAt={onOpenFileMenuAt}
               onSelectFile={onSelectFile}
               onToggleFolder={onToggleFolder}
             />
@@ -395,11 +417,13 @@ function NewVaultItemModal({
 function VaultContextMenu({
   menu,
   onClose,
-  onCreate
+  onCreate,
+  onDelete
 }: {
   menu: VaultContextMenuState
   onClose: () => void
   onCreate: (kind: VaultCreateTarget['kind']) => void
+  onDelete: (entry: VaultContextEntry) => void
 }): React.JSX.Element {
   useEffect(() => {
     const close = (): void => onClose()
@@ -415,23 +439,55 @@ function VaultContextMenu({
     }
   }, [onClose])
 
+  const label = menu.entry?.name ?? menu.createDirectoryName ?? 'vault'
+  const deleteLabel =
+    menu.entry?.type === 'directory'
+      ? 'Delete folder'
+      : menu.entry?.type === 'markdown'
+        ? 'Delete file'
+        : null
+
   return (
     <div
       className="vault-context-menu"
       role="menu"
-      aria-label={`Actions for ${menu.directoryName}`}
+      aria-label={`Actions for ${label}`}
       style={{ left: menu.x, top: menu.y }}
       onContextMenu={(event) => event.preventDefault()}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <button type="button" role="menuitem" onClick={() => onCreate('file')}>
-        <span className="vault-context-menu__icon">+</span>
-        <span>New file</span>
-      </button>
-      <button type="button" role="menuitem" onClick={() => onCreate('folder')}>
-        <span className="vault-context-menu__icon">+</span>
-        <span>New folder</span>
-      </button>
+      {menu.createDirectoryName ? (
+        <>
+          <button type="button" role="menuitem" onClick={() => onCreate('file')}>
+            <span className="vault-context-menu__icon" aria-hidden="true">
+              +
+            </span>
+            <span>New file</span>
+          </button>
+          <button type="button" role="menuitem" onClick={() => onCreate('folder')}>
+            <span className="vault-context-menu__icon" aria-hidden="true">
+              +
+            </span>
+            <span>New folder</span>
+          </button>
+        </>
+      ) : null}
+      {menu.createDirectoryName && menu.entry ? (
+        <div className="vault-context-menu__separator" />
+      ) : null}
+      {menu.entry && deleteLabel ? (
+        <button
+          className="vault-context-menu__danger"
+          type="button"
+          role="menuitem"
+          onClick={() => onDelete(menu.entry as VaultContextEntry)}
+        >
+          <span className="vault-context-menu__icon" aria-hidden="true">
+            -
+          </span>
+          <span>{deleteLabel}</span>
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -441,6 +497,7 @@ export function VaultRail({
   activeVaultId,
   onCreateFolder,
   onCreateNote,
+  onDeleteEntry,
   onDeleteVault,
   onSaveVault,
   onSelectFile,
@@ -510,23 +567,26 @@ export function VaultRail({
 
   const openContextMenu = (
     event: React.MouseEvent<HTMLElement>,
-    directoryName: string,
-    directoryPath?: string
+    createDirectoryName: string,
+    directoryPath?: string,
+    entry?: VaultContextEntry
   ): void => {
     event.preventDefault()
     event.stopPropagation()
-    openContextMenuAt(event.clientX, event.clientY, directoryName, directoryPath)
+    openContextMenuAt(event.clientX, event.clientY, createDirectoryName, directoryPath, entry)
   }
 
   const openContextMenuAt = (
     x: number,
     y: number,
-    directoryName: string,
-    directoryPath?: string
+    createDirectoryName: string | undefined,
+    directoryPath?: string,
+    entry?: VaultContextEntry
   ): void => {
     setContextMenu({
-      directoryName,
+      createDirectoryName,
       directoryPath,
+      entry,
       x: Math.max(8, Math.min(x, window.innerWidth - 184)),
       y: Math.max(8, Math.min(y, window.innerHeight - 96))
     })
@@ -536,11 +596,37 @@ export function VaultRail({
     event: React.MouseEvent<HTMLElement>,
     node: VaultTreeNode
   ): void => {
-    openContextMenu(event, node.name, node.path)
+    openContextMenu(event, node.name, node.path, {
+      name: node.name,
+      path: node.path,
+      type: node.type
+    })
   }
 
   const openDirectoryContextMenuAt = (x: number, y: number, node: VaultTreeNode): void => {
-    openContextMenuAt(x, y, node.name, node.path)
+    openContextMenuAt(x, y, node.name, node.path, {
+      name: node.name,
+      path: node.path,
+      type: node.type
+    })
+  }
+
+  const openFileContextMenu = (event: React.MouseEvent<HTMLElement>, node: VaultTreeNode): void => {
+    event.preventDefault()
+    event.stopPropagation()
+    openContextMenuAt(event.clientX, event.clientY, undefined, undefined, {
+      name: node.name,
+      path: node.path,
+      type: node.type
+    })
+  }
+
+  const openFileContextMenuAt = (x: number, y: number, node: VaultTreeNode): void => {
+    openContextMenuAt(x, y, undefined, undefined, {
+      name: node.name,
+      path: node.path,
+      type: node.type
+    })
   }
 
   const openCreateModal = (kind: VaultCreateTarget['kind'], target = rootCreateTarget): void => {
@@ -571,6 +657,11 @@ export function VaultRail({
         [target.directoryPath as string]: false
       }))
     }
+  }
+
+  const deleteVaultItem = async (entry: VaultContextEntry): Promise<void> => {
+    setContextMenu(null)
+    await onDeleteEntry(entry)
   }
 
   return (
@@ -619,21 +710,21 @@ export function VaultRail({
         <section className="rail-section rail-section--actions" aria-label="Vault actions">
           <div className="vault-action-grid">
             <button
-              className="secondary-button"
+              className="secondary-button vault-action-button"
               type="button"
               onClick={() => setForm(createEmptyVaultForm('existing'))}
             >
               Add existing
             </button>
             <button
-              className="secondary-button"
+              className="secondary-button vault-action-button"
               type="button"
               onClick={() => setForm(createEmptyVaultForm('new'))}
             >
               New vault
             </button>
             <button
-              className="primary-button"
+              className="primary-button vault-action-button vault-action-button--accent"
               type="button"
               disabled={!activeVault}
               onClick={() => openCreateModal('file')}
@@ -641,7 +732,7 @@ export function VaultRail({
               New file
             </button>
             <button
-              className="secondary-button"
+              className="secondary-button vault-action-button"
               type="button"
               disabled={!activeVault}
               onClick={() => openCreateModal('folder')}
@@ -691,6 +782,8 @@ export function VaultRail({
                   selectedFilePath={selectedFilePath}
                   onOpenDirectoryMenu={openDirectoryContextMenu}
                   onOpenDirectoryMenuAt={openDirectoryContextMenuAt}
+                  onOpenFileMenu={openFileContextMenu}
+                  onOpenFileMenuAt={openFileContextMenuAt}
                   onSelectFile={onSelectFile}
                   onToggleFolder={(path) =>
                     setCollapsedPaths((currentState) =>
@@ -720,9 +813,12 @@ export function VaultRail({
         <VaultContextMenu
           menu={contextMenu}
           onClose={() => setContextMenu(null)}
+          onDelete={(entry) => {
+            void deleteVaultItem(entry)
+          }}
           onCreate={(kind) =>
             openCreateModal(kind, {
-              directoryName: contextMenu.directoryName,
+              directoryName: contextMenu.createDirectoryName ?? activeVault?.name ?? 'Vault',
               directoryPath: contextMenu.directoryPath,
               kind
             })
