@@ -12,6 +12,9 @@ describe('workspaceFeatureSettings', () => {
   it('keeps persisted feature settings', () => {
     expect(
       normalizeWorkspaceFeatureSettings({
+        dictationOverlayEnabled: true,
+        keepDictationAudioHistory: true,
+        keepDictationTranscriptHistory: false,
         keepLastDictationAudioSample: true,
         localTranscriberAudioInputDeviceId: 'mic-1',
         localTranscriberEnabled: true,
@@ -19,6 +22,9 @@ describe('workspaceFeatureSettings', () => {
         playSoundsUponFinishing: true
       })
     ).toEqual({
+      dictationOverlayEnabled: true,
+      keepDictationAudioHistory: true,
+      keepDictationTranscriptHistory: false,
       keepLastDictationAudioSample: true,
       localTranscriberAudioInputDeviceId: 'mic-1',
       localTranscriberEnabled: true,
@@ -30,6 +36,9 @@ describe('workspaceFeatureSettings', () => {
   it('falls back when persisted feature settings have invalid types', () => {
     expect(
       normalizeWorkspaceFeatureSettings({
+        dictationOverlayEnabled: 'yes',
+        keepDictationAudioHistory: 'yes',
+        keepDictationTranscriptHistory: 'yes',
         keepLastDictationAudioSample: 'yes',
         localTranscriberAudioInputDeviceId: 42,
         localTranscriberEnabled: 'yes',
@@ -37,6 +46,9 @@ describe('workspaceFeatureSettings', () => {
         playSoundsUponFinishing: 'yes'
       })
     ).toEqual({
+      dictationOverlayEnabled: false,
+      keepDictationAudioHistory: false,
+      keepDictationTranscriptHistory: true,
       keepLastDictationAudioSample: false,
       localTranscriberAudioInputDeviceId: null,
       localTranscriberEnabled: false,

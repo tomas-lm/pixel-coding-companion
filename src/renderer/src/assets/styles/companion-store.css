@@ -194,16 +194,16 @@
   justify-self: center;
   display: grid;
   place-items: center;
-  width: min(152px, 86%);
-  height: min(132px, 74%);
+  width: min(178px, 96%);
+  height: min(156px, 84%);
   aspect-ratio: 1 / 1;
 }
 
 .companion-box-image {
   display: block;
-  width: min(142px, 100%);
+  width: min(168px, 112%);
   height: auto;
-  max-height: 132px;
+  max-height: 156px;
   filter: drop-shadow(0 16px 12px rgba(0, 0, 0, 0.26));
   image-rendering: pixelated;
   object-fit: contain;

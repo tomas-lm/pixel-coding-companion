@@ -11,6 +11,7 @@ import { COMPANION_REGISTRY, STARTER_COMPANION_ID } from '../companions/companio
 import type { CompanionCardState, CompanionDefinition } from '../companions/companionTypes'
 import {
   applyDevCompanionLevelOverrides,
+  isDevCompanionLevelControlsEnabled,
   saveDevCompanionLevelOverride
 } from '../lib/devCompanionLevelOverrides'
 import { CompanionBoxShelf } from './CompanionBoxShelf'
@@ -60,7 +61,7 @@ export function CompanionStorePage({
   const [rollResult, setRollResult] = useState<CompanionBoxOpenResult | null>(null)
   const [storeError, setStoreError] = useState<string | null>(null)
   const activeCompanionId = storeState?.activeCompanionId ?? STARTER_COMPANION_ID
-  const isDevStoreControlsEnabled = import.meta.env.DEV
+  const isDevStoreControlsEnabled = isDevCompanionLevelControlsEnabled()
   const today = getLocalDateKey()
 
   const openBox = (boxId: string): void => {

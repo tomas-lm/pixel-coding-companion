@@ -1,9 +1,13 @@
-import { mkdir, readdir, readFile, realpath, stat, writeFile } from 'fs/promises'
+import { mkdir, readdir, readFile, realpath, rm, stat, writeFile } from 'fs/promises'
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'path'
 import type {
+  VaultCreateDirectoryRequest,
+  VaultCreateDirectoryResult,
   VaultCreateFolderRequest,
   VaultCreateFolderResult,
   VaultCreateMarkdownFileRequest,
+  VaultDeleteEntryRequest,
+  VaultDeleteEntryResult,
   VaultMarkdownFile,
   VaultSaveMarkdownFileRequest,
   VaultTreeNode
@@ -92,7 +96,7 @@ async function buildTree(rootPath: string, currentPath: string): Promise<VaultTr
       if (isIgnoredDirectory(entry.name, currentPath)) continue
 
       const child = await buildTree(rootPath, entryPath)
-      if (child && child.children && child.children.length > 0) {
+      if (child) {
         children.push(child)
       }
       continue
@@ -182,6 +186,58 @@ export async function createMarkdownFile({
 
   await writeFile(filePath, '', { encoding: 'utf8', flag: 'wx' })
   return readMarkdownFile(safeRoot, filePath)
+}
+
+export async function createFolder({
+  directoryPath,
+  name,
+  rootPath
+}: VaultCreateDirectoryRequest): Promise<VaultCreateDirectoryResult> {
+  const safeRoot = await realpath(rootPath)
+  const targetDirectory = directoryPath
+    ? await getSafeExistingPath(safeRoot, directoryPath)
+    : safeRoot
+  const folderName = assertSafeSegment(name, 'Folder name')
+  const folderPath = await getSafeWritablePath(safeRoot, join(targetDirectory, folderName))
+
+  await mkdir(folderPath, { recursive: false })
+
+  return {
+    name: folderName,
+    path: folderPath,
+    relativePath: getRelativePath(safeRoot, folderPath)
+  }
+}
+
+export async function deleteEntry({
+  path,
+  rootPath,
+  type
+}: VaultDeleteEntryRequest): Promise<VaultDeleteEntryResult> {
+  const safeRoot = await realpath(rootPath)
+  const safePath = await getSafeExistingPath(safeRoot, path)
+
+  if (safePath === safeRoot) {
+    throw new Error('Cannot delete the vault root.')
+  }
+
+  const entryStats = await stat(safePath)
+
+  if (type === 'markdown') {
+    if (!entryStats.isFile() || !isMarkdownPath(safePath)) {
+      throw new Error('Only Markdown files can be deleted as files.')
+    }
+
+    await rm(safePath)
+    return { path: safePath }
+  }
+
+  if (!entryStats.isDirectory()) {
+    throw new Error('Only folders can be deleted as folders.')
+  }
+
+  await rm(safePath, { recursive: true })
+  return { path: safePath }
 }
 
 export async function createVaultFolder({

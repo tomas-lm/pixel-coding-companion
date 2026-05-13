@@ -39,6 +39,8 @@ import type { CompanionDefinition, CompanionSpriteStage } from './companionTypes
 
 export { STARTER_COMPANION_ID, STARTER_COMPANION_IDS }
 
+const COMPANION_EVOLUTIONS_ENABLED = false
+
 export const GHOU_STAGES: CompanionSpriteStage[] = [
   {
     avatarOffsetX: -6,
@@ -136,11 +138,12 @@ export const KARPA_STAGES: CompanionSpriteStage[] = [
   {
     frameColumns: 6,
     frameRows: 6,
-    height: 120,
+    height: 126,
     id: 'lvl1',
     minLevel: 5,
+    offsetY: 40,
     spriteUrl: karpaLvl1SpriteUrl,
-    width: 211
+    width: 205
   },
   {
     frameColumns: 6,
@@ -185,7 +188,7 @@ export const PHOEBE_STAGES: CompanionSpriteStage[] = [
     minLevel: 5,
     offsetY: 40,
     spriteUrl: phoebeLvl1SpriteUrl,
-    width: 132
+    width: 154
   },
   {
     frameColumns: 6,
@@ -329,7 +332,7 @@ export const TATA_STAGES: CompanionSpriteStage[] = [
     height: 149,
     id: 'lvl1',
     minLevel: 5,
-    offsetY: 40,
+    offsetY: 42,
     spriteUrl: tataLvl1SpriteUrl,
     width: 93
   },
@@ -377,7 +380,7 @@ export const TOUK_STAGES: CompanionSpriteStage[] = [
     minLevel: 5,
     offsetY: 40,
     spriteUrl: toukLvl1SpriteUrl,
-    width: 122
+    width: 140
   },
   {
     frameColumns: 6,
@@ -423,6 +426,11 @@ export function getCompanionStageForLevel(
   level: number
 ): CompanionSpriteStage {
   const safeLevel = Math.max(0, Math.floor(level))
+
+  if (!COMPANION_EVOLUTIONS_ENABLED) {
+    const hatchedStage = companion.stages.find((stage) => stage.id === 'lvl1')
+    if (hatchedStage && safeLevel >= hatchedStage.minLevel) return hatchedStage
+  }
 
   return companion.stages.reduce((activeStage, stage) => {
     return safeLevel >= stage.minLevel ? stage : activeStage

@@ -5,13 +5,153 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding: 20px;
+  padding: 22px 24px;
+}
+
+.dictation-history-panel {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.dictation-history-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dictation-history-panel__header h1 {
+  margin: 0;
+  color: var(--ev-c-text-1);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.dictation-history-panel__header p {
+  margin: 5px 0 0;
+  color: var(--ev-c-text-3);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.dictation-history-panel__toolbar input {
+  width: min(520px, 100%);
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 0 11px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--ev-c-text-1);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.dictation-history-panel__toolbar input:focus-visible {
+  border-color: color-mix(in srgb, var(--active-project-color) 56%, transparent);
+  outline: none;
+}
+
+.dictation-history-productivity {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 14px;
+}
+
+.dictation-history-productivity h2 {
+  margin: 0;
+  color: color-mix(in srgb, var(--ev-c-text-1) 82%, var(--active-project-color));
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.dictation-history-panel__list {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: 9px;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.dictation-history-card {
+  display: grid;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.dictation-history-card__text {
+  display: -webkit-box;
+  min-width: 0;
+  min-height: 40px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  color: var(--ev-c-text-1);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.45;
+  text-align: left;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.dictation-history-card__text:hover,
+.dictation-history-card__text:focus-visible {
+  color: color-mix(in srgb, var(--active-project-color) 70%, var(--ev-c-text-1));
+  outline: none;
+}
+
+.dictation-history-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  color: var(--ev-c-text-3);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dictation-history-card__actions {
+  display: flex;
+  gap: 7px;
+}
+
+.dictation-history-card__actions .primary-button,
+.dictation-history-card__actions .secondary-button {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.dictation-panel--embedded {
+  grid-template-rows: minmax(0, 1fr);
+  width: min(100%, 1040px);
+  border: 0;
+  padding: 0;
+  background: transparent;
 }
 
 .dictation-panel__header {
   display: flex;
   align-items: start;
   justify-content: space-between;
+  width: min(100%, 1040px);
   gap: 16px;
 }
 
@@ -31,88 +171,166 @@
 .dictation-panel__body {
   display: grid;
   align-content: start;
-  grid-template-columns: repeat(2, minmax(260px, 420px));
-  gap: 14px;
+  width: min(100%, 1040px);
   min-width: 0;
   min-height: 0;
   overflow: auto;
   padding-right: 6px;
 }
 
-.dictation-config {
+.dictation-settings-group {
   display: grid;
-  gap: 12px;
+  gap: 0;
   min-width: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.045);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 17px 0 4px;
 }
 
-.dictation-config h2 {
-  margin: 0;
-  color: var(--ev-c-text-2);
+.dictation-settings-group:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.dictation-settings-group h2 {
+  margin: 0 0 5px;
+  color: color-mix(in srgb, var(--ev-c-text-1) 82%, var(--active-project-color));
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
 }
 
-.dictation-config__section-header,
-.dictation-config__status,
-.dictation-config__meta,
-.dictation-config__actions {
+.dictation-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 370px);
+  gap: 22px;
+  min-width: 0;
+  border-radius: 6px;
+  padding: 12px 8px;
+  transition: background 120ms ease;
+}
+
+.dictation-setting-row + .dictation-setting-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dictation-setting-row:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.dictation-setting-copy,
+.dictation-setting-control {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+}
+
+.dictation-setting-control {
+  justify-items: stretch;
+}
+
+.dictation-setting-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
-.dictation-config__section-header {
-  align-items: start;
-}
-
-.dictation-config__status > div,
-.dictation-config__meta {
+.dictation-setting-copy h3 {
   min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--ev-c-text-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
-.dictation-config span,
-.dictation-config p {
+.dictation-setting-copy p {
+  max-width: 560px;
+  margin: 0;
   color: var(--ev-c-text-2);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
+  line-height: 1.45;
 }
 
-.dictation-config strong {
+.dictation-setting-current {
   display: block;
   min-width: 0;
   overflow: hidden;
   color: var(--ev-c-text-1);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 800;
 }
 
-.dictation-config p {
-  margin: 0;
-  font-weight: 500;
-  line-height: 1.45;
+.dictation-inline-toggle {
+  justify-self: start;
+  min-height: 30px;
+  color: var(--ev-c-text-1);
 }
 
-.dictation-config__pill {
+.dictation-inline-toggle input {
   flex: 0 0 auto;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  padding: 4px 8px;
-  color: #f7d56f;
+}
+
+.dictation-inline-toggle span {
+  min-width: 0;
+  color: var(--ev-c-text-1);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dictation-config__status {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.dictation-config__status span {
+  min-width: 0;
+  color: var(--ev-c-text-2);
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.dictation-config__pill--ready {
+.dictation-config__status strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ev-c-text-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dictation-config__pill {
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: #f7d56f;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  opacity: 0.92;
+  text-transform: uppercase;
+}
+
+.dictation-config__pill--ready,
+.dictation-config__pill--installed,
+.dictation-config__pill--granted {
   color: #34d399;
 }
 
@@ -124,14 +342,6 @@
   color: #f7d56f;
 }
 
-.dictation-config__pill--installed {
-  color: #34d399;
-}
-
-.dictation-config__pill--granted {
-  color: #34d399;
-}
-
 .dictation-config__pill--failed,
 .dictation-config__pill--denied,
 .dictation-config__pill--restricted,
@@ -141,8 +351,21 @@
 }
 
 .dictation-config__actions {
+  display: flex;
+  align-items: center;
   justify-content: flex-start;
   flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dictation-config__actions .primary-button,
+.dictation-config__actions .secondary-button {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dictation-config__error {
@@ -152,17 +375,18 @@
 }
 
 .dictation-config__notice {
-  color: var(--active-project-color);
+  color: color-mix(in srgb, var(--active-project-color) 78%, var(--ev-c-text-1));
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.35;
 }
 
 .dictation-config__select {
   width: 100%;
   min-width: 0;
-  min-height: 36px;
+  min-height: 34px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 7px;
+  border-radius: 6px;
   padding: 0 10px;
   background: rgba(8, 12, 20, 0.72);
   color: var(--ev-c-text-1);
@@ -175,15 +399,64 @@
   outline-offset: 2px;
 }
 
+.dictation-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+}
+
+.dictation-stat {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border-left: 2px solid color-mix(in srgb, var(--active-project-color) 72%, transparent);
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.dictation-stat span,
+.dictation-stat small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ev-c-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.dictation-stat span {
+  text-transform: uppercase;
+}
+
+.dictation-stat strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ev-c-text-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.dictation-history-empty {
+  padding: 16px 8px;
+  color: var(--ev-c-text-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .dictation-download-progress {
   display: grid;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
 }
 
 .dictation-download-progress__bar {
   width: 100%;
-  height: 8px;
+  height: 7px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.1);
@@ -205,6 +478,13 @@
   min-width: 0;
 }
 
+.dictation-download-progress__meta strong {
+  flex: 0 0 auto;
+  color: var(--ev-c-text-1);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .dictation-download-progress__meta span,
 .dictation-download-progress small {
   min-width: 0;
@@ -219,26 +499,30 @@
 .dictation-shortcut-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
+  min-width: 0;
 }
 
 .dictation-shortcut-option {
   min-width: 0;
-  min-height: 34px;
+  min-height: 32px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 7px;
-  padding: 0 10px;
+  border-radius: 6px;
+  padding: 0 9px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.035);
   color: var(--ev-c-text-1);
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
 }
 
 .dictation-shortcut-option[aria-checked='true'] {
   border-color: color-mix(in srgb, var(--active-project-color) 58%, rgba(255, 255, 255, 0.12));
-  background: color-mix(in srgb, var(--active-project-color) 20%, rgba(255, 255, 255, 0.06));
+  background: color-mix(in srgb, var(--active-project-color) 16%, rgba(255, 255, 255, 0.04));
 }
 
 .dictation-shortcut-option:hover,
@@ -246,8 +530,48 @@
   border-color: color-mix(in srgb, var(--active-project-color) 42%, rgba(255, 255, 255, 0.12));
 }
 
-@media (max-width: 980px) {
-  .dictation-panel__body {
+@media (max-width: 900px) {
+  .dictation-setting-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .dictation-setting-control {
+    justify-items: stretch;
+  }
+
+  .dictation-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .dictation-panel {
+    padding: 16px;
+  }
+
+  .dictation-history-panel {
+    padding: 16px;
+  }
+
+  .dictation-history-panel__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dictation-history-card__actions {
+    flex-wrap: wrap;
+  }
+
+  .dictation-panel--embedded {
+    padding: 0;
+  }
+
+  .dictation-shortcut-options {
+    grid-template-columns: 1fr;
+  }
+
+  .dictation-stats-grid {
     grid-template-columns: 1fr;
   }
 }

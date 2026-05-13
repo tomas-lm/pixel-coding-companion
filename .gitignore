@@ -1,9 +1,12 @@
 node_modules
 dist
 dist-dev
+dist-readme
 out
 native/**/.build
+native/**/build
 resources/native/pixel-dictation-helper
+resources/native/pixel_global_shortcut.node
 .DS_Store
 .eslintcache
 *.log*

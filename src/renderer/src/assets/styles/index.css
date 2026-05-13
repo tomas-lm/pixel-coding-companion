@@ -4,6 +4,7 @@
 @import './prompt-templates.css';
 @import './configs.css';
 @import './dictation.css';
+@import './dictation-overlay.css';
 @import './vaults.css';
 @import './companion-store.css';
 @import './box-opening.css';

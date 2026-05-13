@@ -2,6 +2,8 @@ export const VAULT_CHANNELS = {
   pickFolder: 'vault:pick-folder',
   pickParentFolder: 'vault:pick-parent-folder',
   createVaultFolder: 'vault:create-vault-folder',
+  createFolder: 'vault:create-folder',
+  deleteEntry: 'vault:delete-entry',
   listTree: 'vault:list-tree',
   readMarkdownFile: 'vault:read-markdown-file',
   saveMarkdownFile: 'vault:save-markdown-file',
@@ -40,6 +42,28 @@ export type VaultCreateFolderResult = {
   path: string
 }
 
+export type VaultCreateDirectoryRequest = {
+  directoryPath?: string
+  name: string
+  rootPath: string
+}
+
+export type VaultCreateDirectoryResult = {
+  name: string
+  path: string
+  relativePath: string
+}
+
+export type VaultDeleteEntryRequest = {
+  path: string
+  rootPath: string
+  type: VaultTreeNode['type']
+}
+
+export type VaultDeleteEntryResult = {
+  path: string
+}
+
 export type VaultRootRequest = {
   rootPath: string
 }
@@ -68,8 +92,10 @@ export type VaultCreateMarkdownFileRequest = {
 }
 
 export type VaultApi = {
+  createFolder: (request: VaultCreateDirectoryRequest) => Promise<VaultCreateDirectoryResult>
   createMarkdownFile: (request: VaultCreateMarkdownFileRequest) => Promise<VaultMarkdownFile>
   createVaultFolder: (request: VaultCreateFolderRequest) => Promise<VaultCreateFolderResult>
+  deleteEntry: (request: VaultDeleteEntryRequest) => Promise<VaultDeleteEntryResult>
   listTree: (request: VaultRootRequest) => Promise<VaultTreeNode[]>
   pickFolder: () => Promise<VaultFolderPickResult>
   pickParentFolder: () => Promise<VaultFolderPickResult>

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { CompanionBridgeMessage } from '../../shared/companion'
 import type {
+  DictationHistoryEntry,
   DictationInsertRequest,
   DictationInsertTarget,
+  DictationInsertionResult,
   DictationMicrophonePermissionSnapshot,
-  DictationSnapshot
+  DictationSnapshot,
+  DictationStatsSnapshot
 } from '../../shared/dictation'
-import type { VaultConfig, VaultMarkdownFile } from '../../shared/vault'
+import type { VaultConfig, VaultMarkdownFile, VaultTreeNode } from '../../shared/vault'
 import type {
   PixelLauncherAgentId,
   Project,
@@ -26,7 +29,7 @@ import {
 import { CompanionCatalogPanel } from './components/CompanionCatalogPanel'
 import { CompanionPanel } from './components/CompanionPanel'
 import { ConfigsPanel } from './components/ConfigsPanel'
-import { DictationPanel } from './components/DictationPanel'
+import { DictationHistoryPanel } from './components/DictationHistoryPanel'
 import { LoadingScreen } from './components/LoadingScreen'
 import { OnboardingFlow, type OnboardingResult } from './components/OnboardingFlow'
 import { ProjectFormModal } from './components/ProjectFormModal'
@@ -45,6 +48,7 @@ import {
   STARTER_COMPANION_IDS,
   getCompanionStageForLevel
 } from './companions/companionRegistry'
+import { hasContextRail, shouldShowVaultRail, shouldShowWorkspaceRail } from './app/activityLayout'
 import { getActiveCompanionProgress, getCompanionMessageColor } from './app/companionSelectors'
 import {
   getDictationAudioInputPermissionStatus,
@@ -103,6 +107,12 @@ type StartWorkspaceSelection = {
   projectId: string
   selectedConfigIds: string[]
   startWithPixel: boolean
+}
+
+type VaultContextEntry = {
+  name: string
+  path: string
+  type: VaultTreeNode['type']
 }
 
 type RunningSessionPatch = Partial<
@@ -194,6 +204,7 @@ function getDictationIndicatorLabel(
   if (snapshot.state === 'inserting') return 'Inserting transcript'
   if (snapshot.state === 'error') return snapshot.error ?? 'Dictation failed'
   if (recentInsertionTarget === 'clipboard') return 'Transcript copied'
+  if (recentInsertionTarget === 'system_text') return 'Transcript pasted'
   if (recentInsertionTarget) return 'Transcript inserted'
 
   return 'Dictation ready'
@@ -256,6 +267,11 @@ function App(): React.JSX.Element {
   const [vaultHasUnsavedChanges, setVaultHasUnsavedChanges] = useState(false)
   const [vaultRefreshKey, setVaultRefreshKey] = useState(0)
   const [dictationSnapshot, setDictationSnapshot] = useState<DictationSnapshot | null>(null)
+  const [dictationHistoryEntries, setDictationHistoryEntries] = useState<DictationHistoryEntry[]>(
+    []
+  )
+  const [dictationHistoryQuery, setDictationHistoryQuery] = useState('')
+  const [dictationStats, setDictationStats] = useState<DictationStatsSnapshot | null>(null)
   const [dictationAudioInputDevices, setDictationAudioInputDevices] = useState<
     DictationAudioInputDevice[]
   >([])
@@ -263,10 +279,12 @@ function App(): React.JSX.Element {
     useState<DictationMicrophonePermissionSnapshot | null>(null)
   const [recentDictationInsertionTarget, setRecentDictationInsertionTarget] =
     useState<DictationInsertTarget | null>(null)
+  const dictationHistoryRefreshKeyRef = useRef<string | null>(null)
   const dictationInsertionTimerRef = useRef<number | null>(null)
   const dictationCaptureRef = useRef<WavCapture | null>(null)
   const dictationCaptureStartRef = useRef<Promise<WavCapture> | null>(null)
   const featureSettingsRef = useRef(featureSettings)
+  const [configsSection, setConfigsSection] = useState<'general' | 'audio'>('general')
 
   useCompletionNotificationSound(
     companionBridgeState.messages,
@@ -282,6 +300,24 @@ function App(): React.JSX.Element {
       .then(setDictationAudioInputDevices)
       .catch(() => setDictationAudioInputDevices([]))
   }, [])
+
+  const refreshDictationHistory = useCallback(
+    (query = dictationHistoryQuery): void => {
+      void Promise.all([
+        window.api.dictation.listHistory({ limit: 80, query }),
+        window.api.dictation.loadStats()
+      ])
+        .then(([historyResult, statsSnapshot]) => {
+          setDictationHistoryEntries(historyResult.entries)
+          setDictationStats(statsSnapshot)
+        })
+        .catch(() => {
+          setDictationHistoryEntries([])
+          setDictationStats(null)
+        })
+    },
+    [dictationHistoryQuery]
+  )
 
   const refreshDictationMicrophonePermission = useCallback((): void => {
     if (typeof window.api.dictation.getMicrophonePermission !== 'function') {
@@ -397,6 +433,43 @@ function App(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
+    refreshDictationHistory()
+  }, [refreshDictationHistory])
+
+  useEffect(() => {
+    const transcriptId = dictationSnapshot?.lastTranscriptId
+    if (!transcriptId) return
+    if (
+      dictationSnapshot.state !== 'inserting' &&
+      dictationSnapshot.state !== 'idle' &&
+      dictationSnapshot.state !== 'error'
+    ) {
+      return
+    }
+
+    const refreshKey = `${transcriptId}:${dictationSnapshot.state}:${
+      dictationSnapshot.lastInsertionTarget ?? ''
+    }`
+    if (dictationHistoryRefreshKeyRef.current === refreshKey) return
+
+    dictationHistoryRefreshKeyRef.current = refreshKey
+    refreshDictationHistory()
+  }, [
+    dictationSnapshot?.lastInsertionTarget,
+    dictationSnapshot?.lastTranscriptId,
+    dictationSnapshot?.state,
+    refreshDictationHistory
+  ])
+
+  useEffect(() => {
+    return window.api.dictation.onOpenAudioSettings(() => {
+      setConfigsSection('audio')
+      setActiveActivityItemId('configs')
+      refreshDictationHistory()
+    })
+  }, [refreshDictationHistory])
+
+  useEffect(() => {
     return () => {
       if (dictationInsertionTimerRef.current !== null) {
         window.clearTimeout(dictationInsertionTimerRef.current)
@@ -484,13 +557,19 @@ function App(): React.JSX.Element {
     void window.api.dictation
       .updateSettings({
         enabled: featureSettings.localTranscriberEnabled,
+        keepAudioHistory: featureSettings.keepDictationAudioHistory,
         keepLastAudioSample: featureSettings.keepLastDictationAudioSample,
+        keepTranscriptHistory: featureSettings.keepDictationTranscriptHistory,
+        overlayEnabled: featureSettings.dictationOverlayEnabled,
         shortcutId: featureSettings.localTranscriberShortcut
       })
       .then(setDictationSnapshot)
   }, [
     configLoaded,
+    featureSettings.dictationOverlayEnabled,
+    featureSettings.keepDictationAudioHistory,
     featureSettings.keepLastDictationAudioSample,
+    featureSettings.keepDictationTranscriptHistory,
     featureSettings.localTranscriberEnabled,
     featureSettings.localTranscriberShortcut
   ])
@@ -588,7 +667,7 @@ function App(): React.JSX.Element {
     {
       icon: 'dictation',
       id: 'dictation',
-      label: 'Dictation'
+      label: 'Dictation history'
     },
     {
       icon: 'vaults',
@@ -1190,11 +1269,12 @@ function App(): React.JSX.Element {
     setActiveActivityItemId('vaults')
   }
 
-  const createVaultNote = async (name: string): Promise<void> => {
+  const createVaultNote = async (name: string, directoryPath?: string): Promise<void> => {
     if (!activeVault) return
     if (!confirmDiscardVaultChanges()) return
 
     const file = await window.api.vault.createMarkdownFile({
+      directoryPath,
       name,
       rootPath: activeVault.rootPath
     })
@@ -1204,6 +1284,69 @@ function App(): React.JSX.Element {
     )
     setVaultRefreshKey((currentKey) => currentKey + 1)
     setVaultHasUnsavedChanges(false)
+  }
+
+  const createVaultFolder = async (name: string, directoryPath?: string): Promise<void> => {
+    if (!activeVault) return
+
+    await window.api.vault.createFolder({
+      directoryPath,
+      name,
+      rootPath: activeVault.rootPath
+    })
+    setVaultRefreshKey((currentKey) => currentKey + 1)
+  }
+
+  const deleteVaultEntry = async (entry: VaultContextEntry): Promise<void> => {
+    if (!activeVault) return
+
+    const isDeletingOpenFile = Boolean(
+      selectedVaultFilePath &&
+      (entry.path === selectedVaultFilePath ||
+        (entry.type === 'directory' && isPathInsideRoot(entry.path, selectedVaultFilePath)))
+    )
+
+    if (isDeletingOpenFile && !confirmDiscardVaultChanges()) return
+
+    const confirmed = window.confirm(
+      entry.type === 'directory'
+        ? `Delete folder "${entry.name}" and everything inside it from disk?`
+        : `Delete file "${entry.name}" from disk?`
+    )
+    if (!confirmed) return
+
+    await window.api.vault.deleteEntry({
+      path: entry.path,
+      rootPath: activeVault.rootPath,
+      type: entry.type
+    })
+
+    setVaults((currentVaults) =>
+      currentVaults.map((vault) => {
+        const lastOpenedFilePath = vault.lastOpenedFilePath
+        if (
+          vault.id !== activeVault.id ||
+          !lastOpenedFilePath ||
+          (lastOpenedFilePath !== entry.path &&
+            (entry.type !== 'directory' || !isPathInsideRoot(entry.path, lastOpenedFilePath)))
+        ) {
+          return vault
+        }
+
+        return {
+          ...vault,
+          lastOpenedFilePath: undefined,
+          updatedAt: new Date().toISOString()
+        }
+      })
+    )
+
+    if (isDeletingOpenFile) {
+      setSelectedVaultFileSelection(null)
+      setVaultHasUnsavedChanges(false)
+    }
+
+    setVaultRefreshKey((currentKey) => currentKey + 1)
   }
 
   const handleVaultFileSaved = (file: VaultMarkdownFile): void => {
@@ -1235,14 +1378,51 @@ function App(): React.JSX.Element {
     void window.api.dictation.installModel().then(setDictationSnapshot)
   }
 
+  const copyDictationHistoryEntry = (entry: DictationHistoryEntry): void => {
+    window.api.clipboard.writeText(entry.text)
+  }
+
+  const deleteDictationHistoryEntry = (entry: DictationHistoryEntry): void => {
+    if (!window.confirm(`Delete this transcript from Pixel history?`)) return
+
+    void window.api.dictation
+      .deleteHistoryEntry({ id: entry.id })
+      .then((result) => {
+        setDictationHistoryEntries(result.entries)
+        return window.api.dictation.loadStats()
+      })
+      .then(setDictationStats)
+  }
+
+  const clearDictationHistory = (): void => {
+    if (!window.confirm('Clear all saved transcript history?')) return
+
+    void window.api.dictation
+      .clearHistory()
+      .then((result) => {
+        setDictationHistoryEntries(result.entries)
+        return window.api.dictation.loadStats()
+      })
+      .then(setDictationStats)
+  }
+
   const completeDictationInsertion = useCallback(
-    (request: DictationInsertRequest, target: DictationInsertTarget): void => {
+    (
+      request: DictationInsertRequest,
+      result: Pick<DictationInsertionResult, 'ok' | 'reason' | 'target'>
+    ): void => {
       window.api.dictation.completeInsertion({
-        ok: true,
-        target,
+        ok: result.ok,
+        reason: result.reason,
+        target: result.target,
         transcriptId: request.transcriptId
       })
-      setRecentDictationInsertionTarget(target)
+      if (!result.ok) {
+        refreshDictationHistory()
+        return
+      }
+
+      setRecentDictationInsertionTarget(result.target)
       if (dictationInsertionTimerRef.current !== null) {
         window.clearTimeout(dictationInsertionTimerRef.current)
       }
@@ -1250,20 +1430,40 @@ function App(): React.JSX.Element {
         setRecentDictationInsertionTarget(null)
         dictationInsertionTimerRef.current = null
       }, DICTATION_RESULT_VISIBLE_MS)
+      refreshDictationHistory()
     },
-    []
+    [refreshDictationHistory]
   )
 
   const handleDictationInsert = useCallback(
     (request: DictationInsertRequest): void => {
       const text = request.transcript.text
+
+      if (!document.hasFocus()) {
+        void window.api.dictation
+          .insertExternalText({ text })
+          .then((result) => completeDictationInsertion(request, result))
+          .catch((error: unknown) => {
+            completeDictationInsertion(request, {
+              ok: false,
+              reason:
+                error instanceof Error
+                  ? error.message
+                  : 'Could not paste transcript outside Pixel.',
+              target: 'clipboard'
+            })
+          })
+        return
+      }
+
       const target = insertDictationTranscript(text, {
+        allowPixelTargets: true,
         terminalSessionId:
           activeSession && isLiveSession(activeSession) ? activeSession.id : undefined,
         writeClipboard: window.api.clipboard.writeText,
         writeTerminal: window.api.terminal.write
       })
-      completeDictationInsertion(request, target)
+      completeDictationInsertion(request, { ok: true, target })
     },
     [activeSession, completeDictationInsertion]
   )
@@ -1377,29 +1577,35 @@ function App(): React.JSX.Element {
   const shouldShowDictationIndicator =
     dictationSnapshot !== null &&
     (dictationSnapshot.state !== 'idle' || recentDictationInsertionTarget !== null)
+  const workspaceRailVisible = shouldShowWorkspaceRail(activeActivityItemId)
+  const vaultRailVisible = shouldShowVaultRail(activeActivityItemId)
+  const contextRailVisible = hasContextRail(activeActivityItemId)
+  const shellClassName = `app-shell${contextRailVisible ? '' : ' app-shell--no-context-rail'}`
 
   return (
-    <main className="app-shell" style={activeStyle}>
+    <main className={shellClassName} style={activeStyle}>
       <ActivitySidebar
         activeItemId={activeActivityItemId}
         items={activitySidebarItems}
         onSelect={setActiveActivityItemId}
       />
 
-      {activeActivityItemId === 'vaults' ? (
+      {vaultRailVisible ? (
         <VaultRail
           activeVault={activeVault}
           activeVaultId={activeVaultId}
           selectedFilePath={selectedVaultFilePath}
           vaults={vaults}
           refreshKey={vaultRefreshKey}
+          onCreateFolder={createVaultFolder}
           onCreateNote={createVaultNote}
+          onDeleteEntry={deleteVaultEntry}
           onDeleteVault={deleteVault}
           onSaveVault={saveVault}
           onSelectFile={selectVaultFile}
           onSelectVault={selectVault}
         />
-      ) : (
+      ) : workspaceRailVisible ? (
         <WorkspaceRail
           activeProject={activeProject}
           activeProjectConfigs={activeProjectConfigs}
@@ -1423,14 +1629,16 @@ function App(): React.JSX.Element {
           onStartWorkspace={openStartWorkspace}
           onStopSession={stopSession}
         />
-      )}
+      ) : null}
 
-      <button
-        className="resize-handle resize-handle--column"
-        type="button"
-        aria-label="Resize project rail"
-        onPointerDown={(event) => startLayoutResize(event, 'railWidth')}
-      />
+      {contextRailVisible ? (
+        <button
+          className="resize-handle resize-handle--column"
+          type="button"
+          aria-label={vaultRailVisible ? 'Resize vault rail' : 'Resize project rail'}
+          onPointerDown={(event) => startLayoutResize(event, 'railWidth')}
+        />
+      ) : null}
 
       {activeActivityItemId === 'terminal' ? (
         <TerminalWorkspacePanel
@@ -1460,19 +1668,14 @@ function App(): React.JSX.Element {
         />
       ) : activeActivityItemId === 'configs' ? (
         <ConfigsPanel
-          codeEditorSettings={codeEditorSettings}
-          featureSettings={featureSettings}
-          onChangeCodeEditorSettings={changeCodeEditorSettings}
-          onChangeFeatureSettings={changeFeatureSettings}
-          onSelectTerminalTheme={applyTerminalTheme}
-          terminalThemeId={terminalThemeId}
-        />
-      ) : activeActivityItemId === 'dictation' ? (
-        <DictationPanel
+          activeSection={configsSection}
           audioInputDevices={dictationAudioInputDevices}
-          microphonePermission={dictationMicrophonePermission}
+          codeEditorSettings={codeEditorSettings}
           dictationSnapshot={dictationSnapshot}
+          dictationStats={dictationStats}
           featureSettings={featureSettings}
+          microphonePermission={dictationMicrophonePermission}
+          onChangeCodeEditorSettings={changeCodeEditorSettings}
           onChangeFeatureSettings={changeFeatureSettings}
           onInstallParakeet={installParakeetModel}
           onOpenMicrophoneSettings={() => {
@@ -1482,9 +1685,22 @@ function App(): React.JSX.Element {
           }}
           onRefreshAudioInputs={refreshDictationAudioInputDevices}
           onRequestMicrophonePermission={requestDictationMicrophonePermission}
+          onSectionChange={setConfigsSection}
+          onSelectTerminalTheme={applyTerminalTheme}
           onTestDictation={() => {
             void window.api.dictation.testTranscription()
           }}
+          terminalThemeId={terminalThemeId}
+        />
+      ) : activeActivityItemId === 'dictation' ? (
+        <DictationHistoryPanel
+          entries={dictationHistoryEntries}
+          query={dictationHistoryQuery}
+          stats={dictationStats}
+          onChangeQuery={setDictationHistoryQuery}
+          onClearHistory={clearDictationHistory}
+          onCopyEntry={copyDictationHistoryEntry}
+          onDeleteEntry={deleteDictationHistoryEntry}
         />
       ) : activeActivityItemId === 'vaults' ? (
         <VaultWorkspacePanel

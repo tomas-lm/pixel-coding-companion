@@ -1,0 +1,142 @@
+.dictation-overlay-document {
+  min-height: 100vh;
+  overflow: hidden;
+  background: transparent;
+}
+
+.dictation-overlay-document #root {
+  width: 100vw;
+  height: 100vh;
+}
+
+.dictation-overlay {
+  width: 100vw;
+  height: 100vh;
+  color: var(--ev-c-text-1);
+  -webkit-app-region: no-drag;
+}
+
+.dictation-overlay--compact {
+  display: grid;
+  place-items: center;
+}
+
+.dictation-overlay__orb {
+  position: relative;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(14, 17, 23, 0.9);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
+  color: var(--ev-c-text-1);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.dictation-overlay__orb:active {
+  cursor: grabbing;
+}
+
+.dictation-overlay__orb svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+}
+
+.dictation-overlay__orb .dictation-overlay__status {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+}
+
+.dictation-overlay--expanded {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 3px;
+  background: rgba(14, 17, 23, 0.92);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.36);
+  -webkit-app-region: no-drag;
+}
+
+.dictation-overlay__status {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #34d399;
+}
+
+.dictation-overlay--recording .dictation-overlay__status {
+  background: #ef5b5b;
+  box-shadow: 0 0 0 7px rgba(239, 91, 91, 0.13);
+}
+
+.dictation-overlay--transcribing .dictation-overlay__status,
+.dictation-overlay--inserting .dictation-overlay__status {
+  background: #f7d56f;
+}
+
+.dictation-overlay--error .dictation-overlay__status {
+  background: #ef5b5b;
+}
+
+.dictation-overlay__menu {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.dictation-overlay__menu-button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 0;
+  background: color-mix(
+    in srgb,
+    var(--active-project-color, #ff57e0) 18%,
+    rgba(255, 255, 255, 0.04)
+  );
+  color: var(--ev-c-text-1);
+  cursor: pointer;
+}
+
+.dictation-overlay__menu-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+}
+
+.dictation-overlay__menu-button:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.dictation-overlay__menu-button:not(:disabled):hover,
+.dictation-overlay__menu-button:not(:disabled):focus-visible,
+.dictation-overlay__orb:hover,
+.dictation-overlay__orb:focus-visible {
+  border-color: color-mix(
+    in srgb,
+    var(--active-project-color, #ff57e0) 56%,
+    rgba(255, 255, 255, 0.12)
+  );
+  outline: none;
+}

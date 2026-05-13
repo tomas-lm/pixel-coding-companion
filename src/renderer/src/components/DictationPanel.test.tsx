@@ -8,6 +8,9 @@ import { DictationPanel } from './DictationPanel'
 afterEach(cleanup)
 
 const featureSettings: WorkspaceFeatureSettings = {
+  dictationOverlayEnabled: false,
+  keepDictationAudioHistory: false,
+  keepDictationTranscriptHistory: true,
   keepLastDictationAudioSample: false,
   localTranscriberAudioInputDeviceId: null,
   localTranscriberEnabled: false,
@@ -25,7 +28,10 @@ const dictationSnapshot: DictationSnapshot = {
   },
   settings: {
     enabled: false,
+    keepAudioHistory: false,
     keepLastAudioSample: false,
+    keepTranscriptHistory: true,
+    overlayEnabled: false,
     shortcutId: 'control-option-hold'
   },
   model: {
@@ -93,11 +99,8 @@ describe('DictationPanel', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Enable local transcriber' }))
 
     expect(onChangeFeatureSettings).toHaveBeenCalledWith({
-      keepLastDictationAudioSample: false,
-      localTranscriberAudioInputDeviceId: null,
-      localTranscriberEnabled: true,
-      localTranscriberShortcut: 'control-option-hold',
-      playSoundsUponFinishing: false
+      ...featureSettings,
+      localTranscriberEnabled: true
     })
   })
 
@@ -138,11 +141,8 @@ describe('DictationPanel', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Option+Shift' }))
 
     expect(onChangeFeatureSettings).toHaveBeenCalledWith({
-      keepLastDictationAudioSample: false,
-      localTranscriberAudioInputDeviceId: null,
-      localTranscriberEnabled: false,
-      localTranscriberShortcut: 'option-shift-hold',
-      playSoundsUponFinishing: false
+      ...featureSettings,
+      localTranscriberShortcut: 'option-shift-hold'
     })
   })
 
@@ -156,11 +156,8 @@ describe('DictationPanel', () => {
     })
 
     expect(onChangeFeatureSettings).toHaveBeenCalledWith({
-      keepLastDictationAudioSample: false,
-      localTranscriberAudioInputDeviceId: 'macbook-mic',
-      localTranscriberEnabled: false,
-      localTranscriberShortcut: 'control-option-hold',
-      playSoundsUponFinishing: false
+      ...featureSettings,
+      localTranscriberAudioInputDeviceId: 'macbook-mic'
     })
   })
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   COMPANION_REGISTRY,
+  getCompanionStageForLevel,
   KARPA_STAGES,
   PHOEBE_STAGES,
   TATA_STAGES,
@@ -21,6 +22,20 @@ describe('companion registry', () => {
       { id: 'touk', rarity: 'ultra_rare' },
       { id: 'phoebe', rarity: 'legendary' }
     ])
+  })
+
+  it('keeps companions at their first idle stage after hatching while evolutions are paused', () => {
+    const ghou = COMPANION_REGISTRY.find((companion) => companion.id === 'ghou')
+    const karpa = COMPANION_REGISTRY.find((companion) => companion.id === 'karpa')
+
+    if (!ghou) throw new Error('Ghou companion was not registered.')
+    if (!karpa) throw new Error('Karpa companion was not registered.')
+
+    expect(getCompanionStageForLevel(ghou, 0).id).toBe('egg')
+    expect(getCompanionStageForLevel(ghou, 4).id).toBe('egg')
+    expect(getCompanionStageForLevel(ghou, 5).id).toBe('lvl1')
+    expect(getCompanionStageForLevel(ghou, 25).id).toBe('lvl1')
+    expect(getCompanionStageForLevel(karpa, 50).id).toBe('lvl1')
   })
 
   it('registers Touk in place of Buba with ground and flying stage heights', () => {
@@ -65,7 +80,7 @@ describe('companion registry', () => {
       }))
     ).toEqual([
       { id: 'egg', offsetX: 0, offsetY: 0 },
-      { id: 'lvl1', offsetX: 0, offsetY: 0 },
+      { id: 'lvl1', offsetX: 0, offsetY: 40 },
       { id: 'lvl2', offsetX: 0, offsetY: 40 },
       { id: 'lvl3', offsetX: 0, offsetY: 40 }
     ])
@@ -82,7 +97,7 @@ describe('companion registry', () => {
       }))
     ).toEqual([
       { id: 'egg', offsetY: 0 },
-      { id: 'lvl1', offsetY: 40 },
+      { id: 'lvl1', offsetY: 42 },
       { id: 'lvl2', offsetY: 40 },
       { id: 'lvl3', offsetY: 40 }
     ])

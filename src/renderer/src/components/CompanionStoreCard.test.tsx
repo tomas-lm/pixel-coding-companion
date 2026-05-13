@@ -62,17 +62,6 @@ describe('CompanionStoreCard', () => {
     expect(avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe('0.97')
   })
 
-  it('renders Raya evolved stages 30 percent smaller only in the companion store card', () => {
-    const raya = COMPANION_REGISTRY.find((companion) => companion.id === 'raya')
-
-    if (!raya) throw new Error('Raya companion was not registered.')
-
-    const avatar = renderStoreCard('raya', 50)
-
-    expect(raya.stages[3].avatarScale).toBeUndefined()
-    expect(avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe('0.7')
-  })
-
   it('renders the Raya egg 30 percent larger than the scaled Raya store size', () => {
     const raya = COMPANION_REGISTRY.find((companion) => companion.id === 'raya')
 
@@ -84,32 +73,15 @@ describe('CompanionStoreCard', () => {
     expect(avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe('0.91')
   })
 
-  it('nudges Raya evolved stages left only in the companion store card', () => {
+  it('nudges the Raya egg right only in the companion store card', () => {
     const raya = COMPANION_REGISTRY.find((companion) => companion.id === 'raya')
 
     if (!raya) throw new Error('Raya companion was not registered.')
 
-    const level1Avatar = renderStoreCard('raya', 5)
-    const level2Avatar = renderStoreCard('raya', 25)
-    const level3Avatar = renderStoreCard('raya', 50)
+    const avatar = renderStoreCard('raya', 0)
 
-    expect(raya.stages[1].avatarOffsetX).toBeUndefined()
-    expect(raya.stages[2].avatarOffsetX).toBeUndefined()
-    expect(raya.stages[3].avatarOffsetX).toBeUndefined()
-    expect(level1Avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('-24px')
-    expect(level2Avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('-24px')
-    expect(level3Avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('-24px')
-  })
-
-  it('nudges Frogo level 3 one pixel right only in the companion store card', () => {
-    const frogo = COMPANION_REGISTRY.find((companion) => companion.id === 'frogo')
-
-    if (!frogo) throw new Error('Frogo companion was not registered.')
-
-    const avatar = renderStoreCard('frogo', 50)
-
-    expect(frogo.stages[3].avatarOffsetX).toBe(-9)
-    expect(avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('-8px')
+    expect(raya.stages[0].avatarOffsetX).toBe(-4)
+    expect(avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('0px')
   })
 
   it('nudges the Ghou egg right only in the companion store card', () => {
@@ -123,42 +95,30 @@ describe('CompanionStoreCard', () => {
     expect(avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('-1px')
   })
 
-  it('renders Karpa level 1 and level 2 smaller only in the companion store card', () => {
-    const karpa = COMPANION_REGISTRY.find((companion) => companion.id === 'karpa')
+  it.each([
+    ['ghou', '0.7', '0px'],
+    ['frogo', '0.702', '-18px'],
+    ['combot', '1', '-2px'],
+    ['raya', '0.7', '-29px'],
+    ['karpa', '0.595', '-34px'],
+    ['touk', '0.8', '0px'],
+    ['phoebe', '0.8', '-13px']
+  ])(
+    'applies %s level 1 visual adjustments only in the companion store',
+    (companionId, scale, offsetX) => {
+      const companion = COMPANION_REGISTRY.find((registeredCompanion) => {
+        return registeredCompanion.id === companionId
+      })
 
-    if (!karpa) throw new Error('Karpa companion was not registered.')
+      if (!companion) throw new Error(`${companionId} companion was not registered.`)
 
-    const level1Avatar = renderStoreCard('karpa', 5)
-    const level2Avatar = renderStoreCard('karpa', 25)
-    const level3Avatar = renderStoreCard('karpa', 50)
+      const avatar = renderStoreCard(companionId, 50)
 
-    expect(karpa.stages[1].avatarScale).toBeUndefined()
-    expect(karpa.stages[2].avatarScale).toBeUndefined()
-    expect(karpa.stages[3].avatarScale).toBeUndefined()
-    expect(karpa.stages[1].avatarOffsetX).toBeUndefined()
-    expect(karpa.stages[2].avatarOffsetX).toBeUndefined()
-    expect(level1Avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe('0.7')
-    expect(level2Avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe('0.7')
-    expect(level3Avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe('1')
-    expect(level1Avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('-45px')
-    expect(level2Avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('-45px')
-  })
-
-  it('sets Karpa level 2 and level 3 to the egg floor height only in the companion store card', () => {
-    const karpa = COMPANION_REGISTRY.find((companion) => companion.id === 'karpa')
-
-    if (!karpa) throw new Error('Karpa companion was not registered.')
-
-    const eggAvatar = renderStoreCard('karpa', 0)
-    const level2Avatar = renderStoreCard('karpa', 25)
-    const level3Avatar = renderStoreCard('karpa', 50)
-
-    expect(karpa.stages[2].avatarOffsetY).toBeUndefined()
-    expect(karpa.stages[3].avatarOffsetY).toBeUndefined()
-    expect(eggAvatar?.style.getPropertyValue('--companion-avatar-offset-y')).toBe('10px')
-    expect(level2Avatar?.style.getPropertyValue('--companion-avatar-offset-y')).toBe('10px')
-    expect(level3Avatar?.style.getPropertyValue('--companion-avatar-offset-y')).toBe('10px')
-  })
+      expect(companion.stages[1].id).toBe('lvl1')
+      expect(avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe(scale)
+      expect(avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe(offsetX)
+    }
+  )
 
   it('shows the dev level up button for owned companions without selecting the card', () => {
     const karpa = COMPANION_REGISTRY.find((companion) => companion.id === 'karpa')

@@ -1,15 +1,26 @@
 export const DICTATION_CHANNELS = {
+  clearHistory: 'dictation:clear-history',
   captureCommand: 'dictation:capture-command',
   completeCapture: 'dictation:complete-capture',
   completeInsertion: 'dictation:complete-insertion',
+  deleteHistoryEntry: 'dictation:delete-history-entry',
   getMicrophonePermission: 'dictation:get-microphone-permission',
   installModel: 'dictation:install-model',
+  insertExternalText: 'dictation:insert-external-text',
+  listHistory: 'dictation:list-history',
+  loadStats: 'dictation:load-stats',
   insertTranscript: 'dictation:insert-transcript',
   loadSnapshot: 'dictation:load-snapshot',
+  finishOverlayDrag: 'dictation:finish-overlay-drag',
+  moveOverlay: 'dictation:move-overlay',
+  openAudioSettings: 'dictation:open-audio-settings',
+  openMainWindow: 'dictation:open-main-window',
   openMicrophoneSettings: 'dictation:open-microphone-settings',
   requestMicrophonePermission: 'dictation:request-microphone-permission',
+  setOverlayExpanded: 'dictation:set-overlay-expanded',
   state: 'dictation:state',
   testTranscription: 'dictation:test-transcription',
+  toggleRecording: 'dictation:toggle-recording',
   updateSettings: 'dictation:update-settings'
 } as const
 
@@ -77,7 +88,10 @@ export type DictationBackendStatus =
 
 export type DictationSettings = {
   enabled: boolean
+  keepAudioHistory: boolean
   keepLastAudioSample: boolean
+  keepTranscriptHistory: boolean
+  overlayEnabled: boolean
   shortcutId: DictationShortcutId
 }
 
@@ -100,6 +114,44 @@ export type DictationTranscript = {
   durationMs: number
   language?: string
   text: string
+}
+
+export type DictationHistoryEntry = {
+  audioFilePath?: string
+  backend: DictationBackendId
+  characterCount: number
+  createdAt: string
+  durationMs: number
+  estimatedKeystrokesAvoided: number
+  id: string
+  insertionTarget?: DictationInsertTarget
+  language?: string
+  text: string
+  wordCount: number
+}
+
+export type DictationHistoryListRequest = {
+  limit?: number
+  query?: string
+}
+
+export type DictationHistoryListResult = {
+  entries: DictationHistoryEntry[]
+}
+
+export type DictationHistoryDeleteRequest = {
+  id: string
+}
+
+export type DictationStatsSnapshot = {
+  audioStorageBytes: number
+  averageWordsPerTranscript: number
+  estimatedKeystrokesAvoided: number
+  totalDurationMs: number
+  totalTranscripts: number
+  totalWordsDictated: number
+  updatedAt: string
+  wordsDictatedToday: number
 }
 
 export type DictationCaptureCommand = {
@@ -137,11 +189,26 @@ export type DictationModelInstallSnapshot = {
   totalBytes: number
 }
 
-export type DictationInsertTarget = 'clipboard' | 'pixel_text' | 'terminal'
+export type DictationInsertTarget = 'clipboard' | 'pixel_text' | 'system_text' | 'terminal'
 
 export type DictationInsertRequest = {
   transcript: DictationTranscript
   transcriptId: string
+}
+
+export type DictationExternalInsertRequest = {
+  text: string
+}
+
+export type DictationExternalInsertResult = {
+  ok: boolean
+  reason?: string
+  target: Extract<DictationInsertTarget, 'clipboard' | 'system_text'>
+}
+
+export type DictationOverlayMoveRequest = {
+  deltaX: number
+  deltaY: number
 }
 
 export type DictationInsertionResult = {
@@ -156,6 +223,7 @@ export type DictationSnapshot = {
   error?: string
   lastInsertionTarget?: DictationInsertTarget
   lastTranscript?: DictationTranscript
+  lastTranscriptId?: string
   model: DictationModelInstallSnapshot
   settings: DictationSettings
   shortcut: string
@@ -163,17 +231,33 @@ export type DictationSnapshot = {
 }
 
 export type DictationApi = {
+  clearHistory: () => Promise<DictationHistoryListResult>
   completeCapture: (result: DictationCaptureResult) => Promise<DictationSnapshot>
   completeInsertion: (result: DictationInsertionResult) => void
+  deleteHistoryEntry: (
+    request: DictationHistoryDeleteRequest
+  ) => Promise<DictationHistoryListResult>
   getMicrophonePermission: () => Promise<DictationMicrophonePermissionSnapshot>
   installModel: () => Promise<DictationSnapshot>
+  insertExternalText: (
+    request: DictationExternalInsertRequest
+  ) => Promise<DictationExternalInsertResult>
+  listHistory: (request?: DictationHistoryListRequest) => Promise<DictationHistoryListResult>
+  loadStats: () => Promise<DictationStatsSnapshot>
   loadSnapshot: () => Promise<DictationSnapshot>
+  finishOverlayDrag: () => void
+  moveOverlay: (request: DictationOverlayMoveRequest) => void
   onCaptureCommand: (callback: (command: DictationCaptureCommand) => void) => () => void
   onInsertTranscript: (callback: (request: DictationInsertRequest) => void) => () => void
+  onOpenAudioSettings: (callback: () => void) => () => void
   onState: (callback: (snapshot: DictationSnapshot) => void) => () => void
+  openAudioSettings: () => void
+  openMainWindow: () => void
   openMicrophoneSettings: () => void
   requestMicrophonePermission: () => Promise<DictationMicrophonePermissionSnapshot>
+  setOverlayExpanded: (expanded: boolean) => void
   testTranscription: () => Promise<DictationSnapshot>
+  toggleRecording: () => Promise<DictationSnapshot>
   updateSettings: (settings: DictationSettings) => Promise<DictationSnapshot>
 }
 

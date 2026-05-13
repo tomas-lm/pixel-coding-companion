@@ -5,8 +5,8 @@ const MAX_COMPANION_LEVEL = 100
 
 type DevCompanionLevelOverrides = Record<string, number>
 
-function isDevRenderer(): boolean {
-  return import.meta.env.DEV
+export function isDevCompanionLevelControlsEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_PIXEL_COMPANION_DEV_STORE_CONTROLS === 'true'
 }
 
 function clampLevel(level: number): number {
@@ -14,7 +14,7 @@ function clampLevel(level: number): number {
 }
 
 export function readDevCompanionLevelOverrides(): DevCompanionLevelOverrides {
-  if (!isDevRenderer()) return {}
+  if (!isDevCompanionLevelControlsEnabled()) return {}
 
   try {
     const value = window.localStorage.getItem(DEV_COMPANION_LEVEL_OVERRIDES_KEY)
@@ -34,7 +34,7 @@ export function readDevCompanionLevelOverrides(): DevCompanionLevelOverrides {
 }
 
 export function saveDevCompanionLevelOverride(companionId: string, level: number): void {
-  if (!isDevRenderer()) return
+  if (!isDevCompanionLevelControlsEnabled()) return
 
   const overrides = readDevCompanionLevelOverrides()
   window.localStorage.setItem(

@@ -59,6 +59,7 @@ export function insertTextIntoFocusedPixelTarget(
 }
 
 type InsertDictationTranscriptOptions = {
+  allowPixelTargets?: boolean
   documentRef?: Document
   terminalSessionId?: string
   writeClipboard: (text: string) => void
@@ -68,17 +69,18 @@ type InsertDictationTranscriptOptions = {
 export function insertDictationTranscript(
   text: string,
   {
+    allowPixelTargets = true,
     documentRef = document,
     terminalSessionId,
     writeClipboard,
     writeTerminal
   }: InsertDictationTranscriptOptions
 ): DictationInsertTarget {
-  if (insertTextIntoFocusedPixelTarget(text, documentRef)) {
+  if (allowPixelTargets && insertTextIntoFocusedPixelTarget(text, documentRef)) {
     return 'pixel_text'
   }
 
-  if (terminalSessionId && writeTerminal) {
+  if (allowPixelTargets && terminalSessionId && writeTerminal) {
     writeTerminal({
       data: text,
       id: terminalSessionId

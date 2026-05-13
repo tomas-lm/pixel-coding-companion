@@ -78,6 +78,9 @@ export type PromptTemplate = {
 }
 
 export type WorkspaceFeatureSettings = {
+  dictationOverlayEnabled: boolean
+  keepDictationAudioHistory: boolean
+  keepDictationTranscriptHistory: boolean
   keepLastDictationAudioSample: boolean
   localTranscriberAudioInputDeviceId: string | null
   localTranscriberEnabled: boolean

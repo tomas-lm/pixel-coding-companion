@@ -7,6 +7,7 @@ import { registerAppMenu, sendLayoutReset } from './appMenu'
 import { CompanionBridgeStore } from './companion/companionBridgeStore'
 import { CompanionStoreService } from './companion/companionStoreService'
 import { DictationManager } from './dictation/dictationManager'
+import { DictationOverlayManager } from './dictation/dictationOverlayManager'
 import { registerCompanionIpc } from './ipc/registerCompanionIpc'
 import { registerSystemIpc } from './ipc/registerSystemIpc'
 import { registerTerminalIpc } from './ipc/registerTerminalIpc'
@@ -31,6 +32,7 @@ const APP_NAME = readEnvSetting('PIXEL_COMPANION_APP_NAME') ?? 'Pixel Companion'
 const APP_ID = readEnvSetting('PIXEL_COMPANION_APP_ID') ?? 'dev.tomasmuniz.pixel-coding-companion'
 const APP_USER_DATA_DIR =
   readEnvSetting('PIXEL_COMPANION_USER_DATA_DIR') ?? 'pixel-coding-companion'
+let mainWindow: BrowserWindow | null = null
 const terminalContextRegistry = new TerminalContextRegistry(() => app.getPath('userData'))
 const codexContextTelemetry = new CodexContextTelemetryService({
   broadcastTerminalContext,
@@ -55,12 +57,23 @@ const companionStoreService = new CompanionStoreService(
   getCompanionStoreStatePath
 )
 const workspaceStore = new WorkspaceStore(getWorkspaceConfigPath)
+const dictationOverlayManager = new DictationOverlayManager({
+  appName: APP_NAME,
+  getMainWindow: () => mainWindow,
+  getUserDataPath: () => app.getPath('userData'),
+  icon,
+  isDev: is.dev,
+  isSafeExternalUrl,
+  rendererUrl: process.env['ELECTRON_RENDERER_URL'],
+  showMainWindow
+})
 const dictationManager = new DictationManager({
   getAppPath: () => app.getAppPath(),
+  getMainWindow: () => mainWindow,
   getResourcesPath: () => process.resourcesPath,
-  getUserDataPath: () => app.getPath('userData')
+  getUserDataPath: () => app.getPath('userData'),
+  overlayManager: dictationOverlayManager
 })
-let mainWindow: BrowserWindow | null = null
 
 app.setName(APP_NAME)
 // Keep persisted workspace data independent from the display name shown by macOS.
@@ -171,6 +184,14 @@ function createWindow(): BrowserWindow {
   })
   mainWindow = nextMainWindow
   dictationManager.attachWindow(nextMainWindow)
+  const refreshDictationOverlay = (): void => {
+    dictationOverlayManager.presentOnActiveDisplay()
+  }
+  nextMainWindow.on('show', refreshDictationOverlay)
+  nextMainWindow.on('restore', refreshDictationOverlay)
+  nextMainWindow.on('maximize', refreshDictationOverlay)
+  nextMainWindow.on('enter-full-screen', refreshDictationOverlay)
+  nextMainWindow.on('leave-full-screen', refreshDictationOverlay)
   return nextMainWindow
 }
 
@@ -213,6 +234,7 @@ if (!hasSingleInstanceLock) {
     dictationManager.registerIpc()
 
     createWindow()
+    void dictationOverlayManager.load()
 
     app.on('activate', function () {
       // On macOS it's common to re-create a window in the app when the
@@ -232,6 +254,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  dictationManager.stop()
   terminalManager.stopAll()
 })
 
