@@ -111,191 +111,230 @@ export function ConfigsPanel({
   return (
     <section className="configs-panel" aria-label="Configs">
       <header className="configs-header">
-        <h1>Configs</h1>
+        <div>
+          <h1>Settings</h1>
+          <p>Workspace preferences and local behavior.</p>
+        </div>
       </header>
 
       <div className="configs-sections app-dark-scroll">
-        <section className="configs-section" aria-labelledby="configs-terminal-title">
+        <section className="configs-settings-group" aria-labelledby="configs-terminal-title">
           <h2 id="configs-terminal-title">Terminal</h2>
-          <div className="theme-dropdown" ref={themeDropdownRef}>
-            <button
-              aria-activedescendant={isThemeMenuOpen ? highlightedThemeOptionId : undefined}
-              aria-controls="theme-dropdown-menu"
-              aria-expanded={isThemeMenuOpen}
-              aria-haspopup="listbox"
-              aria-label={`Theme ${selectedThemeLabel}`}
-              className="theme-dropdown__trigger"
-              role="combobox"
-              type="button"
-              onKeyDown={(event) => {
-                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                  event.preventDefault()
-                  setIsThemeMenuOpen(true)
-                  setHighlightedThemeId(
-                    event.key === 'ArrowDown'
-                      ? getNextThemeId(terminalThemeId, 1)
-                      : getNextThemeId(terminalThemeId, -1)
-                  )
-                  return
-                }
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  setIsThemeMenuOpen((currentIsOpen) => {
-                    const nextIsOpen = !currentIsOpen
-                    if (nextIsOpen) {
-                      setHighlightedThemeId(terminalThemeId)
-                    }
-                    return nextIsOpen
-                  })
-                }
-              }}
-              onClick={() =>
-                setIsThemeMenuOpen((currentIsOpen) => {
-                  const nextIsOpen = !currentIsOpen
-                  if (nextIsOpen) {
-                    setHighlightedThemeId(terminalThemeId)
-                  }
-                  return nextIsOpen
-                })
-              }
-            >
-              <span>Theme</span>
-              <strong>{selectedThemeLabel}</strong>
-            </button>
 
-            {isThemeMenuOpen && (
-              <ul
-                aria-label="Terminal themes"
-                className="theme-dropdown__menu app-dark-scroll"
-                id="theme-dropdown-menu"
-                role="listbox"
-                onKeyDown={(event) => {
-                  if (event.key === 'ArrowDown') {
-                    event.preventDefault()
-                    setHighlightedThemeId((currentThemeId) => getNextThemeId(currentThemeId, 1))
-                    return
-                  }
-                  if (event.key === 'ArrowUp') {
-                    event.preventDefault()
-                    setHighlightedThemeId((currentThemeId) => getNextThemeId(currentThemeId, -1))
-                    return
-                  }
-                  if (event.key === 'Home') {
-                    event.preventDefault()
-                    setHighlightedThemeId(themeOptionIds[0])
-                    return
-                  }
-                  if (event.key === 'End') {
-                    event.preventDefault()
-                    setHighlightedThemeId(themeOptionIds[themeOptionIds.length - 1])
-                    return
-                  }
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    selectTheme(highlightedThemeId)
-                  }
-                }}
-              >
-                {TERMINAL_THEME_OPTIONS.map((themeOption) => {
-                  const isSelected = themeOption.id === terminalThemeId
-                  const isHighlighted = themeOption.id === highlightedThemeId
-                  const optionId = `theme-option-${themeOption.id}`
-
-                  return (
-                    <li key={themeOption.id}>
-                      <button
-                        id={optionId}
-                        aria-selected={isSelected}
-                        className="theme-dropdown__option"
-                        role="option"
-                        tabIndex={isHighlighted ? 0 : -1}
-                        type="button"
-                        ref={(element) => {
-                          optionRefs.current[themeOption.id] = element
-                        }}
-                        onMouseEnter={() => setHighlightedThemeId(themeOption.id)}
-                        onClick={() => selectTheme(themeOption.id)}
-                      >
-                        <span>{themeOption.label}</span>
-                        {isSelected ? <small>Active</small> : null}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
-        </section>
-
-        <section className="configs-section" aria-labelledby="configs-code-editor-title">
-          <h2 id="configs-code-editor-title">Code editor</h2>
-          <div className="code-editor-config">
-            <div>
-              <span>External editor</span>
-              <strong>{selectedEditorLabel}</strong>
+          <div className="configs-setting-row">
+            <div className="configs-setting-copy">
+              <h3>Theme</h3>
+              <p>Choose the color palette used by terminal panes.</p>
             </div>
-            <div className="code-editor-options" role="group" aria-label="External code editor">
-              {CODE_EDITOR_OPTIONS.map((option) => (
+
+            <div className="configs-setting-control">
+              <div className="theme-dropdown" ref={themeDropdownRef}>
                 <button
-                  key={option.id}
-                  aria-pressed={option.id === codeEditorSettings.preferredEditor}
+                  aria-activedescendant={isThemeMenuOpen ? highlightedThemeOptionId : undefined}
+                  aria-controls="theme-dropdown-menu"
+                  aria-expanded={isThemeMenuOpen}
+                  aria-haspopup="listbox"
+                  aria-label={`Theme ${selectedThemeLabel}`}
+                  className="theme-dropdown__trigger"
+                  role="combobox"
                   type="button"
+                  onKeyDown={(event) => {
+                    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                      event.preventDefault()
+                      setIsThemeMenuOpen(true)
+                      setHighlightedThemeId(
+                        event.key === 'ArrowDown'
+                          ? getNextThemeId(terminalThemeId, 1)
+                          : getNextThemeId(terminalThemeId, -1)
+                      )
+                      return
+                    }
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setIsThemeMenuOpen((currentIsOpen) => {
+                        const nextIsOpen = !currentIsOpen
+                        if (nextIsOpen) {
+                          setHighlightedThemeId(terminalThemeId)
+                        }
+                        return nextIsOpen
+                      })
+                    }
+                  }}
                   onClick={() =>
-                    onChangeCodeEditorSettings({
-                      preferredEditor: option.id
+                    setIsThemeMenuOpen((currentIsOpen) => {
+                      const nextIsOpen = !currentIsOpen
+                      if (nextIsOpen) {
+                        setHighlightedThemeId(terminalThemeId)
+                      }
+                      return nextIsOpen
                     })
                   }
                 >
-                  {option.label}
+                  <span>Selected</span>
+                  <strong>{selectedThemeLabel}</strong>
                 </button>
-              ))}
-            </div>
-            <p>
-              Code files from terminal changes open in this editor. Markdown files still open in
-              Pixel Vaults when they belong to a configured vault.
-            </p>
-            <div className="code-editor-check-row">
-              <button
-                className="secondary-button"
-                type="button"
-                disabled={isCheckingEditor}
-                onClick={() => {
-                  void checkEditorCommand()
-                }}
-              >
-                {isCheckingEditor ? 'Checking...' : 'Check command'}
-              </button>
-              {visibleEditorCheckResult ? (
-                <small
-                  className={`code-editor-check-status${
-                    visibleEditorCheckResult.ok ? ' code-editor-check-status--ok' : ''
-                  }`}
-                  role="status"
-                >
-                  {visibleEditorCheckResult.ok
-                    ? `${visibleEditorCheckResult.label} found as ${visibleEditorCheckResult.command}`
-                    : `${visibleEditorCheckResult.label} command was not found`}
-                </small>
-              ) : null}
+
+                {isThemeMenuOpen && (
+                  <ul
+                    aria-label="Terminal themes"
+                    className="theme-dropdown__menu app-dark-scroll"
+                    id="theme-dropdown-menu"
+                    role="listbox"
+                    onKeyDown={(event) => {
+                      if (event.key === 'ArrowDown') {
+                        event.preventDefault()
+                        setHighlightedThemeId((currentThemeId) => getNextThemeId(currentThemeId, 1))
+                        return
+                      }
+                      if (event.key === 'ArrowUp') {
+                        event.preventDefault()
+                        setHighlightedThemeId((currentThemeId) =>
+                          getNextThemeId(currentThemeId, -1)
+                        )
+                        return
+                      }
+                      if (event.key === 'Home') {
+                        event.preventDefault()
+                        setHighlightedThemeId(themeOptionIds[0])
+                        return
+                      }
+                      if (event.key === 'End') {
+                        event.preventDefault()
+                        setHighlightedThemeId(themeOptionIds[themeOptionIds.length - 1])
+                        return
+                      }
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        selectTheme(highlightedThemeId)
+                      }
+                    }}
+                  >
+                    {TERMINAL_THEME_OPTIONS.map((themeOption) => {
+                      const isSelected = themeOption.id === terminalThemeId
+                      const isHighlighted = themeOption.id === highlightedThemeId
+                      const optionId = `theme-option-${themeOption.id}`
+
+                      return (
+                        <li key={themeOption.id}>
+                          <button
+                            id={optionId}
+                            aria-selected={isSelected}
+                            className="theme-dropdown__option"
+                            role="option"
+                            tabIndex={isHighlighted ? 0 : -1}
+                            type="button"
+                            ref={(element) => {
+                              optionRefs.current[themeOption.id] = element
+                            }}
+                            onMouseEnter={() => setHighlightedThemeId(themeOption.id)}
+                            onClick={() => selectTheme(themeOption.id)}
+                          >
+                            <span>{themeOption.label}</span>
+                            {isSelected ? <small>Active</small> : null}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="configs-section" aria-labelledby="configs-features-title">
-          <h2 id="configs-features-title">Features</h2>
-          <label className="feature-toggle">
-            <input
-              type="checkbox"
-              checked={featureSettings.playSoundsUponFinishing}
-              onChange={(event) =>
-                onChangeFeatureSettings({
-                  ...featureSettings,
-                  playSoundsUponFinishing: event.currentTarget.checked
-                })
-              }
-            />
-            <span>Play sounds upon finishing</span>
-          </label>
+        <section className="configs-settings-group" aria-labelledby="configs-code-editor-title">
+          <h2 id="configs-code-editor-title">Code editor</h2>
+
+          <div className="configs-setting-row">
+            <div className="configs-setting-copy">
+              <h3>External editor</h3>
+              <p>
+                Code files from terminal changes open in this editor. Markdown files still open in
+                Pixel Vaults when they belong to a configured vault.
+              </p>
+            </div>
+
+            <div className="configs-setting-control">
+              <strong className="configs-setting-current">{selectedEditorLabel}</strong>
+              <div className="code-editor-options" role="group" aria-label="External code editor">
+                {CODE_EDITOR_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    aria-pressed={option.id === codeEditorSettings.preferredEditor}
+                    type="button"
+                    onClick={() =>
+                      onChangeCodeEditorSettings({
+                        preferredEditor: option.id
+                      })
+                    }
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="configs-setting-row">
+            <div className="configs-setting-copy">
+              <h3>Command availability</h3>
+              <p>Check whether the selected editor command is available in this environment.</p>
+            </div>
+
+            <div className="configs-setting-control">
+              <div className="code-editor-check-row">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  disabled={isCheckingEditor}
+                  onClick={() => {
+                    void checkEditorCommand()
+                  }}
+                >
+                  {isCheckingEditor ? 'Checking...' : 'Check command'}
+                </button>
+                {visibleEditorCheckResult ? (
+                  <small
+                    className={`code-editor-check-status${
+                      visibleEditorCheckResult.ok ? ' code-editor-check-status--ok' : ''
+                    }`}
+                    role="status"
+                  >
+                    {visibleEditorCheckResult.ok
+                      ? `${visibleEditorCheckResult.label} found as ${visibleEditorCheckResult.command}`
+                      : `${visibleEditorCheckResult.label} command was not found`}
+                  </small>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="configs-settings-group" aria-labelledby="configs-features-title">
+          <h2 id="configs-features-title">Experience</h2>
+
+          <div className="configs-setting-row">
+            <div className="configs-setting-copy">
+              <h3>Completion sound</h3>
+              <p>Play a short local sound when a terminal task finishes.</p>
+            </div>
+
+            <div className="configs-setting-control">
+              <label className="feature-toggle feature-toggle--flat configs-inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={featureSettings.playSoundsUponFinishing}
+                  onChange={(event) =>
+                    onChangeFeatureSettings({
+                      ...featureSettings,
+                      playSoundsUponFinishing: event.currentTarget.checked
+                    })
+                  }
+                />
+                <span>Play sounds upon finishing</span>
+              </label>
+            </div>
+          </div>
         </section>
       </div>
     </section>

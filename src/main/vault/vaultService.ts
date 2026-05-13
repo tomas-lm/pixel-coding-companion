@@ -1,6 +1,8 @@
 import { mkdir, readdir, readFile, realpath, stat, writeFile } from 'fs/promises'
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'path'
 import type {
+  VaultCreateDirectoryRequest,
+  VaultCreateDirectoryResult,
   VaultCreateFolderRequest,
   VaultCreateFolderResult,
   VaultCreateMarkdownFileRequest,
@@ -92,7 +94,7 @@ async function buildTree(rootPath: string, currentPath: string): Promise<VaultTr
       if (isIgnoredDirectory(entry.name, currentPath)) continue
 
       const child = await buildTree(rootPath, entryPath)
-      if (child && child.children && child.children.length > 0) {
+      if (child) {
         children.push(child)
       }
       continue
@@ -182,6 +184,27 @@ export async function createMarkdownFile({
 
   await writeFile(filePath, '', { encoding: 'utf8', flag: 'wx' })
   return readMarkdownFile(safeRoot, filePath)
+}
+
+export async function createFolder({
+  directoryPath,
+  name,
+  rootPath
+}: VaultCreateDirectoryRequest): Promise<VaultCreateDirectoryResult> {
+  const safeRoot = await realpath(rootPath)
+  const targetDirectory = directoryPath
+    ? await getSafeExistingPath(safeRoot, directoryPath)
+    : safeRoot
+  const folderName = assertSafeSegment(name, 'Folder name')
+  const folderPath = await getSafeWritablePath(safeRoot, join(targetDirectory, folderName))
+
+  await mkdir(folderPath, { recursive: false })
+
+  return {
+    name: folderName,
+    path: folderPath,
+    relativePath: getRelativePath(safeRoot, folderPath)
+  }
 }
 
 export async function createVaultFolder({

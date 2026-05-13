@@ -1,6 +1,7 @@
 import { BrowserWindow, dialog, type OpenDialogOptions, ipcMain } from 'electron'
 import { basename } from 'path'
 import {
+  createFolder,
   createMarkdownFile,
   createVaultFolder,
   listMarkdownTree,
@@ -9,6 +10,8 @@ import {
 } from '../vault/vaultService'
 import {
   VAULT_CHANNELS,
+  type VaultCreateDirectoryRequest,
+  type VaultCreateDirectoryResult,
   type VaultCreateFolderRequest,
   type VaultCreateFolderResult,
   type VaultCreateMarkdownFileRequest,
@@ -55,6 +58,13 @@ export function registerVaultIpc(): void {
     VAULT_CHANNELS.createVaultFolder,
     async (_, request: VaultCreateFolderRequest): Promise<VaultCreateFolderResult> => {
       return createVaultFolder(request)
+    }
+  )
+
+  ipcMain.handle(
+    VAULT_CHANNELS.createFolder,
+    async (_, request: VaultCreateDirectoryRequest): Promise<VaultCreateDirectoryResult> => {
+      return createFolder(request)
     }
   )
 

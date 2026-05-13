@@ -38,6 +38,7 @@ import {
 } from '../shared/terminal'
 import {
   VAULT_CHANNELS,
+  type VaultCreateDirectoryRequest,
   type VaultCreateFolderRequest,
   type VaultCreateMarkdownFileRequest,
   type VaultFileRequest,
@@ -152,6 +153,8 @@ const api: CompanionApi = {
     }
   },
   vault: {
+    createFolder: (request: VaultCreateDirectoryRequest) =>
+      ipcRenderer.invoke(VAULT_CHANNELS.createFolder, request),
     createMarkdownFile: (request: VaultCreateMarkdownFileRequest) =>
       ipcRenderer.invoke(VAULT_CHANNELS.createMarkdownFile, request),
     createVaultFolder: (request: VaultCreateFolderRequest) =>

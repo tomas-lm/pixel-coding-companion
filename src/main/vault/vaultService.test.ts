@@ -3,6 +3,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  createFolder,
   createMarkdownFile,
   createVaultFolder,
   isPathInside,
@@ -33,7 +34,7 @@ describe('vaultService', () => {
     expect(isPathInside('/tmp/vault', '/tmp/vault/../outside.md')).toBe(false)
   })
 
-  it('lists only markdown files and folders with markdown descendants', async () => {
+  it('lists markdown files and empty folders while ignoring hidden dependency folders', async () => {
     const root = await createTempDir()
     await mkdir(join(root, 'notes'))
     await mkdir(join(root, 'node_modules'))
@@ -44,6 +45,13 @@ describe('vaultService', () => {
     const safeRoot = await realpath(root)
 
     await expect(listMarkdownTree(root)).resolves.toEqual([
+      {
+        children: [],
+        name: 'empty',
+        path: join(safeRoot, 'empty'),
+        relativePath: 'empty',
+        type: 'directory'
+      },
       {
         children: [
           {
@@ -132,6 +140,32 @@ describe('vaultService', () => {
 
     await expect(
       createMarkdownFile({
+        name: '../escape',
+        rootPath: root
+      })
+    ).rejects.toThrow('plain name')
+  })
+
+  it('creates folders inside vault directories with safe names', async () => {
+    const root = await createTempDir()
+    const safeRoot = await realpath(root)
+    await mkdir(join(root, 'notes'))
+
+    const folder = await createFolder({
+      directoryPath: join(root, 'notes'),
+      name: 'Projects',
+      rootPath: root
+    })
+
+    expect(folder).toEqual({
+      name: 'Projects',
+      path: join(safeRoot, 'notes', 'Projects'),
+      relativePath: 'notes/Projects'
+    })
+
+    await expect(
+      createFolder({
+        directoryPath: join(root, 'notes'),
         name: '../escape',
         rootPath: root
       })

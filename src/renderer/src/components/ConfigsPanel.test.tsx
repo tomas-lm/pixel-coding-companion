@@ -34,7 +34,7 @@ describe('ConfigsPanel', () => {
   it('renders feature toggles', () => {
     renderConfigsPanel()
 
-    expect(screen.getByRole('heading', { name: 'Configs' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Theme Catppuccin Mocha' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'External code editor' })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Play sounds upon finishing' })).not.toBeChecked()

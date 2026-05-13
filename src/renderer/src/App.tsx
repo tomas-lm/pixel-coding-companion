@@ -1191,11 +1191,12 @@ function App(): React.JSX.Element {
     setActiveActivityItemId('vaults')
   }
 
-  const createVaultNote = async (name: string): Promise<void> => {
+  const createVaultNote = async (name: string, directoryPath?: string): Promise<void> => {
     if (!activeVault) return
     if (!confirmDiscardVaultChanges()) return
 
     const file = await window.api.vault.createMarkdownFile({
+      directoryPath,
       name,
       rootPath: activeVault.rootPath
     })
@@ -1205,6 +1206,17 @@ function App(): React.JSX.Element {
     )
     setVaultRefreshKey((currentKey) => currentKey + 1)
     setVaultHasUnsavedChanges(false)
+  }
+
+  const createVaultFolder = async (name: string, directoryPath?: string): Promise<void> => {
+    if (!activeVault) return
+
+    await window.api.vault.createFolder({
+      directoryPath,
+      name,
+      rootPath: activeVault.rootPath
+    })
+    setVaultRefreshKey((currentKey) => currentKey + 1)
   }
 
   const handleVaultFileSaved = (file: VaultMarkdownFile): void => {
@@ -1398,6 +1410,7 @@ function App(): React.JSX.Element {
           selectedFilePath={selectedVaultFilePath}
           vaults={vaults}
           refreshKey={vaultRefreshKey}
+          onCreateFolder={createVaultFolder}
           onCreateNote={createVaultNote}
           onDeleteVault={deleteVault}
           onSaveVault={saveVault}

@@ -119,8 +119,8 @@
   gap: 8px;
 }
 
-.vault-action-grid .primary-button {
-  grid-column: 1 / -1;
+.vault-action-grid .primary-button,
+.vault-action-grid .secondary-button {
   min-height: 38px;
   font-weight: 700;
 }
@@ -251,6 +251,56 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.vault-context-menu {
+  position: fixed;
+  z-index: 80;
+  display: grid;
+  gap: 2px;
+  width: 176px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  padding: 4px;
+  background: #12161f;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.46);
+}
+
+.vault-context-menu button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 8px;
+  background: transparent;
+  color: var(--ev-c-text-1);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vault-context-menu button:hover,
+.vault-context-menu button:focus-visible {
+  background: color-mix(in srgb, var(--active-project-color) 14%, rgba(255, 255, 255, 0.05));
+  outline: none;
+}
+
+.vault-context-menu__icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: var(--active-project-color);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .vault-workspace-panel {
