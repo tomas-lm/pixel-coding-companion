@@ -76,13 +76,6 @@ export function WorkspaceRail({
   return (
     <aside className={`workspace-rail${isDragging ? ' workspace-rail--dragging' : ''}`}>
       <div className="workspace-rail-scroll">
-        <div className="brand-lockup">
-          <div className="brand-title-row">
-            <strong>Pixel Companion</strong>
-            <span className="brand-version">v1.0.0</span>
-          </div>
-        </div>
-
         <section className="rail-section rail-section--projects" aria-label="Projects">
           <div className="rail-header">
             <span>Projects</span>
@@ -122,8 +115,10 @@ export function WorkspaceRail({
                       onClick={() => onSelectProject(project.id)}
                     >
                       <span className="project-dot" aria-hidden="true" />
-                      <span>{project.name}</span>
-                      <small>{getProjectLiveLabel(project.id, runningSessions)}</small>
+                      <span className="project-name">{project.name}</span>
+                      <small className="project-live-count">
+                        {getProjectLiveLabel(project.id, runningSessions)}
+                      </small>
                     </button>
                     <RowActionButton
                       label={`Edit ${project.name}`}
@@ -157,7 +152,7 @@ export function WorkspaceRail({
 
         <section className="rail-section rail-section--config" aria-label="Configured terminals">
           <div className="rail-header">
-            <span>Configured terminals</span>
+            <span>Terminals</span>
             <AddButton
               className="secondary-button"
               label="Add terminal"
@@ -201,8 +196,8 @@ export function WorkspaceRail({
                       <span className={`kind-badge kind-badge--${config.kind}`}>
                         {KIND_LABELS[config.kind]}
                       </span>
-                      <strong>{config.name}</strong>
-                      <small>{getTerminalDetail(config)}</small>
+                      <strong className="template-name">{config.name}</strong>
+                      <small className="template-detail">{getTerminalDetail(config)}</small>
                     </button>
                     <RowActionButton
                       label={`Configure ${config.name}`}
@@ -252,11 +247,15 @@ export function WorkspaceRail({
                       type="button"
                       onClick={() => onSelectSession(session.id)}
                     >
+                      <span
+                        className={`session-status-dot session-status-dot--${session.status}`}
+                        aria-hidden="true"
+                      />
                       <span className={`kind-badge kind-badge--${session.kind}`}>
                         {KIND_LABELS[session.kind]}
                       </span>
-                      <strong>{session.name}</strong>
-                      <small>{getSessionCardDetail(session)}</small>
+                      <strong className="session-name">{session.name}</strong>
+                      <small className="session-detail">{getSessionCardDetail(session)}</small>
                     </button>
                     {isLiveSession(session) ? (
                       <IconOnlyButton
