@@ -84,6 +84,17 @@ describe('CompanionStoreCard', () => {
     expect(avatar?.style.getPropertyValue('--companion-avatar-scale')).toBe('0.91')
   })
 
+  it('nudges the Raya egg right only in the companion store card', () => {
+    const raya = COMPANION_REGISTRY.find((companion) => companion.id === 'raya')
+
+    if (!raya) throw new Error('Raya companion was not registered.')
+
+    const avatar = renderStoreCard('raya', 0)
+
+    expect(raya.stages[0].avatarOffsetX).toBe(-4)
+    expect(avatar?.style.getPropertyValue('--companion-avatar-offset-x')).toBe('0px')
+  })
+
   it('nudges Raya evolved stages left only in the companion store card', () => {
     const raya = COMPANION_REGISTRY.find((companion) => companion.id === 'raya')
 

@@ -39,6 +39,10 @@ function getCompanionStoreStage(
       (avatarScale ?? 1) * (stage.id === 'egg' ? RAYA_STORE_EGG_SCALE : RAYA_STORE_SCALE)
   }
 
+  if (companion.id === 'raya' && stage.id === 'egg') {
+    avatarOffsetX = (avatarOffsetX ?? 0) + 2
+  }
+
   if (
     companion.id === 'raya' &&
     (stage.id === 'lvl1' || stage.id === 'lvl2' || stage.id === 'lvl3')
