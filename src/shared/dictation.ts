@@ -29,12 +29,12 @@ export const PARAKEET_COREML_MODEL_URL =
 
 export const PARAKEET_COREML_MODEL_DOWNLOAD_SIZE_LABEL = '~461 MB'
 
-export const SHERPA_ONNX_PARAKEET_MODEL_ID = 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8'
+export const SHERPA_ONNX_PARAKEET_MODEL_ID = 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8'
 
 export const SHERPA_ONNX_PARAKEET_MODEL_URL =
-  `https://huggingface.co/csukuangfj/${SHERPA_ONNX_PARAKEET_MODEL_ID}`
+  'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2'
 
-export const SHERPA_ONNX_PARAKEET_MODEL_DOWNLOAD_SIZE_LABEL = '~661 MB'
+export const SHERPA_ONNX_PARAKEET_MODEL_DOWNLOAD_SIZE_LABEL = '~350 MB'
 
 export type DictationBackendId = 'macos-parakeet-coreml' | 'onnx-sherpa' | 'mock'
 
@@ -178,7 +178,8 @@ export type DictationShortcutAvailability =
 
 export type DictationCaptureResult =
   | {
-      audioData: ArrayBuffer
+      audioBase64: string
+      audioData?: ArrayBuffer
       mimeType: 'audio/wav'
       ok: true
       sampleRate: number
@@ -251,7 +252,7 @@ export type DictationSnapshot = {
 
 export type DictationApi = {
   clearHistory: () => Promise<DictationHistoryListResult>
-  completeCapture: (result: DictationCaptureResult) => Promise<DictationSnapshot>
+  completeCapture: (result: DictationCaptureResult | string) => Promise<DictationSnapshot>
   completeInsertion: (result: DictationInsertionResult) => void
   deleteHistoryEntry: (
     request: DictationHistoryDeleteRequest

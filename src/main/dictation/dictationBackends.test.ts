@@ -171,14 +171,14 @@ function createSherpaModelSnapshot(
   overrides: Partial<DictationModelInstallSnapshot> = {}
 ): DictationModelInstallSnapshot {
   return {
-    downloadedBytes: 693_000_000,
-    installPath: '/tmp/pixel/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8',
+    downloadedBytes: 367_000_000,
+    installPath: '/tmp/pixel/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8',
     percent: 100,
-    requiredBytesLabel: '~661 MB',
+    requiredBytesLabel: '~350 MB',
     sourceUrl:
-      'https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8',
+      'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2',
     status: 'downloading',
-    totalBytes: 693_000_000,
+    totalBytes: 367_000_000,
     ...overrides
   }
 }

@@ -1,3 +1,6 @@
+import { mkdtemp, readFile } from 'fs/promises'
+import { join } from 'path'
+import { tmpdir } from 'os'
 import { describe, expect, it, vi } from 'vitest'
 import { DICTATION_CHANNELS, type DictationBackendStatus } from '../../shared/dictation'
 import { DictationManager } from './dictationManager'
@@ -10,9 +13,14 @@ type TestManagerAccess = {
       state: string
     }
     recordingStartedAt: number
+    startRecording: () => Promise<{ state: string }>
+    stopRecording: () => Promise<{ state: string }>
     updateSettings: (settings: {
       enabled: boolean
+      keepAudioHistory: boolean
       keepLastAudioSample: boolean
+      keepTranscriptHistory: boolean
+      overlayEnabled: boolean
       shortcutId: 'control-option-hold' | 'control-shift-hold' | 'option-shift-hold'
     }) => void
   }
@@ -43,10 +51,11 @@ function createModelInstaller() {
       downloadedBytes: 0,
       installPath: '/tmp/parakeet-onnx',
       percent: 100,
-      requiredBytesLabel: '~661 MB',
-      sourceUrl: 'https://example.invalid/parakeet',
+      requiredBytesLabel: '~350 MB',
+      sourceUrl:
+        'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2',
       status: 'installed' as const,
-      totalBytes: 661_000_000
+      totalBytes: 367_000_000
     }),
     install: vi.fn()
   }
@@ -114,6 +123,7 @@ function createManager({
       register,
       unregister
     },
+    getMainWindow: () => browserWindow.window as never,
     modelInstaller: createModelInstaller(),
     platform: 'linux'
   })
@@ -122,7 +132,10 @@ function createManager({
   const privateManager = manager as unknown as TestManagerAccess
   privateManager.controller.updateSettings({
     enabled: true,
+    keepAudioHistory: false,
     keepLastAudioSample: false,
+    keepTranscriptHistory: true,
+    overlayEnabled: false,
     shortcutId: 'control-option-hold'
   })
   privateManager.syncGlobalShortcut()
@@ -158,7 +171,7 @@ describe('DictationManager Linux shortcuts', () => {
 
     await createManagerState.globalShortcutCallback?.()
     expect(privateManager.controller.getSnapshot().state).toBe('recording')
-    expect(browserWindow.window.webContents.send).toHaveBeenLastCalledWith(
+    expect(browserWindow.window.webContents.send).toHaveBeenCalledWith(
       DICTATION_CHANNELS.captureCommand,
       { type: 'start' }
     )
@@ -166,7 +179,7 @@ describe('DictationManager Linux shortcuts', () => {
     privateManager.controller.recordingStartedAt = Date.now() - 1_000
     await createManagerState.globalShortcutCallback?.()
     expect(privateManager.controller.getSnapshot().state).toBe('transcribing')
-    expect(browserWindow.window.webContents.send).toHaveBeenLastCalledWith(
+    expect(browserWindow.window.webContents.send).toHaveBeenCalledWith(
       DICTATION_CHANNELS.captureCommand,
       { type: 'stop' }
     )
@@ -177,7 +190,10 @@ describe('DictationManager Linux shortcuts', () => {
 
     privateManager.controller.updateSettings({
       enabled: true,
+      keepAudioHistory: false,
       keepLastAudioSample: false,
+      keepTranscriptHistory: true,
+      overlayEnabled: false,
       shortcutId: 'control-shift-hold'
     })
     privateManager.syncGlobalShortcut()
@@ -191,7 +207,10 @@ describe('DictationManager Linux shortcuts', () => {
 
     privateManager.controller.updateSettings({
       enabled: false,
+      keepAudioHistory: false,
       keepLastAudioSample: false,
+      keepTranscriptHistory: true,
+      overlayEnabled: false,
       shortcutId: 'control-option-hold'
     })
     privateManager.syncGlobalShortcut()
@@ -224,7 +243,7 @@ describe('DictationManager Linux shortcuts', () => {
 
     expect(preventDefault).toHaveBeenCalledOnce()
     expect(privateManager.controller.getSnapshot().state).toBe('recording')
-    expect(browserWindow.window.webContents.send).toHaveBeenLastCalledWith(
+    expect(browserWindow.window.webContents.send).toHaveBeenCalledWith(
       DICTATION_CHANNELS.captureCommand,
       { type: 'start' }
     )
@@ -244,9 +263,157 @@ describe('DictationManager Linux shortcuts', () => {
     )
 
     expect(privateManager.controller.getSnapshot().state).toBe('transcribing')
-    expect(browserWindow.window.webContents.send).toHaveBeenLastCalledWith(
+    expect(browserWindow.window.webContents.send).toHaveBeenCalledWith(
       DICTATION_CHANNELS.captureCommand,
       { type: 'stop' }
     )
+  })
+})
+
+describe('DictationManager completeCapture', () => {
+  it('decodes base64 audio payloads before transcription', async () => {
+    const userDataPath = await mkdtemp(join(tmpdir(), 'pixel-dictation-manager-'))
+    const browserWindow = createWindow()
+    const expectedAudio = Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0x10, 0x20, 0x30, 0x40])
+    const transcribe = vi.fn(
+      async ({
+        audioFilePath
+      }: {
+        audioFilePath?: string
+        startedAt: number
+        stoppedAt: number
+      }) => {
+        if (!audioFilePath) throw new Error('Missing audio file path in transcription request.')
+
+        const savedAudio = await readFile(audioFilePath)
+
+        expect(savedAudio.equals(Buffer.from(expectedAudio))).toBe(true)
+
+        return {
+          backend: 'onnx-sherpa' as const,
+          durationMs: 1_000,
+          text: 'decoded transcript'
+        }
+      }
+    )
+
+    const manager = new DictationManager({
+      backend: {
+        ...createBackend(),
+        transcribe
+      },
+      browserWindows: {
+        getAllWindows: () => [browserWindow.window as never],
+        getFocusedWindow: () => browserWindow.window as never
+      },
+      getMainWindow: () => browserWindow.window as never,
+      getUserDataPath: () => userDataPath,
+      modelInstaller: createModelInstaller(),
+      platform: 'linux'
+    })
+    manager.attachWindow(browserWindow.window as never)
+    const privateManager = manager as unknown as TestManagerAccess & {
+      completeCapture: (result: {
+        audioBase64: string
+        mimeType: 'audio/wav'
+        ok: true
+        sampleRate: number
+      }) => Promise<{ state: string }>
+    }
+
+    privateManager.controller.updateSettings({
+      enabled: true,
+      keepAudioHistory: false,
+      keepLastAudioSample: false,
+      keepTranscriptHistory: true,
+      overlayEnabled: false,
+      shortcutId: 'control-option-hold'
+    })
+    await privateManager.controller.startRecording()
+    privateManager.controller.recordingStartedAt = Date.now() - 1_000
+    await privateManager.controller.stopRecording()
+
+    const snapshot = await privateManager.completeCapture({
+      audioBase64: Buffer.from(expectedAudio).toString('base64'),
+      mimeType: 'audio/wav',
+      ok: true,
+      sampleRate: 16_000
+    })
+
+    expect(transcribe).toHaveBeenCalledOnce()
+    expect(snapshot.state).toBe('inserting')
+  })
+
+  it('still accepts legacy ArrayBuffer capture payloads', async () => {
+    const userDataPath = await mkdtemp(join(tmpdir(), 'pixel-dictation-manager-'))
+    const browserWindow = createWindow()
+    const expectedAudio = Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0xaa, 0xbb, 0xcc, 0xdd])
+    const transcribe = vi.fn(
+      async ({
+        audioFilePath
+      }: {
+        audioFilePath?: string
+        startedAt: number
+        stoppedAt: number
+      }) => {
+        if (!audioFilePath) throw new Error('Missing audio file path in transcription request.')
+
+        const savedAudio = await readFile(audioFilePath)
+
+        expect(savedAudio.equals(Buffer.from(expectedAudio))).toBe(true)
+
+        return {
+          backend: 'onnx-sherpa' as const,
+          durationMs: 1_000,
+          text: 'decoded transcript'
+        }
+      }
+    )
+
+    const manager = new DictationManager({
+      backend: {
+        ...createBackend(),
+        transcribe
+      },
+      browserWindows: {
+        getAllWindows: () => [browserWindow.window as never],
+        getFocusedWindow: () => browserWindow.window as never
+      },
+      getMainWindow: () => browserWindow.window as never,
+      getUserDataPath: () => userDataPath,
+      modelInstaller: createModelInstaller(),
+      platform: 'linux'
+    })
+    manager.attachWindow(browserWindow.window as never)
+    const privateManager = manager as unknown as TestManagerAccess & {
+      completeCapture: (result: {
+        audioData: ArrayBuffer
+        mimeType: 'audio/wav'
+        ok: true
+        sampleRate: number
+      }) => Promise<{ state: string }>
+    }
+
+    privateManager.controller.updateSettings({
+      enabled: true,
+      keepAudioHistory: false,
+      keepLastAudioSample: false,
+      keepTranscriptHistory: true,
+      overlayEnabled: false,
+      shortcutId: 'control-option-hold'
+    })
+    await privateManager.controller.startRecording()
+    privateManager.controller.recordingStartedAt = Date.now() - 1_000
+    await privateManager.controller.stopRecording()
+
+    const snapshot = await privateManager.completeCapture({
+      audioData: expectedAudio.buffer.slice(0),
+      mimeType: 'audio/wav',
+      ok: true,
+      sampleRate: 16_000
+    })
+
+    expect(transcribe).toHaveBeenCalledOnce()
+    expect(snapshot.state).toBe('inserting')
   })
 })

@@ -25,7 +25,7 @@ type SherpaOnnxNodeRecognizer = {
 
 type SherpaOnnxNodeModule = {
   OfflineRecognizer: new (config: SherpaOnnxRecognizerConfig) => SherpaOnnxNodeRecognizer
-  readWave: (filename: string) => SherpaOnnxWave
+  readWave: (filename: string, enableExternalBuffer?: boolean) => SherpaOnnxWave
 }
 
 type SherpaOnnxWasmStream = {
@@ -98,7 +98,7 @@ export class SherpaOnnxRuntime {
 
     if (nodeModule) {
       const recognizer = this.getNodeRecognizer(modelPath, config, nodeModule)
-      const wave = nodeModule.readWave(audioFilePath)
+      const wave = normalizeWaveSamples(nodeModule.readWave(audioFilePath, false))
       const stream = recognizer.createStream()
       stream.acceptWaveform(wave)
 
@@ -108,7 +108,7 @@ export class SherpaOnnxRuntime {
 
     const wasmModule = this.loadWasmModule()
     const recognizer = this.getWasmRecognizer(modelPath, config, wasmModule)
-    const wave = wasmModule.readWave(audioFilePath)
+    const wave = normalizeWaveSamples(wasmModule.readWave(audioFilePath))
     const stream = recognizer.createStream()
 
     try {
@@ -224,5 +224,12 @@ function normalizeResult(
     durationMs: Date.now() - startedAt,
     language: result?.lang,
     text
+  }
+}
+
+function normalizeWaveSamples(wave: SherpaOnnxWave): SherpaOnnxWave {
+  return {
+    sampleRate: wave.sampleRate,
+    samples: new Float32Array(wave.samples)
   }
 }

@@ -252,7 +252,7 @@ export class DictationManager {
     await mkdir(capturesDirectory, { recursive: true })
 
     const audioFilePath = join(capturesDirectory, `${Date.now()}-${randomUUID()}.wav`)
-    await writeFile(audioFilePath, Buffer.from(result.audioData))
+    await writeFile(audioFilePath, this.decodeCaptureAudio(result))
 
     try {
       return await this.controller.completeRecording({ audioFilePath })
@@ -261,6 +261,18 @@ export class DictationManager {
         await rm(audioFilePath, { force: true })
       }
     }
+  }
+
+  private decodeCaptureAudio(result: Extract<DictationCaptureResult, { ok: true }>): Buffer {
+    if (typeof result.audioBase64 === 'string' && result.audioBase64.length > 0) {
+      return Buffer.from(result.audioBase64, 'base64')
+    }
+
+    if (result.audioData instanceof ArrayBuffer) {
+      return Buffer.from(result.audioData)
+    }
+
+    throw new TypeError('Dictation capture payload did not include serializable audio data.')
   }
 
   private sendCaptureCommand(command: DictationCaptureCommand): void {

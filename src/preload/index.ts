@@ -61,6 +61,27 @@ import {
   type WorkspaceConfig
 } from '../shared/workspace'
 
+function normalizeDictationCaptureResult(result: DictationCaptureResult | string): DictationCaptureResult {
+  if (typeof result === 'string') {
+    return JSON.parse(result) as DictationCaptureResult
+  }
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      reason: result.reason
+    }
+  }
+
+  return {
+    audioBase64: result.audioBase64,
+    mimeType: result.mimeType,
+    ok: true,
+    sampleRate: result.sampleRate,
+    ...(result.audioData instanceof ArrayBuffer ? { audioData: result.audioData } : {})
+  }
+}
+
 const api: CompanionApi = {
   companion: {
     loadBridgeState: (): Promise<CompanionBridgeState> =>
@@ -80,8 +101,8 @@ const api: CompanionApi = {
   dictation: {
     clearHistory: (): Promise<DictationHistoryListResult> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.clearHistory),
-    completeCapture: (result: DictationCaptureResult): Promise<DictationSnapshot> =>
-      ipcRenderer.invoke(DICTATION_CHANNELS.completeCapture, result),
+    completeCapture: (result: DictationCaptureResult | string): Promise<DictationSnapshot> =>
+      ipcRenderer.invoke(DICTATION_CHANNELS.completeCapture, normalizeDictationCaptureResult(result)),
     completeInsertion: (result: DictationInsertionResult): void => {
       ipcRenderer.send(DICTATION_CHANNELS.completeInsertion, result)
     },
