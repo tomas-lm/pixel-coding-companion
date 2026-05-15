@@ -10,7 +10,7 @@ import {
   MAX_MESSAGES,
   readBridgeState
 } from './companion-bridge-state.mjs'
-import { createCompanionDataPaths, getDefaultDataDir } from './companion-data-dir.mjs'
+import { createCompanionDataPaths, resolveCompanionDataDir } from './companion-data-dir.mjs'
 import {
   createCompanionMessage,
   createCompanionReply,
@@ -42,7 +42,7 @@ Tools:
   process.exit(0)
 }
 
-const dataDir = getDefaultDataDir()
+const dataDir = await resolveCompanionDataDir()
 const {
   eventsPath,
   externalTerminalRegistryPath,

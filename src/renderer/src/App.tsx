@@ -79,7 +79,6 @@ import { createRunningSession, findReusableSessionForConfig } from './app/runnin
 import {
   commandsFromText,
   commandsToText,
-  getCompanionMessage,
   getLiveConfigIds,
   getOutputPreview,
   getTimeMs,
@@ -307,6 +306,7 @@ function App(): React.JSX.Element {
     setCompanionProgress,
     setCompanionStoreState
   } = useCompanionBridge(COMPANION_NAME)
+  const [companionEmptyMessageCreatedAt] = useState(() => new Date().toISOString())
   const [starterSelectionError, setStarterSelectionError] = useState<string | null>(null)
   const [isSelectingStarter, setIsSelectingStarter] = useState(false)
   const [promptPickerOpen, setPromptPickerOpen] = useState(false)
@@ -1722,31 +1722,25 @@ function App(): React.JSX.Element {
     )
   }
 
-  const companionMessage = activeProject
-    ? getCompanionMessage(activeSession)
-    : 'Create a workspace to get started.'
   const companionTerminalMessages: CompanionBridgeMessage[] =
     companionBridgeState.messages.length > 0
       ? companionBridgeState.messages.slice(-8)
       : [
           {
-            id: 'local-companion-message',
-            cliState: activeSession?.status === 'error' ? 'error' : 'idle',
-            createdAt: new Date().toISOString(),
-            projectColor: activeProjectColor,
-            projectName: activeProject?.name ?? 'Pixel Companion',
+            id: 'global-companion-empty-message',
+            cliState: 'idle',
+            createdAt: companionEmptyMessageCreatedAt,
+            projectName: 'Pixel Companion',
             source: 'app',
-            summary: companionMessage,
-            terminalColor: activeSession?.terminalColor,
-            title: activeSession?.name ?? COMPANION_NAME
+            summary:
+              projects.length > 0
+                ? 'Ghou is watching for terminal updates.'
+                : 'Create a workspace to get started.',
+            title: COMPANION_NAME
           }
         ]
   const companionTerminalState =
-    companionBridgeState.messages.length > 0
-      ? companionBridgeState.currentState
-      : activeSession?.status === 'error'
-        ? 'error'
-        : 'idle'
+    companionBridgeState.messages.length > 0 ? companionBridgeState.currentState : 'idle'
   const terminalTitle =
     activeSession?.name ?? (activeProject ? 'Workspace' : 'No workspace selected')
   const selectedSessionId = activeSession?.id ?? null

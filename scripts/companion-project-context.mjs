@@ -94,7 +94,16 @@ export async function readProcessTreeContext({ pid = process.pid, terminalContex
   if (registry.length === 0) return {}
 
   const ancestors = await getAncestorPids(pid)
-  const context = registry.find((entry) => ancestors.has(entry.shellPid))
+  const context = registry
+    .filter((entry) => ancestors.has(entry.shellPid))
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.updatedAt ?? left.startedAt ?? '')
+      const rightTime = Date.parse(right.updatedAt ?? right.startedAt ?? '')
+
+      return (
+        (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0)
+      )
+    })[0]
   if (!context) return {}
 
   return {

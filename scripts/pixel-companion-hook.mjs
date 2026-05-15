@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 
-import { createCompanionDataPaths, getDefaultDataDir } from './companion-data-dir.mjs'
+import { createCompanionDataPaths, resolveCompanionDataDir } from './companion-data-dir.mjs'
 import { createCompanionMessage, writeCompanionMessage } from './companion-message.mjs'
 import { readBoundContext } from './companion-project-context.mjs'
 import {
@@ -13,7 +13,7 @@ import {
   updateCompanionProgress
 } from './companion-xp-awards.mjs'
 import { buildNoisyCommandHookResponse } from './pixel-compact-rules.mjs'
-const dataDir = getDefaultDataDir()
+const dataDir = await resolveCompanionDataDir()
 const {
   eventsPath,
   externalTerminalRegistryPath,

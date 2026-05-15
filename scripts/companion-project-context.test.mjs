@@ -8,6 +8,7 @@ import { writeJsonAtomic } from './companion-json-store.mjs'
 import {
   getExternalTerminalColor,
   getNextExternalTerminalNumber,
+  readProcessTreeContext,
   readWorkspaceConfig,
   resolveProject
 } from './companion-project-context.mjs'
@@ -91,6 +92,40 @@ describe('companion-project-context', () => {
       projectColor: '#22d3ee',
       projectId: 'project-1',
       projectName: 'Pixel'
+    })
+  })
+
+  it('prefers the newest matching process-tree context', async () => {
+    const paths = await createPaths()
+    await writeJsonAtomic(paths.terminalContextRegistryPath, [
+      {
+        projectId: 'project-old',
+        projectName: 'Old',
+        sessionId: 'session-old',
+        shellPid: process.pid,
+        terminalName: 'Old Terminal',
+        updatedAt: '2026-01-01T00:00:00.000Z'
+      },
+      {
+        projectId: 'project-new',
+        projectName: 'New',
+        sessionId: 'session-new',
+        shellPid: process.pid,
+        terminalName: 'New Terminal',
+        updatedAt: '2026-01-02T00:00:00.000Z'
+      }
+    ])
+
+    await expect(
+      readProcessTreeContext({
+        pid: process.pid,
+        terminalContextRegistryPath: paths.terminalContextRegistryPath
+      })
+    ).resolves.toMatchObject({
+      contextSource: 'process_tree',
+      projectId: 'project-new',
+      sessionId: 'session-new',
+      terminalName: 'New Terminal'
     })
   })
 
