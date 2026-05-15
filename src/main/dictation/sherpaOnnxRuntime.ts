@@ -94,7 +94,7 @@ export class SherpaOnnxRuntime {
   }: SherpaOnnxTranscriptionInput): Promise<SherpaOnnxTranscriptionResult> {
     const startedAt = Date.now()
     const config = createRecognizerConfig(modelPath)
-    const nodeModule = this.loadNodeModule()
+    const { nativeFailure, nodeModule, wasmFailure, wasmModule } = this.loadRuntimeModules()
 
     if (nodeModule) {
       const recognizer = this.getNodeRecognizer(modelPath, config, nodeModule)
@@ -106,7 +106,10 @@ export class SherpaOnnxRuntime {
       return normalizeResult(result, startedAt)
     }
 
-    const wasmModule = this.loadWasmModule()
+    if (!wasmModule) {
+      throw createRuntimeLoadError(nativeFailure, wasmFailure)
+    }
+
     const recognizer = this.getWasmRecognizer(modelPath, config, wasmModule)
     const wave = normalizeWaveSamples(wasmModule.readWave(audioFilePath))
     const stream = recognizer.createStream()
@@ -130,12 +133,45 @@ export class SherpaOnnxRuntime {
     }
   }
 
+  private loadRuntimeModules(): {
+    nativeFailure: Error | null
+    nodeModule: SherpaOnnxNodeModule | null
+    wasmFailure: Error | null
+    wasmModule: SherpaOnnxWasmModule | null
+  } {
+    const nativeLoad = this.tryLoadNodeModule()
+    if (nativeLoad.module) {
+      return {
+        nativeFailure: null,
+        nodeModule: nativeLoad.module,
+        wasmFailure: null,
+        wasmModule: null
+      }
+    }
+
+    if (nativeLoad.error) {
+      console.warn(
+        `Sherpa native runtime failed to load, attempting WASM fallback: ${nativeLoad.error.message}`
+      )
+    }
+
+    const wasmLoad = this.tryLoadWasmModule()
+
+    return {
+      nativeFailure: nativeLoad.error,
+      nodeModule: null,
+      wasmFailure: wasmLoad.error,
+      wasmModule: wasmLoad.module
+    }
+  }
+
   private getNodeRecognizer(
     modelPath: string,
     config: SherpaOnnxRecognizerConfig,
     sherpaOnnx: SherpaOnnxNodeModule
   ): SherpaOnnxNodeRecognizer {
-    if (this.nativeRecognizer && this.recognizerModelPath === modelPath) return this.nativeRecognizer
+    if (this.nativeRecognizer && this.recognizerModelPath === modelPath)
+      return this.nativeRecognizer
 
     this.nativeRecognizer = new sherpaOnnx.OfflineRecognizer(config)
     this.wasmRecognizer?.free()
@@ -158,36 +194,73 @@ export class SherpaOnnxRuntime {
     return this.wasmRecognizer
   }
 
-  private loadNodeModule(): SherpaOnnxNodeModule | null {
-    if (this.nodeModule) return this.nodeModule
-    if (!this.canResolve('sherpa-onnx-node')) return null
+  private tryLoadNodeModule(): {
+    error: Error | null
+    module: SherpaOnnxNodeModule | null
+  } {
+    if (this.nodeModule) {
+      return {
+        error: null,
+        module: this.nodeModule
+      }
+    }
+    if (!this.canResolve('sherpa-onnx-node')) return { error: null, module: null }
 
     try {
       this.nodeModule = require('sherpa-onnx-node') as SherpaOnnxNodeModule
-      return this.nodeModule
+      return {
+        error: null,
+        module: this.nodeModule
+      }
     } catch (error) {
-      throw new Error(
-        error instanceof Error
-          ? `Could not load sherpa-onnx-node runtime: ${error.message}`
-          : 'Could not load sherpa-onnx-node runtime.'
-      )
+      return {
+        error:
+          error instanceof Error
+            ? new Error(`Could not load sherpa-onnx-node runtime: ${error.message}`)
+            : new Error('Could not load sherpa-onnx-node runtime.'),
+        module: null
+      }
     }
   }
 
-  private loadWasmModule(): SherpaOnnxWasmModule {
-    if (this.wasmModule) return this.wasmModule
+  private tryLoadWasmModule(): {
+    error: Error | null
+    module: SherpaOnnxWasmModule | null
+  } {
+    if (this.wasmModule) {
+      return {
+        error: null,
+        module: this.wasmModule
+      }
+    }
+    if (!this.canResolve('sherpa-onnx')) return { error: null, module: null }
 
     try {
       this.wasmModule = require('sherpa-onnx') as SherpaOnnxWasmModule
-      return this.wasmModule
+      return {
+        error: null,
+        module: this.wasmModule
+      }
     } catch (error) {
-      throw new Error(
-        error instanceof Error
-          ? `Could not load sherpa-onnx runtime: ${error.message}`
-          : 'Could not load sherpa-onnx runtime.'
-      )
+      return {
+        error:
+          error instanceof Error
+            ? new Error(`Could not load sherpa-onnx runtime: ${error.message}`)
+            : new Error('Could not load sherpa-onnx runtime.'),
+        module: null
+      }
     }
   }
+}
+
+function createRuntimeLoadError(nativeFailure: Error | null, wasmFailure: Error | null): Error {
+  const nativeMessage =
+    nativeFailure?.message ??
+    'Could not load sherpa-onnx-node runtime: module could not be resolved.'
+  const wasmMessage =
+    wasmFailure?.message ?? 'Could not load sherpa-onnx runtime: module could not be resolved.'
+
+  return new Error(`No Sherpa runtime could be loaded. ${nativeMessage} ${wasmMessage}`)
 }
 
 function createRecognizerConfig(modelPath: string): SherpaOnnxRecognizerConfig {

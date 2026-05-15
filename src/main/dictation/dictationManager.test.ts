@@ -2,7 +2,11 @@ import { mkdtemp, readFile } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { describe, expect, it, vi } from 'vitest'
-import { DICTATION_CHANNELS, type DictationBackendStatus } from '../../shared/dictation'
+import {
+  DICTATION_CHANNELS,
+  type DictationBackendStatus,
+  type DictationModelInstallSnapshot
+} from '../../shared/dictation'
 import { DictationManager } from './dictationManager'
 import type { DictationBackend } from './dictationBackends'
 
@@ -27,6 +31,47 @@ type TestManagerAccess = {
   syncGlobalShortcut: () => void
 }
 
+type TestModelInstaller = {
+  getSnapshot: () => DictationModelInstallSnapshot
+  install: () => Promise<DictationModelInstallSnapshot>
+}
+
+type TestInputHandler = (
+  event: {
+    preventDefault: ReturnType<typeof vi.fn>
+  },
+  input: {
+    alt: boolean
+    control: boolean
+    isAutoRepeat: boolean
+    key: string
+    meta: boolean
+    shift: boolean
+    type: 'keyDown' | 'keyUp'
+  }
+) => void
+
+type TestWindow = {
+  beforeInputEventHandlers: TestInputHandler[]
+  closedHandlers: Array<() => void>
+  window: {
+    on: ReturnType<typeof vi.fn>
+    webContents: {
+      isDestroyed: ReturnType<typeof vi.fn>
+      on: ReturnType<typeof vi.fn>
+      send: ReturnType<typeof vi.fn>
+    }
+  }
+}
+
+type TestManagerFactoryResult = {
+  browserWindow: TestWindow
+  manager: DictationManager
+  privateManager: TestManagerAccess
+  register: ReturnType<typeof vi.fn>
+  unregister: ReturnType<typeof vi.fn>
+}
+
 function readyStatus(): DictationBackendStatus {
   return {
     available: true,
@@ -45,39 +90,26 @@ function createBackend(): DictationBackend {
   }
 }
 
-function createModelInstaller() {
+function createModelInstaller(): TestModelInstaller {
+  const snapshot: DictationModelInstallSnapshot = {
+    downloadedBytes: 0,
+    installPath: '/tmp/parakeet-onnx',
+    percent: 100,
+    requiredBytesLabel: '~350 MB',
+    sourceUrl:
+      'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2',
+    status: 'installed',
+    totalBytes: 367_000_000
+  }
+
   return {
-    getSnapshot: () => ({
-      downloadedBytes: 0,
-      installPath: '/tmp/parakeet-onnx',
-      percent: 100,
-      requiredBytesLabel: '~350 MB',
-      sourceUrl:
-        'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2',
-      status: 'installed' as const,
-      totalBytes: 367_000_000
-    }),
-    install: vi.fn()
+    getSnapshot: () => snapshot,
+    install: vi.fn(async () => snapshot)
   }
 }
 
-function createWindow() {
-  const beforeInputEventHandlers: Array<
-    (
-      event: {
-        preventDefault: ReturnType<typeof vi.fn>
-      },
-      input: {
-        alt: boolean
-        control: boolean
-        isAutoRepeat: boolean
-        key: string
-        meta: boolean
-        shift: boolean
-        type: 'keyDown' | 'keyUp'
-      }
-    ) => void
-  > = []
+function createWindow(): TestWindow {
+  const beforeInputEventHandlers: TestInputHandler[] = []
   const closedHandlers: Array<() => void> = []
   const send = vi.fn()
 
@@ -90,11 +122,16 @@ function createWindow() {
       }),
       webContents: {
         isDestroyed: vi.fn(() => false),
-        on: vi.fn((event: string, handler: (event: { preventDefault: () => void }, input: never) => void) => {
-          if (event === 'before-input-event') {
-            beforeInputEventHandlers.push(handler as never)
+        on: vi.fn(
+          (
+            event: string,
+            handler: (event: { preventDefault: () => void }, input: never) => void
+          ) => {
+            if (event === 'before-input-event') {
+              beforeInputEventHandlers.push(handler as never)
+            }
           }
-        }),
+        ),
         send
       }
     }
@@ -105,7 +142,7 @@ function createManager({
   registerReturns = true
 }: {
   registerReturns?: boolean
-} = {}) {
+} = {}): TestManagerFactoryResult {
   const browserWindow = createWindow()
   const register = vi.fn((_accelerator: string, callback: () => void) => {
     createManagerState.globalShortcutCallback = callback

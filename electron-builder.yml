@@ -17,6 +17,7 @@ asarUnpack:
   - node_modules/sherpa-onnx/**
   - node_modules/sherpa-onnx-node/**
   - node_modules/sherpa-onnx-linux-x64/**
+  - node_modules/sherpa-onnx-linux-arm64/**
   - scripts/**
 win:
   icon: build/icon.ico

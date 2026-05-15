@@ -61,7 +61,9 @@ import {
   type WorkspaceConfig
 } from '../shared/workspace'
 
-function normalizeDictationCaptureResult(result: DictationCaptureResult | string): DictationCaptureResult {
+function normalizeDictationCaptureResult(
+  result: DictationCaptureResult | string
+): DictationCaptureResult {
   if (typeof result === 'string') {
     return JSON.parse(result) as DictationCaptureResult
   }
@@ -102,7 +104,10 @@ const api: CompanionApi = {
     clearHistory: (): Promise<DictationHistoryListResult> =>
       ipcRenderer.invoke(DICTATION_CHANNELS.clearHistory),
     completeCapture: (result: DictationCaptureResult | string): Promise<DictationSnapshot> =>
-      ipcRenderer.invoke(DICTATION_CHANNELS.completeCapture, normalizeDictationCaptureResult(result)),
+      ipcRenderer.invoke(
+        DICTATION_CHANNELS.completeCapture,
+        normalizeDictationCaptureResult(result)
+      ),
     completeInsertion: (result: DictationInsertionResult): void => {
       ipcRenderer.send(DICTATION_CHANNELS.completeInsertion, result)
     },

@@ -344,10 +344,14 @@ export function DictationPanel({
 
           <div className="dictation-setting-row">
             <div className="dictation-setting-copy">
-              <h3>{dictationSnapshot?.backend.id === 'onnx-sherpa' ? 'Toggle shortcut' : 'Hold shortcut'}</h3>
+              <h3>
+                {dictationSnapshot?.backend.id === 'onnx-sherpa'
+                  ? 'Toggle shortcut'
+                  : 'Hold shortcut'}
+              </h3>
               <p>
                 {dictationSnapshot?.backend.id === 'onnx-sherpa'
-                  ? 'Press the selected bind once to start recording and again to stop.'
+                  ? 'Linux uses a toggle shortcut. Press once to start and again to stop.'
                   : 'Hold the selected bind to record. Release it to transcribe and insert text.'}
               </p>
               {linuxShortcutFallbackMessage ? (

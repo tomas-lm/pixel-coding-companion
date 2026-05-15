@@ -90,10 +90,9 @@ describe('SherpaOnnxModelInstaller', () => {
 
   it('does not treat the old v2 cache as an installed v3 model', async () => {
     const userDataPath = await mkdtemp(join(tmpdir(), 'pixel-sherpa-model-'))
-    await mkdir(
-      join(userDataPath, 'dictation', 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8'),
-      { recursive: true }
-    )
+    await mkdir(join(userDataPath, 'dictation', 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8'), {
+      recursive: true
+    })
 
     const installer = new SherpaOnnxModelInstaller({
       getUserDataPath: () => userDataPath
@@ -131,7 +130,14 @@ describe('SherpaOnnxModelInstaller', () => {
       status: 'failed'
     })
     await expect(
-      stat(join(userDataPath, 'dictation', SHERPA_ONNX_PARAKEET_MODEL_ID, 'pixel-install-manifest.json'))
+      stat(
+        join(
+          userDataPath,
+          'dictation',
+          SHERPA_ONNX_PARAKEET_MODEL_ID,
+          'pixel-install-manifest.json'
+        )
+      )
     ).rejects.toThrow()
   })
 })
