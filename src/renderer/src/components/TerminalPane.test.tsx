@@ -66,7 +66,8 @@ const session: RunningSession = {
   projectId: 'project-1',
   projectName: 'Pixel',
   startedAt: '2026-05-04T10:00:00.000Z',
-  status: 'running'
+  status: 'running',
+  terminalColor: '#5fb3ff'
 }
 
 function createCopyEvent(): KeyboardEvent {

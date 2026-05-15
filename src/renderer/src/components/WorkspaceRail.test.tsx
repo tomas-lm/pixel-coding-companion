@@ -32,7 +32,8 @@ const session: RunningSession = {
   projectId: project.id,
   projectName: project.name,
   startedAt: '2026-05-02T15:00:00.000Z',
-  status: 'running'
+  status: 'running',
+  terminalColor: project.color
 }
 
 describe('WorkspaceRail', () => {
@@ -67,5 +68,41 @@ describe('WorkspaceRail', () => {
     expect(screen.getAllByText('Assistant')).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Stop Assistant' })).toBeInTheDocument()
     expect(screen.getByText('1 live')).toBeInTheDocument()
+  })
+
+  it('renders unread completion badges for a project and session', () => {
+    render(
+      <WorkspaceRail
+        activeProject={project}
+        activeProjectConfigs={[config]}
+        activeProjectSessions={[session]}
+        onClearTerminalHoverCard={vi.fn()}
+        onCreateProject={vi.fn()}
+        onCreateTerminal={vi.fn()}
+        onEditProject={vi.fn()}
+        onEditTerminal={vi.fn()}
+        onResizePointerDown={vi.fn()}
+        onScheduleTerminalHoverCard={vi.fn()}
+        onReorderProjects={vi.fn()}
+        onReorderRunning={vi.fn()}
+        onReorderTerminals={vi.fn()}
+        onSelectProject={vi.fn()}
+        onSelectSession={vi.fn()}
+        onStartConfig={vi.fn()}
+        onStartWorkspace={vi.fn()}
+        onStopSession={vi.fn()}
+        projects={[project]}
+        runningSessions={[session]}
+        selectedSessionId={null}
+        unreadSessionIds={[session.id]}
+      />
+    )
+
+    expect(
+      screen.getByRole('status', { name: 'Pixel has unread terminal completion' })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('status', { name: 'Assistant has unread completion' })
+    ).toBeInTheDocument()
   })
 })

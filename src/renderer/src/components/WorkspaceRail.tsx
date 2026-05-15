@@ -8,6 +8,7 @@ import {
   getTerminalDetail,
   isLiveSession
 } from '../app/sessionDisplay'
+import { getTerminalAccentColor } from '../app/terminalAccentColors'
 import { RailSortableList } from './RailSortableList'
 import { AddButton, IconOnlyButton, RowActionButton } from './ui/IconButtons'
 
@@ -36,6 +37,7 @@ type WorkspaceRailProps = {
   projects: Project[]
   runningSessions: RunningSession[]
   selectedSessionId: string | null
+  unreadSessionIds?: string[]
 }
 
 export function WorkspaceRail({
@@ -59,9 +61,11 @@ export function WorkspaceRail({
   onStopSession,
   projects,
   runningSessions,
-  selectedSessionId
+  selectedSessionId,
+  unreadSessionIds = []
 }: WorkspaceRailProps): React.JSX.Element {
   const [isDragging, setIsDragging] = useState(false)
+  const unreadSessionIdSet = new Set(unreadSessionIds)
 
   const updateDraggingState = useCallback(
     (isListDragging: boolean): void => {
@@ -96,38 +100,57 @@ export function WorkspaceRail({
                 items={projects}
                 onDragStateChange={updateDraggingState}
                 onReorder={onReorderProjects}
-                renderItem={(project, _index, sortableArgs) => (
-                  <div
-                    ref={sortableArgs.setNodeRef}
-                    className={`project-row${project.id === activeProject?.id ? ' project-row--active' : ''}`}
-                    style={
-                      {
-                        '--project-color': project.color,
-                        ...sortableArgs.style
-                      } as CSSProperties
-                    }
-                    {...sortableArgs.attributes}
-                    {...sortableArgs.listeners}
-                  >
-                    <button
-                      className="project-item"
-                      type="button"
-                      onClick={() => onSelectProject(project.id)}
+                renderItem={(project, _index, sortableArgs) => {
+                  const hasUnreadCompletion = runningSessions.some(
+                    (session) =>
+                      session.projectId === project.id && unreadSessionIdSet.has(session.id)
+                  )
+
+                  return (
+                    <div
+                      ref={sortableArgs.setNodeRef}
+                      className={`project-row${project.id === activeProject?.id ? ' project-row--active' : ''}`}
+                      style={
+                        {
+                          '--project-color': project.color,
+                          ...sortableArgs.style
+                        } as CSSProperties
+                      }
+                      {...sortableArgs.attributes}
+                      {...sortableArgs.listeners}
                     >
-                      <span className="project-dot" aria-hidden="true" />
-                      <span className="project-name">{project.name}</span>
-                      <small className="project-live-count">
-                        {getProjectLiveLabel(project.id, runningSessions)}
-                      </small>
-                    </button>
-                    <RowActionButton
-                      label={`Edit ${project.name}`}
-                      onClick={() => onEditProject(project)}
-                    >
-                      ...
-                    </RowActionButton>
-                  </div>
-                )}
+                      <button
+                        className="project-item"
+                        type="button"
+                        onClick={() => onSelectProject(project.id)}
+                      >
+                        <span className="project-dot" aria-hidden="true" />
+                        <span className="project-name">{project.name}</span>
+                        <span
+                          className={`rail-unread-dot${
+                            hasUnreadCompletion ? '' : ' rail-unread-dot--empty'
+                          }`}
+                          role={hasUnreadCompletion ? 'status' : undefined}
+                          aria-hidden={hasUnreadCompletion ? undefined : true}
+                          aria-label={
+                            hasUnreadCompletion
+                              ? `${project.name} has unread terminal completion`
+                              : undefined
+                          }
+                        />
+                        <small className="project-live-count">
+                          {getProjectLiveLabel(project.id, runningSessions)}
+                        </small>
+                      </button>
+                      <RowActionButton
+                        label={`Edit ${project.name}`}
+                        onClick={() => onEditProject(project)}
+                      >
+                        ...
+                      </RowActionButton>
+                    </div>
+                  )
+                }}
               />
             )}
           </div>
@@ -174,7 +197,17 @@ export function WorkspaceRail({
                   <div
                     ref={sortableArgs.setNodeRef}
                     className="template-row"
-                    style={sortableArgs.style}
+                    style={
+                      {
+                        '--terminal-color': getTerminalAccentColor(
+                          config,
+                          activeProject,
+                          activeProjectConfigs,
+                          activeProject?.color
+                        ),
+                        ...sortableArgs.style
+                      } as CSSProperties
+                    }
                     onBlurCapture={onClearTerminalHoverCard}
                     onFocusCapture={(event) => {
                       if (isDragging) return
@@ -232,52 +265,73 @@ export function WorkspaceRail({
                 items={activeProjectSessions}
                 onDragStateChange={updateDraggingState}
                 onReorder={onReorderRunning}
-                renderItem={(session, _index, sortableArgs) => (
-                  <div
-                    ref={sortableArgs.setNodeRef}
-                    className={`session-row session-row--${session.status}${
-                      session.id === selectedSessionId ? ' session-row--active' : ''
-                    }`}
-                    style={sortableArgs.style}
-                    {...sortableArgs.attributes}
-                    {...sortableArgs.listeners}
-                  >
-                    <button
-                      className="session-item"
-                      type="button"
-                      onClick={() => onSelectSession(session.id)}
+                renderItem={(session, _index, sortableArgs) => {
+                  const hasUnreadCompletion = unreadSessionIdSet.has(session.id)
+
+                  return (
+                    <div
+                      ref={sortableArgs.setNodeRef}
+                      className={`session-row session-row--${session.status}${
+                        session.id === selectedSessionId ? ' session-row--active' : ''
+                      }`}
+                      style={
+                        {
+                          '--terminal-color': session.terminalColor,
+                          ...sortableArgs.style
+                        } as CSSProperties
+                      }
+                      {...sortableArgs.attributes}
+                      {...sortableArgs.listeners}
                     >
-                      <span
-                        className={`session-status-dot session-status-dot--${session.status}`}
-                        aria-hidden="true"
-                      />
-                      <span className={`kind-badge kind-badge--${session.kind}`}>
-                        {KIND_LABELS[session.kind]}
-                      </span>
-                      <strong className="session-name">{session.name}</strong>
-                      <small className="session-detail">{getSessionCardDetail(session)}</small>
-                    </button>
-                    {isLiveSession(session) ? (
-                      <IconOnlyButton
-                        className="session-stop session-stop--live"
-                        label={`Stop ${session.name}`}
-                        onClick={() => onStopSession(session.id)}
-                      >
-                        &#9632;
-                      </IconOnlyButton>
-                    ) : (
                       <button
-                        className="session-stop"
+                        className="session-item"
                         type="button"
-                        aria-label={`Clear ${session.name}`}
-                        title={`Clear ${session.name}`}
-                        onClick={() => onStopSession(session.id)}
+                        onClick={() => onSelectSession(session.id)}
                       >
-                        Clear
+                        <span
+                          className={`session-status-dot session-status-dot--${session.status}`}
+                          aria-hidden="true"
+                        />
+                        <span className={`kind-badge kind-badge--${session.kind}`}>
+                          {KIND_LABELS[session.kind]}
+                        </span>
+                        <strong className="session-name">{session.name}</strong>
+                        <span
+                          className={`rail-unread-dot${
+                            hasUnreadCompletion ? '' : ' rail-unread-dot--empty'
+                          }`}
+                          role={hasUnreadCompletion ? 'status' : undefined}
+                          aria-hidden={hasUnreadCompletion ? undefined : true}
+                          aria-label={
+                            hasUnreadCompletion
+                              ? `${session.name} has unread completion`
+                              : undefined
+                          }
+                        />
+                        <small className="session-detail">{getSessionCardDetail(session)}</small>
                       </button>
-                    )}
-                  </div>
-                )}
+                      {isLiveSession(session) ? (
+                        <IconOnlyButton
+                          className="session-stop session-stop--live"
+                          label={`Stop ${session.name}`}
+                          onClick={() => onStopSession(session.id)}
+                        >
+                          &#9632;
+                        </IconOnlyButton>
+                      ) : (
+                        <button
+                          className="session-stop"
+                          type="button"
+                          aria-label={`Clear ${session.name}`}
+                          title={`Clear ${session.name}`}
+                          onClick={() => onStopSession(session.id)}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  )
+                }}
               />
             )}
           </div>

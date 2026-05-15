@@ -38,6 +38,7 @@ export async function createCompanionMessage(input, options) {
     projectId: resolvedProject.projectId,
     projectName: resolvedProject.projectName,
     sessionName: resolvedProject.sessionName ?? input.sessionName,
+    terminalColor: resolvedProject.terminalColor ?? input.terminalColor,
     terminalId: resolvedProject.terminalId,
     terminalSessionId: resolvedProject.terminalSessionId,
     source: options.source,

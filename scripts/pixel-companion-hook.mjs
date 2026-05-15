@@ -161,6 +161,7 @@ async function handleUserPromptSubmit(hookInput, agentName) {
     projectId: context.projectId,
     projectName: context.projectName,
     sessionName: context.terminalName,
+    terminalColor: context.terminalColor,
     summary: `${agentName} started working in ${sessionLabel}.`,
     title: sessionLabel
   })
@@ -201,6 +202,7 @@ async function handleStop(hookInput, agentName) {
     projectId: context.projectId,
     projectName: context.projectName,
     sessionName: context.terminalName,
+    terminalColor: context.terminalColor,
     summary,
     title: sessionLabel
   })
@@ -237,6 +239,7 @@ async function handleStopFailure(hookInput, agentName) {
     projectId: context.projectId,
     projectName: context.projectName,
     sessionName: context.terminalName,
+    terminalColor: context.terminalColor,
     summary: error
       ? `${agentName} failed in ${sessionLabel}. ${error}`
       : `${agentName} failed in ${sessionLabel}.`,
@@ -266,6 +269,7 @@ async function handleNotification(hookInput, agentName) {
     projectId: context.projectId,
     projectName: context.projectName,
     sessionName: context.terminalName,
+    terminalColor: context.terminalColor,
     summary: notification
       ? `${agentName} needs attention in ${sessionLabel}. ${notification}`
       : `${agentName} needs attention in ${sessionLabel}.`,

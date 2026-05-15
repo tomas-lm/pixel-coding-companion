@@ -401,6 +401,19 @@
   padding-right: 40px;
 }
 
+.modal-color-control {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.modal-color-control input[type='color'] {
+  min-width: 42px;
+  min-height: 34px;
+  padding: 3px;
+}
+
 .modal-input-trailing-button {
   position: absolute;
   right: 6px;

@@ -2,6 +2,7 @@ import type { SessionKind } from '../../../shared/workspace'
 
 export type TerminalForm = {
   id?: string
+  accentColor?: string
   name: string
   kind: SessionKind
   cwd: string

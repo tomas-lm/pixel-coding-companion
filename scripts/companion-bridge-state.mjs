@@ -62,6 +62,7 @@ export function normalizeMessage(message, { companionId, companionName } = {}) {
     projectColor: typeof message.projectColor === 'string' ? message.projectColor : undefined,
     projectName: typeof message.projectName === 'string' ? message.projectName : undefined,
     sessionName: typeof message.sessionName === 'string' ? message.sessionName : undefined,
+    terminalColor: typeof message.terminalColor === 'string' ? message.terminalColor : undefined,
     terminalId: typeof message.terminalId === 'string' ? message.terminalId : undefined,
     terminalSessionId:
       typeof message.terminalSessionId === 'string' ? message.terminalSessionId : undefined,

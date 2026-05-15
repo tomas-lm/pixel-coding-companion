@@ -31,6 +31,7 @@ export function readEnvContext(env = process.env) {
     projectId: env.PIXEL_COMPANION_PROJECT_ID,
     projectName: env.PIXEL_COMPANION_PROJECT_NAME,
     sessionId: env.PIXEL_COMPANION_SESSION_ID,
+    terminalColor: env.PIXEL_COMPANION_TERMINAL_COLOR,
     terminalId: env.PIXEL_COMPANION_TERMINAL_ID,
     terminalName: env.PIXEL_COMPANION_TERMINAL_NAME
   }
@@ -141,6 +142,7 @@ export function hasStrongBoundContext(context) {
     context.projectName ||
     context.projectColor ||
     context.sessionId ||
+    context.terminalColor ||
     context.terminalId ||
     context.terminalName
   )
@@ -231,6 +233,7 @@ export async function resolveExternalTerminal(input, projects, options) {
     projectId: nextEntry.id,
     projectName: nextEntry.name,
     sessionName: nextEntry.name,
+    terminalColor: nextEntry.color,
     terminalId: nextEntry.id,
     terminalSessionId: nextEntry.id
   }
@@ -249,24 +252,38 @@ export async function resolveProject(input, options) {
       projectId: boundContext.projectId,
       projectName: boundContext.projectName ?? input.projectName,
       sessionName: boundContext.terminalName ?? input.sessionName,
+      terminalColor: isHexColor(boundContext.terminalColor)
+        ? boundContext.terminalColor
+        : isHexColor(input.terminalColor)
+          ? input.terminalColor
+          : undefined,
       terminalId: boundContext.terminalId,
       terminalSessionId: boundContext.sessionId,
       contextSource: boundContext.contextSource
     }
   }
 
-  const { projects } = await readWorkspaceConfig(options.workspacesPath)
+  const { projects, terminalConfigs } = await readWorkspaceConfig(options.workspacesPath)
   const project = getProjectById(projects, input.projectId)
 
   if (!project) {
     return resolveExternalTerminal(input, projects, options)
   }
 
+  const terminal = terminalConfigs.find((config) => config.id === input.terminalId) ?? null
+
   return {
     cwd: input.cwd,
     contextSource: 'workspace',
     projectColor: isHexColor(project.color) ? project.color : undefined,
     projectId: project.id,
-    projectName: project.name
+    projectName: project.name,
+    sessionName: terminal?.name ?? input.sessionName,
+    terminalColor: isHexColor(input.terminalColor)
+      ? input.terminalColor
+      : isHexColor(terminal?.accentColor)
+        ? terminal.accentColor
+        : undefined,
+    terminalId: terminal?.id ?? input.terminalId
   }
 }

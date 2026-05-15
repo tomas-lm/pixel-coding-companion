@@ -50,7 +50,8 @@ const runningSession: RunningSession = {
   projectId: 'project-1',
   projectName: 'Pixel',
   startedAt: '2026-05-04T00:00:00.000Z',
-  status: 'running'
+  status: 'running',
+  terminalColor: '#4ea1ff'
 }
 
 const terminalConfigs: TerminalConfig[] = [

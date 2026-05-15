@@ -62,6 +62,7 @@ export type TerminalConfig = {
   kind: SessionKind
   cwd: string
   commands: string[]
+  accentColor?: string
 }
 
 export type PromptTemplateScope = 'global' | 'project'
@@ -108,6 +109,7 @@ export type RunningSession = {
   startWithPixel?: boolean
   projectColor: string
   projectName: string
+  terminalColor: string
   kind: SessionKind
   cwd: string
   commands: string[]

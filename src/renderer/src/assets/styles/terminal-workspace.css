@@ -354,11 +354,12 @@
   --terminal-green: #34d399;
   --terminal-red: #ef5b5b;
   --terminal-yellow: #f7d56f;
+  --terminal-accent-color: var(--terminal-cyan);
   display: grid;
   grid-template-rows: 34px minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--terminal-foreground) 15%, var(--terminal-background));
+  border: 1px solid color-mix(in srgb, var(--terminal-accent-color) 26%, var(--terminal-background));
   border-radius: 8px;
   background: var(--terminal-background);
 }
@@ -376,7 +377,13 @@
   padding: 0 12px;
   border-bottom: 1px solid
     color-mix(in srgb, var(--terminal-foreground) 10%, var(--terminal-background));
-  background: color-mix(in srgb, var(--terminal-background) 84%, var(--terminal-foreground));
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--terminal-accent-color) 18%, transparent),
+      transparent 34%
+    ),
+    color-mix(in srgb, var(--terminal-background) 84%, var(--terminal-foreground));
 }
 
 .terminal-controls {

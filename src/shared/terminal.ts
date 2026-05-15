@@ -37,6 +37,7 @@ export type TerminalCompanionContext = {
   projectId: string
   projectName: string
   sessionId: TerminalSessionId
+  terminalColor?: string
   terminalId: string
   terminalName: string
 }

@@ -20,6 +20,9 @@ export function TerminalFormModal({
   onPickFolder,
   onSave
 }: TerminalFormModalProps): React.JSX.Element {
+  const accentColorValue =
+    form.accentColor && /^#[0-9a-f]{6}$/i.test(form.accentColor) ? form.accentColor : '#4ea1ff'
+
   return (
     <div className="modal-backdrop">
       <section className="modal modal--wide" aria-label="Terminal settings">
@@ -77,6 +80,23 @@ export function TerminalFormModal({
                 <path d="M3 7v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2z" />
               </svg>
             </IconOnlyButton>
+          </div>
+        </label>
+        <label>
+          <span>Accent color</span>
+          <div className="modal-color-control">
+            <input
+              aria-label="Pick terminal accent color"
+              type="color"
+              value={accentColorValue}
+              onChange={(event) => onChange({ ...form, accentColor: event.target.value })}
+            />
+            <input
+              aria-label="Terminal accent color hex"
+              placeholder="#4ea1ff"
+              value={form.accentColor ?? ''}
+              onChange={(event) => onChange({ ...form, accentColor: event.target.value })}
+            />
           </div>
         </label>
         <label>

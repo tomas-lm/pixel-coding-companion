@@ -31,6 +31,7 @@ function createSession(overrides: Partial<RunningSession> = {}): RunningSession 
     projectName: 'Pixel',
     startedAt: '2026-05-02T14:59:00.000Z',
     status: 'running',
+    terminalColor: '#4ea1ff',
     ...overrides
   }
 }

@@ -33,6 +33,15 @@ const terminalConfigs: TerminalConfig[] = [
     projectId: 'pixel'
   },
   {
+    accentColor: '#7fe7dc',
+    commands: ['codex'],
+    cwd: '/repo/pixel/reviewer',
+    id: 'terminal-reviewer',
+    kind: 'ai',
+    name: 'Reviewer',
+    projectId: 'pixel'
+  },
+  {
     commands: ['pnpm test'],
     cwd: '/repo/azul',
     id: 'terminal-azul',
@@ -154,5 +163,24 @@ describe('companion selectors', () => {
         '#ffffff'
       )
     ).toBe('#ffffff')
+  })
+
+  it('prefers terminal colors over project colors for terminal-scoped messages', () => {
+    expect(
+      getCompanionMessageColor(
+        createMessage({ projectId: 'pixel', terminalId: 'terminal-reviewer' }),
+        projects,
+        terminalConfigs,
+        '#ffffff'
+      )
+    ).toBe('#7fe7dc')
+    expect(
+      getCompanionMessageColor(
+        createMessage({ projectId: 'pixel', terminalColor: '#ff8bd1', title: 'Release' }),
+        projects,
+        terminalConfigs,
+        '#ffffff'
+      )
+    ).toBe('#ff8bd1')
   })
 })

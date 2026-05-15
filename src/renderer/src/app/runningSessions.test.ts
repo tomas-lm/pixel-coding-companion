@@ -43,7 +43,8 @@ describe('running sessions', () => {
       projectName: 'Pixel',
       startWithPixel: true,
       startedAt: '2026-05-02T15:00:00.000Z',
-      status: 'starting'
+      status: 'starting',
+      terminalColor: '#4ea1ff'
     })
   })
 
@@ -80,7 +81,8 @@ describe('running sessions', () => {
       projectId: project.id,
       projectName: project.name,
       startedAt: '2026-05-02T15:00:00.000Z',
-      status: 'running'
+      status: 'running',
+      terminalColor: project.color
     }
 
     expect(findReusableSessionForConfig(config, [liveSession])).toEqual(liveSession)
@@ -104,7 +106,8 @@ describe('running sessions', () => {
       projectId: project.id,
       projectName: project.name,
       startedAt: '2026-05-02T15:00:00.000Z',
-      status: 'running'
+      status: 'running',
+      terminalColor: project.color
     }
 
     expect(findReusableSessionForConfig(shellConfig, [liveShellSession])).toBeNull()

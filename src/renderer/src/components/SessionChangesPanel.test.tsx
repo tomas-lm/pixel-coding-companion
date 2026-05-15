@@ -15,7 +15,8 @@ const session: RunningSession = {
   projectId: 'project-1',
   projectName: 'Pixel',
   startedAt: '2026-05-05T10:00:00.000Z',
-  status: 'running'
+  status: 'running',
+  terminalColor: '#4ea1ff'
 }
 
 function installApiMock({

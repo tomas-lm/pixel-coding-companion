@@ -150,6 +150,12 @@ server.registerTool(
         .describe(
           'Optional fallback terminal/session name, such as Assistant, Backend, or Frontend.'
         ),
+      terminalColor: z
+        .string()
+        .optional()
+        .describe(
+          'Optional fallback terminal accent color. Pixel Companion usually resolves this automatically.'
+        ),
       summary: z
         .string()
         .min(1)
@@ -245,6 +251,7 @@ server.registerTool(
         .filter((config) => config.projectId === project.id)
         .map((config) => ({
           cwd: config.cwd,
+          accentColor: config.accentColor,
           kind: config.kind,
           name: config.name
         }))

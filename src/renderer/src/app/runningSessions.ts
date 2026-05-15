@@ -4,12 +4,15 @@ import type {
   RunningSession,
   TerminalConfig
 } from '../../../shared/workspace'
+import { getTerminalAccentColor } from './terminalAccentColors'
 
 type CreateRunningSessionOptions = {
   fallbackProjectColor: string
   id?: string
   now?: string
   pixelAgent?: PixelLauncherAgentId
+  projectTerminalConfigs?: TerminalConfig[]
+  terminalColor?: string
   useStartWithPixel?: boolean
 }
 
@@ -42,10 +45,13 @@ export function createRunningSession(
     id = createId('session'),
     now = new Date().toISOString(),
     pixelAgent,
+    projectTerminalConfigs,
+    terminalColor,
     useStartWithPixel = false
   }: CreateRunningSessionOptions
 ): RunningSession {
   const startWithPixel = useStartWithPixel && config.kind === 'ai' && config.commands.length > 0
+  const projectColor = project?.color ?? fallbackProjectColor
 
   return {
     id,
@@ -54,8 +60,11 @@ export function createRunningSession(
     name: config.name,
     ...(startWithPixel && pixelAgent ? { pixelAgent } : {}),
     startWithPixel,
-    projectColor: project?.color ?? fallbackProjectColor,
+    projectColor,
     projectName: project?.name ?? 'Unknown project',
+    terminalColor:
+      terminalColor ??
+      getTerminalAccentColor(config, project, projectTerminalConfigs ?? [config], projectColor),
     kind: config.kind,
     cwd: config.cwd,
     commands: config.commands,

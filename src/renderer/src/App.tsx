@@ -66,7 +66,7 @@ import {
   snapshotFromBrowserMicrophonePermissionStatus,
   withMicrophoneCaptureError
 } from './app/dictationPermission'
-import { primeCompletionSound } from './app/notificationSounds'
+import { isCompletionNotification, primeCompletionSound } from './app/notificationSounds'
 import { getPromptTemplateProjectPath, getPromptTemplateSendStatus } from './app/promptTemplates'
 import type { ProjectForm } from './app/projectForms'
 import { reorderItemsByTargetIndex } from './app/listOrdering'
@@ -85,6 +85,7 @@ import {
   getTimeMs,
   isLiveSession
 } from './app/sessionDisplay'
+import { normalizeHexColor } from './app/terminalAccentColors'
 import { createEmptyTerminalForm, type TerminalForm } from './app/terminalForms'
 import { updateVaultLastOpenedFile } from './app/vaults'
 import { useCompanionBridge } from './hooks/useCompanionBridge'
@@ -127,6 +128,21 @@ type RunningSessionPatch = Partial<
     | 'metadata'
     | 'status'
   >
+>
+
+type TerminalUnreadSeverity = Extract<
+  CompanionBridgeMessage['cliState'],
+  'done' | 'error' | 'waiting_input'
+>
+
+type TerminalUnreadState = Record<
+  string,
+  {
+    createdAt: string
+    messageId?: string
+    reason: 'command_exit' | 'completion_message'
+    severity: TerminalUnreadSeverity
+  }
 >
 
 function createId(prefix: string): string {
@@ -210,6 +226,40 @@ function getDictationIndicatorLabel(
   return 'Dictation ready'
 }
 
+function normalizeCompanionLookup(value?: string): string {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function resolveSessionIdForCompanionMessage(
+  message: CompanionBridgeMessage,
+  sessions: RunningSession[]
+): string | null {
+  if (message.terminalSessionId) {
+    const session = sessions.find((candidate) => candidate.id === message.terminalSessionId)
+    if (session) return session.id
+  }
+
+  if (message.terminalId) {
+    const session = sessions.find((candidate) => candidate.configId === message.terminalId)
+    if (session) return session.id
+  }
+
+  const sessionName = normalizeCompanionLookup(message.sessionName ?? message.title)
+  if (!sessionName) return null
+
+  const matchingSessions = sessions.filter((session) => {
+    const candidateName = normalizeCompanionLookup(session.name)
+    return candidateName && (candidateName === sessionName || sessionName.includes(candidateName))
+  })
+
+  return matchingSessions.length === 1 ? matchingSessions[0].id : null
+}
+
 function App(): React.JSX.Element {
   const [runningSessions, setRunningSessions] = useState<RunningSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
@@ -285,6 +335,8 @@ function App(): React.JSX.Element {
   const dictationCaptureStartRef = useRef<Promise<WavCapture> | null>(null)
   const featureSettingsRef = useRef(featureSettings)
   const [configsSection, setConfigsSection] = useState<'general' | 'audio'>('general')
+  const [terminalUnreadState, setTerminalUnreadState] = useState<TerminalUnreadState>({})
+  const lastProcessedCompletionMessageIdRef = useRef<string | null>(null)
 
   useCompletionNotificationSound(
     companionBridgeState.messages,
@@ -696,6 +748,39 @@ function App(): React.JSX.Element {
       ? selectedVaultFileSelection.path
       : (activeVault?.lastOpenedFilePath ?? null)
 
+  const clearTerminalUnread = useCallback((sessionId: string): void => {
+    setTerminalUnreadState((currentState) => {
+      if (!currentState[sessionId]) return currentState
+
+      const nextState = { ...currentState }
+      delete nextState[sessionId]
+      return nextState
+    })
+  }, [])
+
+  const markTerminalUnread = useCallback(
+    (
+      sessionId: string,
+      unread: {
+        createdAt: string
+        messageId?: string
+        reason: TerminalUnreadState[string]['reason']
+        severity: TerminalUnreadSeverity
+      }
+    ): void => {
+      if (sessionId === activeSession?.id) {
+        clearTerminalUnread(sessionId)
+        return
+      }
+
+      setTerminalUnreadState((currentState) => ({
+        ...currentState,
+        [sessionId]: unread
+      }))
+    },
+    [activeSession?.id, clearTerminalUnread]
+  )
+
   const updateSession = useCallback((sessionId: string, patch: RunningSessionPatch): void => {
     setRunningSessions((currentSessions) =>
       currentSessions.map((session) =>
@@ -731,7 +816,66 @@ function App(): React.JSX.Element {
     []
   )
 
-  useTerminalEvents(markSessionExited)
+  const markTerminalCommandExited = useCallback(
+    (sessionId: string, exitCode: number): void => {
+      markTerminalUnread(sessionId, {
+        createdAt: new Date().toISOString(),
+        reason: 'command_exit',
+        severity: exitCode === 0 ? 'done' : 'error'
+      })
+    },
+    [markTerminalUnread]
+  )
+
+  useTerminalEvents(markSessionExited, markTerminalCommandExited)
+
+  useEffect(() => {
+    const latestMessage = companionBridgeState.messages.at(-1)
+    if (!latestMessage) return
+
+    const previousMessageId = lastProcessedCompletionMessageIdRef.current
+    lastProcessedCompletionMessageIdRef.current = latestMessage.id
+
+    if (previousMessageId === null || previousMessageId === latestMessage.id) return
+
+    const previousIndex = companionBridgeState.messages.findIndex(
+      (message) => message.id === previousMessageId
+    )
+    const newMessages =
+      previousIndex >= 0 ? companionBridgeState.messages.slice(previousIndex + 1) : [latestMessage]
+
+    setTerminalUnreadState((currentState) => {
+      let nextState = currentState
+
+      for (const message of newMessages) {
+        if (!isCompletionNotification(message)) continue
+
+        const sessionId = resolveSessionIdForCompanionMessage(message, runningSessions)
+        if (!sessionId) continue
+
+        if (sessionId === activeSession?.id) {
+          if (nextState[sessionId]) {
+            const remainingState = { ...nextState }
+            delete remainingState[sessionId]
+            nextState = remainingState
+          }
+          continue
+        }
+
+        nextState = {
+          ...nextState,
+          [sessionId]: {
+            createdAt: message.createdAt,
+            messageId: message.id,
+            reason: 'completion_message',
+            severity: message.cliState as TerminalUnreadSeverity
+          }
+        }
+      }
+
+      return nextState
+    })
+  }, [activeSession?.id, companionBridgeState.messages, runningSessions])
 
   const markSessionStarted = useCallback(
     (sessionId: string, metadata: string): void => {
@@ -770,12 +914,34 @@ function App(): React.JSX.Element {
     [updateSession]
   )
 
-  const selectProject = (projectId: string): void => {
-    setActiveProjectId(projectId)
-    setActiveSessionId(
-      runningSessions.find((session) => session.projectId === projectId)?.id ?? null
-    )
-  }
+  const selectSession = useCallback(
+    (sessionId: string): void => {
+      const session = runningSessions.find((candidate) => candidate.id === sessionId)
+      if (session) {
+        setActiveProjectId(session.projectId)
+      }
+
+      setActiveSessionId(sessionId)
+      clearTerminalUnread(sessionId)
+    },
+    [clearTerminalUnread, runningSessions, setActiveProjectId]
+  )
+
+  const selectProject = useCallback(
+    (projectId: string): void => {
+      const projectSessions = runningSessions.filter((session) => session.projectId === projectId)
+      const unreadSession =
+        projectSessions.find((session) => terminalUnreadState[session.id]) ?? null
+      const nextSession = unreadSession ?? projectSessions[0] ?? null
+
+      setActiveProjectId(projectId)
+      setActiveSessionId(nextSession?.id ?? null)
+      if (nextSession) {
+        clearTerminalUnread(nextSession.id)
+      }
+    },
+    [clearTerminalUnread, runningSessions, setActiveProjectId, terminalUnreadState]
+  )
 
   const reorderProjects = useCallback(
     (draggedProjectId: string, targetIndex: number): void => {
@@ -846,16 +1012,19 @@ function App(): React.JSX.Element {
     const existingSession = findReusableSessionForConfig(config, runningSessions)
 
     if (existingSession) {
-      setActiveProjectId(existingSession.projectId)
-      setActiveSessionId(existingSession.id)
+      selectSession(existingSession.id)
       return
     }
 
     const project = projects.find((candidate) => candidate.id === config.projectId) ?? null
+    const projectTerminalConfigs = terminalConfigs.filter(
+      (candidate) => candidate.projectId === config.projectId
+    )
     const pixelAgent = getSupportedPixelAgent(config, pixelLauncherSettings.preferredAgent)
     const session = createRunningSession(config, project, {
       fallbackProjectColor: PROJECT_COLORS[0],
       pixelAgent,
+      projectTerminalConfigs,
       useStartWithPixel: supportsPixelAgent(config, pixelAgent)
     })
     setRunningSessions((currentSessions) => [...currentSessions, session])
@@ -945,6 +1114,9 @@ function App(): React.JSX.Element {
     if (!startSelection) return
 
     const liveConfigIds = getLiveConfigIds(startSelection.projectId, runningSessions)
+    const projectTerminalConfigs = terminalConfigs.filter(
+      (config) => config.projectId === startSelection.projectId
+    )
     const sessionsToStart = terminalConfigs
       .filter(
         (config) =>
@@ -957,6 +1129,7 @@ function App(): React.JSX.Element {
         return createRunningSession(config, project, {
           fallbackProjectColor: PROJECT_COLORS[0],
           pixelAgent: startSelection.pixelAgent,
+          projectTerminalConfigs,
           useStartWithPixel:
             startSelection.startWithPixel && supportsPixelAgent(config, startSelection.pixelAgent)
         })
@@ -996,6 +1169,7 @@ function App(): React.JSX.Element {
     setRunningSessions((currentSessions) =>
       currentSessions.filter((session) => session.id !== sessionId)
     )
+    clearTerminalUnread(sessionId)
 
     if (activeSession?.id === sessionId) {
       setActiveSessionId(nextActiveSession?.id ?? null)
@@ -1079,6 +1253,7 @@ function App(): React.JSX.Element {
 
   const openEditTerminal = (config: TerminalConfig): void => {
     setTerminalForm({
+      accentColor: config.accentColor ?? '',
       id: config.id,
       name: config.name,
       kind: config.kind,
@@ -1131,13 +1306,15 @@ function App(): React.JSX.Element {
     if (!activeProject || !terminalForm?.name.trim()) return
 
     const commands = commandsFromText(terminalForm.commandsText)
+    const accentColor = normalizeHexColor(terminalForm.accentColor)
     const nextConfig: TerminalConfig = {
       id: terminalForm.id ?? createId('terminal'),
       projectId: activeProject.id,
       name: terminalForm.name.trim(),
       kind: terminalForm.kind,
       cwd: normalizeWorkspaceFolderPath(terminalForm.cwd.trim()),
-      commands
+      commands,
+      ...(accentColor ? { accentColor } : {})
     }
 
     setTerminalConfigs((currentConfigs) => {
@@ -1560,6 +1737,7 @@ function App(): React.JSX.Element {
             projectName: activeProject?.name ?? 'Pixel Companion',
             source: 'app',
             summary: companionMessage,
+            terminalColor: activeSession?.terminalColor,
             title: activeSession?.name ?? COMPANION_NAME
           }
         ]
@@ -1613,6 +1791,7 @@ function App(): React.JSX.Element {
           projects={projects}
           runningSessions={runningSessions}
           selectedSessionId={selectedSessionId}
+          unreadSessionIds={Object.keys(terminalUnreadState)}
           onClearTerminalHoverCard={clearTerminalHoverCard}
           onCreateProject={openCreateProject}
           onCreateTerminal={openCreateTerminal}
@@ -1621,7 +1800,7 @@ function App(): React.JSX.Element {
           onResizePointerDown={startLayoutResize}
           onScheduleTerminalHoverCard={scheduleTerminalHoverCard}
           onSelectProject={selectProject}
-          onSelectSession={setActiveSessionId}
+          onSelectSession={selectSession}
           onReorderProjects={reorderProjects}
           onReorderRunning={reorderRunningSessions}
           onReorderTerminals={reorderTerminalConfigs}

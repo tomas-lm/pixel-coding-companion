@@ -43,6 +43,7 @@ export type CompanionBridgeMessage = {
   projectColor?: string
   projectName?: string
   sessionName?: string
+  terminalColor?: string
   terminalId?: string
   terminalSessionId?: string
   source: 'app' | 'mcp'

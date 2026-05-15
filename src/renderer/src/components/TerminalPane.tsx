@@ -307,6 +307,7 @@ export function TerminalPane({
             projectId: session.projectId,
             projectName: session.projectName,
             sessionId: session.id,
+            terminalColor: session.terminalColor,
             terminalId: session.configId,
             terminalName: session.name
           },
@@ -325,6 +326,7 @@ export function TerminalPane({
             PIXEL_COMPANION_PROJECT_ID: session.projectId,
             PIXEL_COMPANION_PROJECT_NAME: session.projectName,
             PIXEL_COMPANION_SESSION_ID: session.id,
+            PIXEL_COMPANION_TERMINAL_COLOR: session.terminalColor,
             PIXEL_COMPANION_TERMINAL_ID: session.configId,
             PIXEL_COMPANION_TERMINAL_NAME: session.name
           }
@@ -384,6 +386,7 @@ export function TerminalPane({
     session.projectColor,
     session.projectId,
     session.projectName,
+    session.terminalColor,
     session.pixelAgent,
     session.startWithPixel
   ])
@@ -398,7 +401,12 @@ export function TerminalPane({
   return (
     <div
       className={`terminal-frame${showContextHud ? ' terminal-frame--context' : ''}`}
-      style={getTerminalThemeStyle(terminalThemeId)}
+      style={
+        {
+          ...getTerminalThemeStyle(terminalThemeId),
+          '--terminal-accent-color': session.terminalColor
+        } as React.CSSProperties
+      }
       aria-label={`${session.name} terminal`}
     >
       <div className="terminal-toolbar">

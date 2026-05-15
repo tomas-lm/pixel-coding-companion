@@ -40,6 +40,7 @@ export class TerminalContextRegistry {
       PIXEL_COMPANION_PROJECT_ID: context.projectId,
       PIXEL_COMPANION_PROJECT_NAME: context.projectName,
       PIXEL_COMPANION_SESSION_ID: sessionId,
+      PIXEL_COMPANION_TERMINAL_COLOR: context.terminalColor ?? context.projectColor,
       PIXEL_COMPANION_TERMINAL_ID: context.terminalId,
       PIXEL_COMPANION_TERMINAL_NAME: context.terminalName
     }
