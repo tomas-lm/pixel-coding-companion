@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { BrowserWindow, ipcMain } from 'electron'
+import { BrowserWindow, globalShortcut, ipcMain } from 'electron'
 import { mkdir, rm, writeFile } from 'fs/promises'
 import { join } from 'path'
 import type {
@@ -8,13 +8,21 @@ import type {
   DictationExternalInsertRequest,
   DictationInsertRequest,
   DictationInsertionResult,
+  DictationModelInstallSnapshot,
   DictationOverlayMoveRequest,
+  DictationShortcutAvailability,
+  DictationShortcutId,
   DictationSettings,
   DictationSnapshot
 } from '../../shared/dictation'
 import { DICTATION_CHANNELS } from '../../shared/dictation'
 import { DictationController } from './dictationController'
-import { ParakeetCoreMlBackend, type DictationBackend } from './dictationBackends'
+import {
+  MockDictationBackend,
+  ParakeetCoreMlBackend,
+  SherpaOnnxBackend,
+  type DictationBackend
+} from './dictationBackends'
 import { DictationHistoryStore } from './dictationHistoryStore'
 import type { DictationOverlayManager } from './dictationOverlayManager'
 import {
@@ -27,41 +35,66 @@ import { GlobalModifierShortcutMonitor } from './globalModifierShortcutMonitor'
 import { ModifierHoldShortcut, type ModifierHoldKeyEvent } from './modifierHoldShortcut'
 import { NativeDictationRuntime } from './nativeDictationRuntime'
 import { ParakeetModelInstaller } from './parakeetModelInstaller'
+import { SherpaOnnxModelInstaller } from './sherpaOnnxModelInstaller'
+import { SherpaOnnxRuntime } from './sherpaOnnxRuntime'
 
 const MODIFIER_HOLD_DEBOUNCE_MS = 180
 const GLOBAL_SHORTCUT_RETRY_MS = 3000
 
+type DictationGlobalShortcut = Pick<typeof globalShortcut, 'register' | 'unregister'>
+type DictationWindowRegistry = Pick<typeof BrowserWindow, 'getAllWindows' | 'getFocusedWindow'>
+
+type DictationModelInstaller = {
+  getSnapshot: () => DictationModelInstallSnapshot
+  install: () => Promise<DictationModelInstallSnapshot>
+}
+
 type DictationManagerOptions = {
   backend?: DictationBackend
+  browserWindows?: DictationWindowRegistry
   debounceMs?: number
+  electronGlobalShortcut?: DictationGlobalShortcut
   getAppPath?: () => string
   getMainWindow?: () => BrowserWindow | null
   getResourcesPath?: () => string
   getUserDataPath?: () => string
   historyStore?: DictationHistoryStore
-  modelInstaller?: ParakeetModelInstaller
+  modelInstaller?: DictationModelInstaller
   nativeRuntime?: NativeDictationRuntime
   overlayManager?: DictationOverlayManager
+  platform?: NodeJS.Platform
+  sherpaOnnxRuntime?: SherpaOnnxRuntime
 }
 
 export class DictationManager {
   private readonly controller: DictationController
   private readonly debounceMs: number
+  private readonly browserWindows: DictationWindowRegistry
+  private readonly electronGlobalShortcut: DictationGlobalShortcut
   private readonly getMainWindow: () => BrowserWindow | null
   private readonly getUserDataPath: () => string
   private readonly historyStore: DictationHistoryStore
   private readonly globalShortcutMonitor: GlobalModifierShortcutMonitor
-  private readonly modelInstaller: ParakeetModelInstaller
+  private readonly modelInstaller: DictationModelInstaller
   private readonly nativeRuntime: NativeDictationRuntime
   private readonly overlayManager?: DictationOverlayManager
+  private readonly platform: NodeJS.Platform
+  private readonly sherpaOnnxRuntime: SherpaOnnxRuntime
   private readonly shortcut = new ModifierHoldShortcut()
+  private globalShortcutAccelerator: string | null = null
+  private linuxShortcutAvailability: DictationShortcutAvailability = {
+    mode: 'hold',
+    scope: 'focused'
+  }
   private globalShortcutRetryTimer: NodeJS.Timeout | null = null
   private hasReportedGlobalShortcutPermissionError = false
   private pendingStartTimer: NodeJS.Timeout | null = null
 
   constructor({
     backend,
+    browserWindows = BrowserWindow,
     debounceMs = MODIFIER_HOLD_DEBOUNCE_MS,
+    electronGlobalShortcut = globalShortcut,
     getAppPath = () => process.cwd(),
     getMainWindow = () => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0],
     getResourcesPath = () => process.cwd(),
@@ -69,18 +102,30 @@ export class DictationManager {
     historyStore,
     modelInstaller,
     nativeRuntime,
-    overlayManager
+    overlayManager,
+    platform = process.platform,
+    sherpaOnnxRuntime
   }: DictationManagerOptions = {}) {
+    this.browserWindows = browserWindows
     this.debounceMs = debounceMs
+    this.electronGlobalShortcut = electronGlobalShortcut
     this.getMainWindow = getMainWindow
     this.getUserDataPath = getUserDataPath
     this.historyStore = historyStore ?? new DictationHistoryStore({ getUserDataPath })
     this.overlayManager = overlayManager
+    this.platform = platform
+    if (platform === 'linux') {
+      this.linuxShortcutAvailability = {
+        mode: 'toggle',
+        scope: 'global'
+      }
+    }
     this.modelInstaller =
       modelInstaller ??
-      new ParakeetModelInstaller({
+      createModelInstaller({
         getUserDataPath,
-        onChange: () => this.broadcastSnapshot(this.controller.getSnapshot())
+        onChange: () => this.broadcastSnapshot(this.controller.getSnapshot()),
+        platform
       })
     this.nativeRuntime =
       nativeRuntime ??
@@ -88,20 +133,19 @@ export class DictationManager {
         getAppPath,
         getResourcesPath
       })
+    this.sherpaOnnxRuntime = sherpaOnnxRuntime ?? new SherpaOnnxRuntime()
     this.globalShortcutMonitor = new GlobalModifierShortcutMonitor({
       nativeRuntime: this.nativeRuntime,
-      onEvent: (event) => this.handleShortcutEvent(event)
+      onEvent: (event) => this.handleShortcutEvent(event),
+      platform
     })
-    const resolvedBackend =
-      backend ??
-      new ParakeetCoreMlBackend({
-        getModelSnapshot: () => this.modelInstaller.getSnapshot(),
-        runtime: this.nativeRuntime
-      })
+
+    const resolvedBackend = backend ?? this.createPlatformBackend()
     this.controller = new DictationController({
       backend: resolvedBackend,
       emitSnapshot: (snapshot) => this.broadcastSnapshot(snapshot),
       getModelSnapshot: () => this.modelInstaller.getSnapshot(),
+      getShortcutAvailability: () => this.getShortcutAvailability(),
       recordTranscript: async (request) => {
         await this.historyStore.recordTranscript(request)
       },
@@ -115,13 +159,25 @@ export class DictationManager {
   }
 
   attachWindow(window: BrowserWindow): void {
-    window.webContents.on('before-input-event', (_, input) => {
+    window.webContents.on('before-input-event', (event, input) => {
       const snapshot = this.controller.getSnapshot()
       if (!snapshot.settings.enabled) return
       if (
         this.globalShortcutMonitor.isRunning() &&
         this.globalShortcutMonitor.observesCurrentAppEvents()
       ) {
+        return
+      }
+
+      if (this.platform === 'linux') {
+        if (
+          snapshot.shortcutAvailability.mode === 'toggle' &&
+          snapshot.shortcutAvailability.scope === 'focused' &&
+          isLinuxShortcutEvent(input, snapshot.settings.shortcutId)
+        ) {
+          event.preventDefault()
+          void this.handleLinuxToggleShortcut()
+        }
         return
       }
 
@@ -170,6 +226,7 @@ export class DictationManager {
     ipcMain.handle(DICTATION_CHANNELS.loadSnapshot, () => this.controller.getSnapshot())
     ipcMain.handle(DICTATION_CHANNELS.updateSettings, async (_, settings: DictationSettings) => {
       const snapshot = this.controller.updateSettings(settings)
+      this.syncGlobalShortcut()
       this.syncGlobalShortcutMonitor(snapshot.settings.enabled)
       await this.overlayManager?.setEnabled(settings.overlayEnabled)
       return snapshot
@@ -200,6 +257,8 @@ export class DictationManager {
     ipcMain.on(DICTATION_CHANNELS.setOverlayExpanded, (_, expanded: boolean) => {
       this.overlayManager?.setExpanded(Boolean(expanded))
     })
+    this.syncGlobalShortcut()
+    this.syncGlobalShortcutMonitor(this.controller.getSnapshot().settings.enabled)
   }
 
   stop(): void {
@@ -208,6 +267,10 @@ export class DictationManager {
     this.hasReportedGlobalShortcutPermissionError = false
     this.clearPendingStart()
     this.shortcut.reset()
+    if (this.globalShortcutAccelerator) {
+      this.electronGlobalShortcut.unregister(this.globalShortcutAccelerator)
+      this.globalShortcutAccelerator = null
+    }
   }
 
   private toggleRecording(): Promise<DictationSnapshot> {
@@ -249,6 +312,8 @@ export class DictationManager {
   }
 
   private syncGlobalShortcutMonitor(enabled: boolean): void {
+    if (this.platform === 'linux') return
+
     this.clearGlobalShortcutRetry()
     if (!enabled) {
       this.globalShortcutMonitor.stop()
@@ -291,7 +356,7 @@ export class DictationManager {
   }
 
   private broadcastSnapshot(snapshot: DictationSnapshot): void {
-    for (const window of BrowserWindow.getAllWindows()) {
+    for (const window of this.browserWindows.getAllWindows()) {
       if (!window.webContents.isDestroyed()) {
         window.webContents.send(DICTATION_CHANNELS.state, snapshot)
       }
@@ -305,7 +370,6 @@ export class DictationManager {
     }
 
     const targetWindow = this.getMainProcessTargetWindow()
-
     if (!targetWindow || targetWindow.webContents.isDestroyed()) {
       void this.requestExternalInsertion(request)
       return
@@ -315,7 +379,7 @@ export class DictationManager {
   }
 
   private shouldInsertIntoActiveExternalApp(): boolean {
-    const focusedWindow = BrowserWindow.getFocusedWindow()
+    const focusedWindow = this.browserWindows.getFocusedWindow()
 
     return !focusedWindow || Boolean(this.overlayManager?.isOverlayWindow(focusedWindow))
   }
@@ -349,7 +413,7 @@ export class DictationManager {
     await mkdir(capturesDirectory, { recursive: true })
 
     const audioFilePath = join(capturesDirectory, `${Date.now()}-${randomUUID()}.wav`)
-    await writeFile(audioFilePath, Buffer.from(result.audioData))
+    await writeFile(audioFilePath, this.decodeCaptureAudio(result))
 
     try {
       return await this.controller.completeRecording({ audioFilePath })
@@ -358,6 +422,18 @@ export class DictationManager {
         await rm(audioFilePath, { force: true })
       }
     }
+  }
+
+  private decodeCaptureAudio(result: Extract<DictationCaptureResult, { ok: true }>): Buffer {
+    if (typeof result.audioBase64 === 'string' && result.audioBase64.length > 0) {
+      return Buffer.from(result.audioBase64, 'base64')
+    }
+
+    if (result.audioData instanceof ArrayBuffer) {
+      return Buffer.from(result.audioData)
+    }
+
+    throw new TypeError('Dictation capture payload did not include serializable audio data.')
   }
 
   private sendCaptureCommand(command: DictationCaptureCommand): void {
@@ -371,6 +447,89 @@ export class DictationManager {
     targetWindow.webContents.send(DICTATION_CHANNELS.captureCommand, command)
   }
 
+  private createPlatformBackend(): DictationBackend {
+    if (this.platform === 'linux') {
+      return new SherpaOnnxBackend({
+        getModelSnapshot: () => this.modelInstaller.getSnapshot(),
+        platform: this.platform,
+        runtime: this.sherpaOnnxRuntime
+      })
+    }
+
+    if (this.platform === 'darwin') {
+      return new ParakeetCoreMlBackend({
+        getModelSnapshot: () => this.modelInstaller.getSnapshot(),
+        platform: this.platform,
+        runtime: this.nativeRuntime
+      })
+    }
+
+    return new MockDictationBackend()
+  }
+
+  private syncGlobalShortcut(): void {
+    if (this.platform !== 'linux') return
+
+    if (this.globalShortcutAccelerator) {
+      this.electronGlobalShortcut.unregister(this.globalShortcutAccelerator)
+      this.globalShortcutAccelerator = null
+    }
+
+    const snapshot = this.controller.getSnapshot()
+    if (!snapshot.settings.enabled) return
+
+    const accelerator = getLinuxShortcutAccelerator(snapshot.settings.shortcutId)
+    const registered = this.tryRegisterLinuxShortcut(accelerator)
+    if (registered) {
+      this.globalShortcutAccelerator = accelerator
+      this.linuxShortcutAvailability = {
+        mode: 'toggle',
+        scope: 'global'
+      }
+      this.broadcastSnapshot(this.controller.getSnapshot())
+      return
+    }
+
+    this.linuxShortcutAvailability = {
+      message: getLinuxShortcutFallbackMessage(snapshot.shortcut),
+      mode: 'toggle',
+      scope: 'focused'
+    }
+    this.broadcastSnapshot(this.controller.getSnapshot())
+  }
+
+  private getShortcutAvailability(): DictationShortcutAvailability {
+    if (this.platform === 'linux') return this.linuxShortcutAvailability
+
+    return {
+      mode: 'hold',
+      scope: 'focused'
+    }
+  }
+
+  private tryRegisterLinuxShortcut(accelerator: string): boolean {
+    try {
+      return this.electronGlobalShortcut.register(accelerator, () => {
+        void this.handleLinuxToggleShortcut()
+      })
+    } catch {
+      return false
+    }
+  }
+
+  private async handleLinuxToggleShortcut(): Promise<void> {
+    const snapshot = this.controller.getSnapshot()
+
+    if (snapshot.state === 'recording') {
+      await this.controller.stopRecording()
+      return
+    }
+
+    if (snapshot.state === 'idle' || snapshot.state === 'error') {
+      await this.controller.startRecording()
+    }
+  }
+
   private getMainProcessTargetWindow(): BrowserWindow | null {
     const preferredWindow = this.getMainWindow()
     if (
@@ -382,10 +541,68 @@ export class DictationManager {
     }
 
     return (
-      BrowserWindow.getAllWindows().find(
-        (window) =>
-          !window.webContents.isDestroyed() && !this.overlayManager?.isOverlayWindow(window)
-      ) ?? null
+      this.browserWindows
+        .getAllWindows()
+        .find(
+          (window) =>
+            !window.webContents.isDestroyed() && !this.overlayManager?.isOverlayWindow(window)
+        ) ?? null
     )
   }
+}
+
+function createModelInstaller({
+  getUserDataPath,
+  onChange,
+  platform
+}: {
+  getUserDataPath: () => string
+  onChange: () => void
+  platform: NodeJS.Platform
+}): DictationModelInstaller {
+  if (platform === 'linux') {
+    return new SherpaOnnxModelInstaller({
+      getUserDataPath,
+      onChange
+    })
+  }
+
+  return new ParakeetModelInstaller({
+    getUserDataPath,
+    onChange
+  })
+}
+
+function getLinuxShortcutAccelerator(shortcutId: DictationShortcutId): string {
+  if (shortcutId === 'control-shift-hold') return 'CommandOrControl+Shift+Space'
+  if (shortcutId === 'option-shift-hold') return 'Alt+Shift+Space'
+
+  return 'CommandOrControl+Alt+Space'
+}
+
+function getLinuxShortcutFallbackMessage(shortcut: string): string {
+  return `Pixel could not register ${shortcut} as a global Linux shortcut. Another app or desktop session may already be using it, so the bind will work while Pixel is focused.`
+}
+
+function isLinuxShortcutEvent(
+  input: Pick<
+    Electron.Input,
+    'alt' | 'control' | 'isAutoRepeat' | 'key' | 'meta' | 'shift' | 'type'
+  >,
+  shortcutId: DictationShortcutId
+): boolean {
+  if (input.type !== 'keyDown' || input.isAutoRepeat) return false
+
+  const isSpace = input.key === ' ' || input.key.toLowerCase() === 'space'
+  if (!isSpace || input.meta) return false
+
+  if (shortcutId === 'control-shift-hold') {
+    return input.control && input.shift && !input.alt
+  }
+
+  if (shortcutId === 'option-shift-hold') {
+    return input.alt && input.shift && !input.control
+  }
+
+  return input.control && input.alt && !input.shift
 }

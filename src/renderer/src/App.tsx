@@ -66,6 +66,10 @@ import {
   snapshotFromBrowserMicrophonePermissionStatus,
   withMicrophoneCaptureError
 } from './app/dictationPermission'
+import {
+  createSuccessfulDictationCaptureResult,
+  serializeDictationCaptureResult
+} from './app/dictationCapturePayload'
 import { isCompletionNotification, primeCompletionSound } from './app/notificationSounds'
 import { getPromptTemplateProjectPath, getPromptTemplateSendStatus } from './app/promptTemplates'
 import type { ProjectForm } from './app/projectForms'
@@ -376,7 +380,7 @@ function App(): React.JSX.Element {
       queueMicrotask(() => {
         setDictationMicrophonePermission({
           canPrompt: false,
-          message: 'Restart Pixel to enable the macOS microphone permission check.',
+          message: 'Restart Pixel to enable the microphone permission check.',
           status: 'unknown'
         })
       })
@@ -419,7 +423,7 @@ function App(): React.JSX.Element {
       if (typeof window.api.dictation.requestMicrophonePermission !== 'function') {
         const permission = withMicrophoneCaptureError(
           createUnknownDictationMicrophonePermission(
-            'Restart Pixel to enable the macOS microphone permission request.'
+            'Restart Pixel to enable the microphone permission request.'
           ),
           firstCaptureError
         )
@@ -555,13 +559,15 @@ function App(): React.JSX.Element {
             if (dictationCaptureStartRef.current !== captureStart) return
             dictationCaptureStartRef.current = null
             refreshDictationAudioInputDevices()
-            void window.api.dictation.completeCapture({
-              ok: false,
-              reason:
-                error instanceof Error
-                  ? error.message
-                  : 'Could not start microphone capture for dictation.'
-            })
+            void window.api.dictation.completeCapture(
+              serializeDictationCaptureResult({
+                ok: false,
+                reason:
+                  error instanceof Error
+                    ? error.message
+                    : 'Could not start microphone capture for dictation.'
+              })
+            )
           })
         return
       }
@@ -571,10 +577,12 @@ function App(): React.JSX.Element {
       dictationCaptureRef.current = null
       dictationCaptureStartRef.current = null
       if (!capture && !pendingCapture) {
-        void window.api.dictation.completeCapture({
-          ok: false,
-          reason: 'Microphone capture was not active.'
-        })
+        void window.api.dictation.completeCapture(
+          serializeDictationCaptureResult({
+            ok: false,
+            reason: 'Microphone capture was not active.'
+          })
+        )
         return
       }
 
@@ -585,20 +593,24 @@ function App(): React.JSX.Element {
         .then((resolvedCapture) => resolvedCapture.stop())
         .then(({ audioData, sampleRate }) => {
           refreshDictationAudioInputDevices()
-          return window.api.dictation.completeCapture({
-            audioData,
-            mimeType: 'audio/wav',
-            ok: true,
-            sampleRate
-          })
+          return window.api.dictation.completeCapture(
+            serializeDictationCaptureResult(
+              createSuccessfulDictationCaptureResult({
+                audioData,
+                sampleRate
+              })
+            )
+          )
         })
         .catch((error: unknown) => {
           refreshDictationAudioInputDevices()
-          void window.api.dictation.completeCapture({
-            ok: false,
-            reason:
-              error instanceof Error ? error.message : 'Could not finish microphone recording.'
-          })
+          void window.api.dictation.completeCapture(
+            serializeDictationCaptureResult({
+              ok: false,
+              reason:
+                error instanceof Error ? error.message : 'Could not finish microphone recording.'
+            })
+          )
         })
     })
   }, [refreshDictationAudioInputDevices, requestDictationMicrophonePermission])

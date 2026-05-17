@@ -29,6 +29,13 @@ export const PARAKEET_COREML_MODEL_URL =
 
 export const PARAKEET_COREML_MODEL_DOWNLOAD_SIZE_LABEL = '~461 MB'
 
+export const SHERPA_ONNX_PARAKEET_MODEL_ID = 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8'
+
+export const SHERPA_ONNX_PARAKEET_MODEL_URL =
+  'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2'
+
+export const SHERPA_ONNX_PARAKEET_MODEL_DOWNLOAD_SIZE_LABEL = '~350 MB'
+
 export type DictationBackendId = 'macos-parakeet-coreml' | 'onnx-sherpa' | 'mock'
 
 export type DictationState = 'idle' | 'recording' | 'transcribing' | 'inserting' | 'error'
@@ -158,9 +165,21 @@ export type DictationCaptureCommand = {
   type: 'start' | 'stop'
 }
 
+export type DictationShortcutAvailability =
+  | {
+      mode: 'hold'
+      scope: 'focused'
+    }
+  | {
+      message?: string
+      mode: 'toggle'
+      scope: 'focused' | 'global'
+    }
+
 export type DictationCaptureResult =
   | {
-      audioData: ArrayBuffer
+      audioBase64: string
+      audioData?: ArrayBuffer
       mimeType: 'audio/wav'
       ok: true
       sampleRate: number
@@ -227,12 +246,13 @@ export type DictationSnapshot = {
   model: DictationModelInstallSnapshot
   settings: DictationSettings
   shortcut: string
+  shortcutAvailability: DictationShortcutAvailability
   state: DictationState
 }
 
 export type DictationApi = {
   clearHistory: () => Promise<DictationHistoryListResult>
-  completeCapture: (result: DictationCaptureResult) => Promise<DictationSnapshot>
+  completeCapture: (result: DictationCaptureResult | string) => Promise<DictationSnapshot>
   completeInsertion: (result: DictationInsertionResult) => void
   deleteHistoryEntry: (
     request: DictationHistoryDeleteRequest
@@ -269,4 +289,17 @@ export function getDictationShortcutOption(id: DictationShortcutId): DictationSh
   return (
     DICTATION_SHORTCUT_OPTIONS.find((option) => option.id === id) ?? DICTATION_SHORTCUT_OPTIONS[0]
   )
+}
+
+export function getDictationShortcutLabel(
+  id: DictationShortcutId,
+  platform: NodeJS.Platform = process.platform
+): string {
+  if (platform === 'linux') {
+    if (id === 'control-option-hold') return 'Ctrl+Alt+Space'
+    if (id === 'control-shift-hold') return 'Ctrl+Shift+Space'
+    if (id === 'option-shift-hold') return 'Alt+Shift+Space'
+  }
+
+  return getDictationShortcutOption(id).label
 }

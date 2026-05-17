@@ -307,7 +307,7 @@ function assertAudibleAudio(level: AudioLevel, inputLabel: string): void {
   if (level.peak > SILENCE_PEAK_THRESHOLD || level.rms > SILENCE_RMS_THRESHOLD) return
 
   throw new Error(
-    `Pixel recorded silence from ${inputLabel}. Check macOS microphone permission or choose another input in Dictation.`
+    `Pixel recorded silence from ${inputLabel}. Check microphone permission or choose another input in Dictation.`
   )
 }
 

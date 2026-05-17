@@ -75,6 +75,10 @@ const dictationManager = new DictationManager({
   overlayManager: dictationOverlayManager
 })
 
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
+}
+
 app.setName(APP_NAME)
 // Keep persisted workspace data independent from the display name shown by macOS.
 app.setPath('userData', join(app.getPath('appData'), APP_USER_DATA_DIR))

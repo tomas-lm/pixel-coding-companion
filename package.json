@@ -61,6 +61,8 @@
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "node-pty": "^1.1.0",
+    "sherpa-onnx": "^1.13.2",
+    "sherpa-onnx-node": "^1.13.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {

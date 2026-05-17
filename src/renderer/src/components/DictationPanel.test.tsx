@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { DictationSnapshot } from '../../../shared/dictation'
+import { getDictationShortcutLabel, type DictationSnapshot } from '../../../shared/dictation'
 import type { WorkspaceFeatureSettings } from '../../../shared/workspace'
 import { DictationPanel } from './DictationPanel'
 
@@ -43,6 +43,10 @@ const dictationSnapshot: DictationSnapshot = {
     totalBytes: 0
   },
   shortcut: 'Control+Option',
+  shortcutAvailability: {
+    mode: 'hold',
+    scope: 'focused'
+  },
   state: 'idle'
 }
 
@@ -120,6 +124,16 @@ describe('DictationPanel', () => {
     const onOpenMicrophoneSettings = vi.fn()
 
     renderDictationPanel({
+      dictationSnapshot: {
+        ...dictationSnapshot,
+        backend: {
+          available: true,
+          id: 'macos-parakeet-coreml',
+          label: 'Parakeet CoreML',
+          ready: false,
+          status: 'not_installed'
+        }
+      },
       microphonePermission: {
         canPrompt: false,
         message: 'Microphone access is blocked in macOS Privacy settings.',
@@ -133,12 +147,38 @@ describe('DictationPanel', () => {
     expect(onOpenMicrophoneSettings).toHaveBeenCalledOnce()
   })
 
+  it('does not show macOS settings for Linux microphone denial', () => {
+    renderDictationPanel({
+      dictationSnapshot: {
+        ...dictationSnapshot,
+        backend: {
+          available: true,
+          id: 'onnx-sherpa',
+          label: 'Parakeet ONNX',
+          ready: false,
+          status: 'not_installed'
+        }
+      },
+      microphonePermission: {
+        canPrompt: false,
+        message: 'Microphone access is blocked in system privacy settings.',
+        status: 'denied'
+      }
+    })
+
+    expect(screen.queryByRole('button', { name: 'Open macOS settings' })).not.toBeInTheDocument()
+  })
+
   it('updates the dictation bind', () => {
     const onChangeFeatureSettings = vi.fn()
 
     renderDictationPanel({ onChangeFeatureSettings })
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Option+Shift' }))
+    fireEvent.click(
+      screen.getByRole('radio', {
+        name: getDictationShortcutLabel('option-shift-hold', process.platform)
+      })
+    )
 
     expect(onChangeFeatureSettings).toHaveBeenCalledWith({
       ...featureSettings,
@@ -169,6 +209,71 @@ describe('DictationPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Download Parakeet (~461 MB)' }))
 
     expect(onInstallParakeet).toHaveBeenCalledOnce()
+  })
+
+  it('uses ONNX model copy for the Linux backend', () => {
+    renderDictationPanel({
+      dictationSnapshot: {
+        ...dictationSnapshot,
+        backend: {
+          available: true,
+          id: 'onnx-sherpa',
+          label: 'Parakeet ONNX',
+          ready: false,
+          status: 'not_installed'
+        },
+        shortcutAvailability: {
+          mode: 'toggle',
+          scope: 'global'
+        },
+        model: {
+          ...dictationSnapshot.model,
+          requiredBytesLabel: '~661 MB'
+        }
+      }
+    })
+
+    expect(
+      screen.getByText(/Pixel downloads the required Parakeet ONNX assets directly into app data/)
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Download Parakeet (~661 MB)' })).toBeInTheDocument()
+    expect(
+      screen.getByText('Linux uses a toggle shortcut. Press once to start and again to stop.')
+    ).toBeInTheDocument()
+  })
+
+  it('shows Linux focused fallback messaging only when the shortcut is not global', () => {
+    renderDictationPanel({
+      dictationSnapshot: {
+        ...dictationSnapshot,
+        backend: {
+          available: true,
+          id: 'onnx-sherpa',
+          label: 'Parakeet ONNX',
+          ready: true,
+          status: 'ready'
+        },
+        shortcut: 'Ctrl+Alt+Space',
+        shortcutAvailability: {
+          message:
+            'Pixel could not register Ctrl+Alt+Space as a global Linux shortcut. Another app or desktop session may already be using it, so the bind will work while Pixel is focused.',
+          mode: 'toggle',
+          scope: 'focused'
+        }
+      }
+    })
+
+    expect(
+      screen.getByText(/could not register Ctrl\+Alt\+Space as a global Linux shortcut/i)
+    ).toBeInTheDocument()
+  })
+
+  it('does not show Linux focused fallback messaging for non-Linux snapshots', () => {
+    renderDictationPanel()
+
+    expect(
+      screen.queryByText(/global Linux shortcut|while Pixel is focused/i)
+    ).not.toBeInTheDocument()
   })
 
   it('shows Parakeet download progress', () => {

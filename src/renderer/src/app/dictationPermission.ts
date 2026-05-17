@@ -36,7 +36,7 @@ export function snapshotFromBrowserMicrophonePermissionStatus(
   if (status === 'denied' || status === 'restricted') {
     return {
       canPrompt: false,
-      message: 'Microphone access is blocked in macOS Privacy settings.',
+      message: 'Microphone access is blocked in system privacy settings.',
       status
     }
   }

@@ -2,6 +2,7 @@ import {
   DICTATION_SHORTCUT_OPTIONS,
   PARAKEET_COREML_MODEL_DOWNLOAD_SIZE_LABEL,
   PARAKEET_COREML_MODEL_URL,
+  getDictationShortcutLabel,
   type DictationMicrophonePermissionSnapshot,
   type DictationShortcutId,
   type DictationSnapshot,
@@ -71,6 +72,38 @@ function getMicrophonePermissionLabel(
   return 'Unknown'
 }
 
+function getModelAssetLabel(snapshot?: DictationSnapshot | null): string {
+  if (snapshot?.backend.id === 'onnx-sherpa') return 'Parakeet ONNX assets'
+  if (snapshot?.backend.id === 'macos-parakeet-coreml') return 'Parakeet Core ML assets'
+
+  return 'Parakeet assets'
+}
+
+function shouldShowMacMicrophoneSettings(snapshot?: DictationSnapshot | null): boolean {
+  return snapshot?.backend.id === 'macos-parakeet-coreml'
+}
+
+function getShortcutPlatform(snapshot?: DictationSnapshot | null): NodeJS.Platform {
+  if (snapshot?.backend.id === 'onnx-sherpa') return 'linux'
+  if (snapshot?.backend.id === 'macos-parakeet-coreml') return 'darwin'
+
+  return process.platform
+}
+
+function getLinuxShortcutFallbackMessage(snapshot?: DictationSnapshot | null): string | null {
+  if (
+    snapshot?.shortcutAvailability.mode !== 'toggle' ||
+    snapshot.shortcutAvailability.scope !== 'focused'
+  ) {
+    return null
+  }
+
+  return (
+    snapshot.shortcutAvailability.message ??
+    'Pixel could not register the selected Linux shortcut globally, so it will work while Pixel is focused.'
+  )
+}
+
 export function DictationPanel({
   audioInputDevices,
   description = 'Local voice input for Pixel text targets.',
@@ -91,6 +124,9 @@ export function DictationPanel({
   const dictationBackendStatus = getBackendStatusLabel(dictationSnapshot)
   const dictationBackendMessage =
     dictationSnapshot?.backend.ready === false ? dictationSnapshot.backend.message : undefined
+  const modelAssetLabel = getModelAssetLabel(dictationSnapshot)
+  const shortcutPlatform = getShortcutPlatform(dictationSnapshot)
+  const linuxShortcutFallbackMessage = getLinuxShortcutFallbackMessage(dictationSnapshot)
   const model = dictationSnapshot?.model ?? {
     downloadedBytes: 0,
     percent: 0,
@@ -265,7 +301,7 @@ export function DictationPanel({
                   {dictationBackendStatus}
                 </small>
               </div>
-              <p>Use a hold-to-talk shortcut to insert local transcripts into Pixel.</p>
+              <p>Use a shortcut to capture local speech and insert transcripts into Pixel.</p>
               {dictationBackendMessage ? (
                 <small className="dictation-config__notice">{dictationBackendMessage}</small>
               ) : null}
@@ -308,8 +344,19 @@ export function DictationPanel({
 
           <div className="dictation-setting-row">
             <div className="dictation-setting-copy">
-              <h3>Hold shortcut</h3>
-              <p>Hold the selected bind to record. Release it to transcribe and insert text.</p>
+              <h3>
+                {dictationSnapshot?.backend.id === 'onnx-sherpa'
+                  ? 'Toggle shortcut'
+                  : 'Hold shortcut'}
+              </h3>
+              <p>
+                {dictationSnapshot?.backend.id === 'onnx-sherpa'
+                  ? 'Linux uses a toggle shortcut. Press once to start and again to stop.'
+                  : 'Hold the selected bind to record. Release it to transcribe and insert text.'}
+              </p>
+              {linuxShortcutFallbackMessage ? (
+                <small className="dictation-config__notice">{linuxShortcutFallbackMessage}</small>
+              ) : null}
             </div>
 
             <div className="dictation-setting-control">
@@ -333,7 +380,7 @@ export function DictationPanel({
                       className="dictation-shortcut-option"
                       onClick={() => updateShortcut(shortcut.id)}
                     >
-                      {shortcut.label}
+                      {getDictationShortcutLabel(shortcut.id, shortcutPlatform)}
                     </button>
                   )
                 })}
@@ -396,8 +443,9 @@ export function DictationPanel({
                 <button className="secondary-button" type="button" onClick={onRefreshAudioInputs}>
                   Refresh inputs
                 </button>
-                {microphonePermission?.status === 'denied' ||
-                microphonePermission?.status === 'restricted' ? (
+                {shouldShowMacMicrophoneSettings(dictationSnapshot) &&
+                (microphonePermission?.status === 'denied' ||
+                  microphonePermission?.status === 'restricted') ? (
                   <button
                     className="secondary-button"
                     type="button"
@@ -423,8 +471,8 @@ export function DictationPanel({
                 </small>
               </div>
               <p>
-                Pixel stores the local Parakeet Core ML package in app data. Required package:{' '}
-                {model.requiredBytesLabel}.
+                Pixel downloads the required {modelAssetLabel} directly into app data. Required
+                package: {model.requiredBytesLabel}.
               </p>
               {model.message ? (
                 <small className="dictation-config__notice" role="status">

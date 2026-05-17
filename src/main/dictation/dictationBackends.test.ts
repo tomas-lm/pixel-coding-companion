@@ -1,18 +1,24 @@
 import { describe, expect, it } from 'vitest'
+import type { DictationModelInstallSnapshot } from '../../shared/dictation'
 import {
   ParakeetCoreMlBackend,
+  SherpaOnnxBackend,
   getBackendStatus,
   selectPreferredDictationBackend
 } from './dictationBackends'
+import type { SherpaOnnxRuntime } from './sherpaOnnxRuntime'
 
 describe('dictationBackends', () => {
   it('selects Parakeet CoreML as the preferred macOS backend', () => {
     expect(selectPreferredDictationBackend('darwin')).toBe('macos-parakeet-coreml')
   })
 
-  it('selects ONNX sherpa for future Windows and Linux support', () => {
-    expect(selectPreferredDictationBackend('win32')).toBe('onnx-sherpa')
+  it('selects ONNX sherpa for Linux support', () => {
     expect(selectPreferredDictationBackend('linux')).toBe('onnx-sherpa')
+  })
+
+  it('keeps the mock backend as the preferred fallback on other platforms', () => {
+    expect(selectPreferredDictationBackend('win32')).toBe('mock')
   })
 
   it('exposes unsupported backend status without crashing', () => {
@@ -71,4 +77,108 @@ describe('dictationBackends', () => {
       status: 'ready'
     })
   })
+
+  it('reports Linux Parakeet ONNX as not installed before the model is present', () => {
+    const backend = new SherpaOnnxBackend({
+      getModelSnapshot: () => createSherpaModelSnapshot({ status: 'not_installed' }),
+      platform: 'linux'
+    })
+
+    expect(backend.getStatus()).toMatchObject({
+      id: 'onnx-sherpa',
+      label: 'Parakeet ONNX',
+      ready: false,
+      status: 'not_installed'
+    })
+  })
+
+  it('reports Linux Parakeet ONNX as installing while the model downloads', () => {
+    const backend = new SherpaOnnxBackend({
+      getModelSnapshot: () =>
+        createSherpaModelSnapshot({ message: 'Downloading required Parakeet ONNX assets...' }),
+      platform: 'linux'
+    })
+
+    expect(backend.getStatus()).toMatchObject({
+      message: 'Downloading required Parakeet ONNX assets...',
+      ready: false,
+      status: 'installing'
+    })
+  })
+
+  it('reports Linux Parakeet ONNX runtime_missing when sherpa is unavailable', () => {
+    const backend = new SherpaOnnxBackend({
+      getModelSnapshot: () => createSherpaModelSnapshot({ status: 'installed' }),
+      hasRuntime: () => false,
+      platform: 'linux'
+    })
+
+    expect(backend.getStatus()).toMatchObject({
+      ready: false,
+      status: 'runtime_missing'
+    })
+  })
+
+  it('reports Linux Parakeet ONNX ready when model and runtime are available', () => {
+    const backend = new SherpaOnnxBackend({
+      getModelSnapshot: () => createSherpaModelSnapshot({ status: 'installed' }),
+      hasRuntime: () => true,
+      platform: 'linux'
+    })
+
+    expect(backend.getStatus()).toMatchObject({
+      ready: true,
+      status: 'ready'
+    })
+  })
+
+  it('rejects Linux transcription when Pixel has no audio path', async () => {
+    const backend = new SherpaOnnxBackend({
+      getModelSnapshot: () => createSherpaModelSnapshot({ status: 'installed' }),
+      platform: 'linux',
+      runtime: {
+        isAvailable: () => true,
+        transcribe: async () => ({ text: 'hello' })
+      } as unknown as SherpaOnnxRuntime
+    })
+
+    await expect(backend.transcribe({ startedAt: 100, stoppedAt: 200 })).rejects.toThrow(
+      'Pixel did not receive microphone audio to transcribe.'
+    )
+  })
+
+  it('rejects Linux transcription when sherpa returns empty text', async () => {
+    const backend = new SherpaOnnxBackend({
+      getModelSnapshot: () => createSherpaModelSnapshot({ status: 'installed' }),
+      platform: 'linux',
+      runtime: {
+        isAvailable: () => true,
+        transcribe: async () => ({ text: '   ' })
+      } as unknown as SherpaOnnxRuntime
+    })
+
+    await expect(
+      backend.transcribe({
+        audioFilePath: '/tmp/pixel-dictation.wav',
+        startedAt: 100,
+        stoppedAt: 200
+      })
+    ).rejects.toThrow('Parakeet ONNX returned an empty transcript.')
+  })
 })
+
+function createSherpaModelSnapshot(
+  overrides: Partial<DictationModelInstallSnapshot> = {}
+): DictationModelInstallSnapshot {
+  return {
+    downloadedBytes: 367_000_000,
+    installPath: '/tmp/pixel/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8',
+    percent: 100,
+    requiredBytesLabel: '~350 MB',
+    sourceUrl:
+      'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2',
+    status: 'downloading',
+    totalBytes: 367_000_000,
+    ...overrides
+  }
+}
